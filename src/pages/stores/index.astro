@@ -1,0 +1,7 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import AllStoresIsland from '../../components/islands/AllStoresIsland';
+---
+<AppLayout title="Stores near you" fullWidth>
+  <AllStoresIsland client:load />
+</AppLayout>

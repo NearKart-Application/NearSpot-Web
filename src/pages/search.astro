@@ -1,0 +1,10 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import SearchIsland from '../components/islands/SearchIsland';
+
+const url    = Astro.url;
+const initTab = (url.searchParams.get('tab') === 'products' ? 'products' : 'stores') as 'stores' | 'products';
+---
+<AppLayout title="Search" fullWidth>
+  <SearchIsland client:load initTab={initTab} />
+</AppLayout>

@@ -1,0 +1,8 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import MapIsland from '../components/islands/MapIsland';
+---
+<AppLayout title="Map" fullWidth noFooter noPad>
+  <link slot="head" rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <MapIsland client:load />
+</AppLayout>

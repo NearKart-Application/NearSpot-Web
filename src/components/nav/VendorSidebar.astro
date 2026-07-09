@@ -1,0 +1,100 @@
+---
+interface Props { currentPath: string }
+const { currentPath } = Astro.props;
+
+const groups = [
+  {
+    label: 'Overview',
+    links: [
+      { href: '/vendor/dashboard', icon: '📊', label: 'Dashboard' },
+      { href: '/vendor/analytics',  icon: '📈', label: 'Analytics' },
+    ],
+  },
+  {
+    label: 'Catalogue',
+    links: [
+      { href: '/vendor/products',  icon: '📦', label: 'Products'  },
+      { href: '/vendor/inventory', icon: '🗃️',  label: 'Inventory' },
+      { href: '/vendor/offers',    icon: '🏷️',  label: 'Offers'    },
+      { href: '/vendor/videos',    icon: '🎬', label: 'Videos'    },
+    ],
+  },
+  {
+    label: 'Sales',
+    links: [
+      { href: '/vendor/reservations',    icon: '📋', label: 'Reservations'    },
+      { href: '/vendor/invoices',        icon: '🧾', label: 'Invoices'        },
+      { href: '/vendor/discount-codes',  icon: '🎟️',  label: 'Discount Codes' },
+    ],
+  },
+  {
+    label: 'Community',
+    links: [
+      { href: '/vendor/reviews',    icon: '⭐', label: 'Reviews'    },
+      { href: '/vendor/followers',  icon: '👥', label: 'Followers'  },
+      { href: '/vendor/broadcasts', icon: '📢', label: 'Broadcasts' },
+      { href: '/customer/chat',     icon: '💬', label: 'Messages'   },
+    ],
+  },
+  {
+    label: 'Account',
+    links: [
+      { href: '/vendor/wallet',         icon: '💳', label: 'Wallet'       },
+      { href: '/vendor/plans',          icon: '🚀', label: 'Plans'        },
+      { href: '/vendor/staff',          icon: '👤', label: 'Staff'        },
+      { href: '/vendor/store-setup',    icon: '🏪', label: 'Store Setup'  },
+      { href: '/vendor/settings',       icon: '⚙️',  label: 'Settings'     },
+    ],
+  },
+];
+
+function isActive(href: string) {
+  return currentPath === href || (href !== '/vendor/dashboard' && currentPath.startsWith(href));
+}
+---
+<aside class="vendor-sidebar">
+  <!-- Logo -->
+  <a href="/vendor/dashboard" class="flex items-center gap-3 px-5 py-4 border-b border-white/10">
+    <div class="w-9 h-9 bg-gold rounded-xl flex items-center justify-center shrink-0">
+      <span class="text-navy font-black text-lg">N</span>
+    </div>
+    <div>
+      <div class="text-white font-bold text-sm leading-tight">NearSpot</div>
+      <div class="text-white/60 text-xs">Vendor Portal</div>
+    </div>
+  </a>
+
+  <!-- Nav groups -->
+  <nav class="flex-1 overflow-y-auto py-4 px-3 scrollbar-hide space-y-5">
+    {groups.map(group => (
+      <div>
+        <p class="text-navy-300 text-xs font-semibold uppercase tracking-wider px-4 mb-1.5">{group.label}</p>
+        <div class="space-y-0.5">
+          {group.links.map(link => (
+            <a href={link.href}
+               class:list={['sidebar-link', isActive(link.href) && 'active']}>
+              <span class="text-base w-5 text-center">{link.icon}</span>
+              <span>{link.label}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    ))}
+  </nav>
+
+  <!-- Bottom: logout -->
+  <div class="p-3 border-t border-white/10">
+    <button id="sidebar-logout"
+            class="sidebar-link w-full text-left hover:bg-red-500/20 hover:text-red-300">
+      <span class="text-base w-5 text-center">🚪</span>
+      <span>Logout</span>
+    </button>
+  </div>
+</aside>
+
+<script>
+  document.getElementById('sidebar-logout')?.addEventListener('click', () => {
+    ['ns_access','ns_refresh','ns_user'].forEach(k => localStorage.removeItem(k));
+    window.location.href = '/auth/login';
+  });
+</script>

@@ -1,0 +1,8 @@
+---
+import VendorLayout from '../../../../layouts/VendorLayout.astro';
+import VendorProductFormIsland from '../../../../components/islands/vendor/VendorProductFormIsland';
+const { productId } = Astro.params;
+---
+<VendorLayout title="Edit Product">
+  <VendorProductFormIsland client:load productId={productId} />
+</VendorLayout>

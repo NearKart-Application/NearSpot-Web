@@ -1,0 +1,21 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import StoreDetailIsland from '../../components/islands/StoreDetailIsland';
+
+const { id } = Astro.params;
+
+// SSR fetch — try both dev (localhost) and prod (django container) base URLs
+const base = (import.meta.env.API_BASE as string | undefined)
+  ?? (process.env.API_BASE ?? 'http://localhost:8000/api/v1');
+let store: any = null;
+try {
+  const r = await fetch(`${base}/stores/${id}/`);
+  if (r.ok) store = await r.json();
+} catch {}
+
+// Don't redirect — let the client-side island handle 404s gracefully
+const title = store?.name ?? 'Store';
+---
+<AppLayout title={title} fullWidth noFooter>
+  <StoreDetailIsland client:load storeId={id!} initialStore={store} />
+</AppLayout>

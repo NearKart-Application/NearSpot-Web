@@ -1,0 +1,29 @@
+---
+import Layout from './Layout.astro';
+import VendorSidebar from '../components/nav/VendorSidebar.astro';
+interface Props { title?: string; }
+const { title } = Astro.props;
+const path = Astro.url.pathname;
+---
+<Layout title={title}>
+  <div class="flex min-h-screen">
+    <VendorSidebar currentPath={path} />
+    <div class="flex-1 ml-[260px] flex flex-col min-h-screen">
+      <!-- Top bar -->
+      <header class="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 sticky top-0 z-20">
+        <h1 class="text-base font-semibold text-navy">{title ?? 'Vendor Dashboard'}</h1>
+        <div class="flex items-center gap-3">
+          <a href="/vendor/notifications" class="btn-ghost btn-icon relative">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          </a>
+          <a href="/vendor/settings" class="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-navy">
+            <div class="w-8 h-8 rounded-full bg-navy flex items-center justify-center text-white text-xs font-bold">V</div>
+          </a>
+        </div>
+      </header>
+      <main class="flex-1 p-6 bg-surface">
+        <slot />
+      </main>
+    </div>
+  </div>
+</Layout>

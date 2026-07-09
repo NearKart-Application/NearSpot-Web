@@ -1,0 +1,33 @@
+---
+import Layout from './Layout.astro';
+import Navbar from '../components/nav/Navbar.astro';
+import LocationPickerIsland from '../components/islands/LocationPickerIsland';
+interface Props { title?: string; fullWidth?: boolean; noFooter?: boolean; noPad?: boolean }
+const { title, fullWidth = false, noFooter = false, noPad = false } = Astro.props;
+---
+<Layout title={title}>
+  <slot name="head" slot="head" />
+  <div class="min-h-screen flex flex-col">
+    <Navbar />
+    <LocationPickerIsland client:load />
+    <main class:list={[
+      'flex-1 pt-16',
+      !noPad && 'pb-20 md:pb-0',
+      !fullWidth && !noPad && 'max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 pb-20 md:pb-6',
+    ]}>
+      <slot />
+    </main>
+    {!noFooter && (
+      <footer class="bg-white border-t border-gray-100 py-6 mt-auto hidden md:block">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-sm text-gray-500">
+          <span>&copy; {new Date().getFullYear()} NearSpot. All rights reserved.</span>
+          <div class="flex gap-4">
+            <a href="/about"   class="hover:text-navy transition-colors">About</a>
+            <a href="/privacy" class="hover:text-navy transition-colors">Privacy</a>
+            <a href="/terms"   class="hover:text-navy transition-colors">Terms</a>
+          </div>
+        </div>
+      </footer>
+    )}
+  </div>
+</Layout>

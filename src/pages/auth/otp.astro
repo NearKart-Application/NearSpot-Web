@@ -1,0 +1,167 @@
+---
+import AuthLayout from '../../layouts/AuthLayout.astro';
+---
+<AuthLayout title="Verify OTP">
+
+  <h2 class="text-2xl font-black text-navy mb-1">Enter OTP 🔐</h2>
+  <p class="text-gray-500 text-sm mb-7">
+    6-digit code sent to <strong id="display-phone" class="text-navy font-semibold"></strong>
+  </p>
+
+  <!-- 6-box OTP input -->
+  <div class="flex gap-2.5 justify-center mb-2" id="otp-boxes">
+    {[0,1,2,3,4,5].map(i => (
+      <input type="text" inputmode="numeric" maxlength="1"
+             class="w-12 h-14 text-center text-xl font-bold border-2 border-gray-200 rounded-2xl focus:border-navy focus:ring-0 transition outline-none bg-gray-50 focus:bg-white"
+             data-idx={i} />
+    ))}
+  </div>
+
+  <!-- Dev OTP hint -->
+  <div id="dev-hint" class="hidden text-center mb-4 mt-3">
+    <span class="inline-flex items-center gap-1.5 text-xs bg-green-50 text-green-700 border border-green-200 rounded-full px-3 py-1">
+      🧪 Dev OTP auto-filled
+    </span>
+  </div>
+
+  <div id="form-error" class="hidden text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-4 mt-4"></div>
+
+  <button id="verify-btn" class="btn-primary w-full py-3.5 text-base mt-4" disabled>
+    <span id="btn-text">Verify OTP</span>
+    <span id="btn-spinner" class="hidden spinner w-4 h-4"></span>
+  </button>
+
+  <div class="text-center mt-6 text-sm text-gray-500">
+    Didn't receive it?
+    <button id="resend-btn" class="text-navy font-semibold hover:underline ml-1" disabled>
+      Resend in <span id="resend-timer">30</span>s
+    </button>
+  </div>
+
+  <button onclick="window.location.href='/auth/login'"
+          class="mt-5 w-full text-center text-sm text-gray-400 hover:text-navy transition-colors">
+    ← Change number
+  </button>
+
+</AuthLayout>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const phone  = params.get('phone') ?? '';
+  document.getElementById('display-phone')!.textContent = phone;
+
+  const inputs    = Array.from(document.querySelectorAll<HTMLInputElement>('[data-idx]'));
+  const verifyBtn = document.getElementById('verify-btn') as HTMLButtonElement;
+  const btnText   = document.getElementById('btn-text')!;
+  const spinner   = document.getElementById('btn-spinner')!;
+  const errorBox  = document.getElementById('form-error')!;
+  const resendBtn = document.getElementById('resend-btn') as HTMLButtonElement;
+  const timerEl   = document.getElementById('resend-timer')!;
+  const devHint   = document.getElementById('dev-hint')!;
+
+  // ── Auto-fill dev OTP if stored ─────────────────────────────────────────────
+  const devOtp = sessionStorage.getItem('ns_dev_otp');
+  if (devOtp) {
+    devOtp.split('').forEach((ch, i) => { if (inputs[i]) inputs[i].value = ch; });
+    verifyBtn.disabled = false;
+    devHint.classList.remove('hidden');
+    sessionStorage.removeItem('ns_dev_otp');
+  }
+
+  // ── Box navigation ───────────────────────────────────────────────────────────
+  inputs.forEach((inp, i) => {
+    inp.addEventListener('input', () => {
+      inp.value = inp.value.replace(/\D/g, '');
+      if (inp.value) inputs[i + 1]?.focus();
+      checkComplete();
+    });
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !inp.value) inputs[i - 1]?.focus();
+    });
+    inp.addEventListener('paste', (e) => {
+      const paste = e.clipboardData?.getData('text').replace(/\D/g, '').slice(0, 6) ?? '';
+      paste.split('').forEach((ch, j) => { if (inputs[j]) inputs[j].value = ch; });
+      inputs[Math.min(paste.length, 5)]?.focus();
+      checkComplete();
+      e.preventDefault();
+    });
+  });
+
+  function getOtp() { return inputs.map(i => i.value).join(''); }
+  function checkComplete() { verifyBtn.disabled = getOtp().length !== 6; }
+
+  // ── Verify ───────────────────────────────────────────────────────────────────
+  verifyBtn.addEventListener('click', async () => {
+    const otp = getOtp();
+    setLoading(true);
+    errorBox.classList.add('hidden');
+    try {
+      const res = await fetch('/api/v1/auth/otp/verify/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: phone, otp }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail ?? data.message ?? 'Invalid OTP');
+
+      localStorage.setItem('ns_access',  data.access);
+      localStorage.setItem('ns_refresh', data.refresh);
+      localStorage.setItem('ns_user',    JSON.stringify(data.user));
+
+      // Backend returns ui_mode (customer/vendor) and is_new flag
+      const uiMode = data.user?.ui_mode ?? data.user?.role;
+      if (data.is_new || !uiMode) { window.location.href = '/auth/role-select'; return; }
+
+      const redirectMap: Record<string, string> = {
+        customer: '/', vendor: '/vendor/dashboard',
+        admin: '/admin/dashboard', master_admin: '/admin/dashboard',
+      };
+      window.location.href = redirectMap[uiMode] ?? '/';
+    } catch (err: any) {
+      errorBox.textContent = err.message;
+      errorBox.classList.remove('hidden');
+      inputs.forEach(i => i.value = '');
+      inputs[0]?.focus();
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // ── Resend timer ─────────────────────────────────────────────────────────────
+  let countdown: ReturnType<typeof setInterval>;
+
+  function startResendTimer() {
+    let t = 30;
+    resendBtn.disabled = true;
+    resendBtn.innerHTML = `Resend in <span id="resend-timer">${t}</span>s`;
+    clearInterval(countdown);
+    countdown = setInterval(() => {
+      t--;
+      const el = document.getElementById('resend-timer');
+      if (el) el.textContent = String(t);
+      if (t <= 0) {
+        clearInterval(countdown);
+        resendBtn.disabled = false;
+        resendBtn.innerHTML = 'Resend OTP';
+      }
+    }, 1000);
+  }
+  startResendTimer();
+
+  resendBtn.addEventListener('click', async () => {
+    try {
+      await fetch('/api/v1/auth/otp/send/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: phone }),
+      });
+    } catch { /* silent */ }
+    startResendTimer();
+  });
+
+  function setLoading(v: boolean) {
+    verifyBtn.disabled = v;
+    btnText.textContent = v ? 'Verifying…' : 'Verify OTP';
+    spinner.classList.toggle('hidden', !v);
+  }
+</script>

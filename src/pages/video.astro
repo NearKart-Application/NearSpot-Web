@@ -1,0 +1,7 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import VideoIsland from '../components/islands/VideoIsland';
+---
+<AppLayout title="Videos" fullWidth noFooter noPad>
+  <VideoIsland client:load />
+</AppLayout>

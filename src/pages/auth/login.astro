@@ -1,0 +1,204 @@
+---
+import AuthLayout from '../../layouts/AuthLayout.astro';
+const isDev = import.meta.env.DEV;
+---
+<AuthLayout title="Sign In">
+
+  <h2 class="text-2xl font-black text-navy mb-1">Welcome back 👋</h2>
+  <p class="text-gray-500 text-sm mb-7">Enter your mobile number to get OTP</p>
+
+  <form id="login-form" class="space-y-4">
+    <!-- Phone input -->
+    <div>
+      <label class="label" for="phone">Mobile Number</label>
+      <div class="flex gap-2">
+        <div class="flex items-center gap-1.5 input w-20 shrink-0 bg-gray-50 justify-center cursor-default select-none">
+          <span>🇮🇳</span>
+          <span class="text-sm font-semibold text-gray-600">+91</span>
+        </div>
+        <input id="phone" name="phone" type="tel" inputmode="numeric"
+               maxlength="10" placeholder="9876543210"
+               class="input flex-1 text-base font-medium tracking-wide" required autofocus />
+      </div>
+    </div>
+
+    <div id="form-error" class="hidden text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-4 py-3"></div>
+
+    <button type="submit" id="submit-btn" class="btn-primary w-full py-3.5 text-base mt-2">
+      <span id="btn-text">Get OTP</span>
+      <span id="btn-spinner" class="hidden spinner w-4 h-4"></span>
+    </button>
+  </form>
+
+  <div class="flex items-center gap-3 my-6">
+    <div class="flex-1 h-px bg-gray-100"></div>
+    <span class="text-xs text-gray-400 font-medium">NEW TO NEARSPOT?</span>
+    <div class="flex-1 h-px bg-gray-100"></div>
+  </div>
+
+  <a href="/auth/signup"
+     class="btn-outline w-full py-3 text-base text-center block">
+    Create Account
+  </a>
+
+  <!-- ── Dev Test Credentials (development only) ─────────── -->
+  {isDev && <div class="mt-8 border border-dashed border-gray-200 rounded-2xl overflow-hidden">
+    <button id="dev-toggle"
+            class="w-full flex items-center justify-between px-4 py-3 bg-gray-50 text-left">
+      <div class="flex items-center gap-2">
+        <span class="text-base">🧪</span>
+        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Dev Test Accounts</span>
+      </div>
+      <span id="dev-chevron" class="text-gray-400 text-sm transition-transform duration-200">▼</span>
+    </button>
+
+    <div id="dev-panel" class="hidden px-4 pb-4 pt-2 space-y-2">
+      <p class="text-xs text-gray-400 mb-3">Click any account to auto-fill the number</p>
+
+      <p class="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 mb-3 flex items-center gap-1.5">
+        <span>⚠️</span> All accounts use OTP <strong>123456</strong> (debug mode)
+      </p>
+
+      <!-- Customers -->
+      <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mt-2">Customers</p>
+      {[
+        { name: 'Dev Customer',  phone: '8888888888' },
+        { name: 'Arjun Kumar',   phone: '9000000001' },
+        { name: 'Priya Sharma',  phone: '9000000002' },
+        { name: 'Rahul Verma',   phone: '9000000003' },
+      ].map(u => (
+        <button class="dev-fill w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-gray-100 hover:border-navy hover:bg-navy/5 transition-all text-left group"
+                data-phone={u.phone} data-otp="123456">
+          <div class="flex items-center gap-2 min-w-0">
+            <div class="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center text-sm shrink-0">👤</div>
+            <div class="min-w-0">
+              <p class="text-xs font-semibold text-navy truncate">{u.name}</p>
+              <p class="text-xs text-gray-400">+91 {u.phone}</p>
+            </div>
+          </div>
+          <div class="shrink-0 text-right">
+            <p class="text-xs text-gray-400">OTP</p>
+            <p class="text-sm font-bold text-navy tracking-widest">123456</p>
+          </div>
+        </button>
+      ))}
+
+      <!-- Vendors -->
+      <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mt-3">Vendors</p>
+      {[
+        { name: 'Dev Vendor',   phone: '9999999999', store: 'NearKart Demo Hub' },
+        { name: 'Sneha Reddy',  phone: '9000000004', store: "Sneha's Fashion House" },
+        { name: 'Vikram Iyer',  phone: '9000000005', store: 'Vikram Electronics' },
+        { name: 'Kiran Naidu',  phone: '9000000007', store: 'Kiran Footwear Zone' },
+        { name: 'Divya Mehta',  phone: '9000000008', store: "Divya's Jewellery Corner" },
+      ].map(u => (
+        <button class="dev-fill w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-gray-100 hover:border-gold hover:bg-gold/5 transition-all text-left group"
+                data-phone={u.phone} data-otp="123456">
+          <div class="flex items-center gap-2 min-w-0">
+            <div class="w-7 h-7 bg-yellow-100 rounded-lg flex items-center justify-center text-sm shrink-0">🏪</div>
+            <div class="min-w-0">
+              <p class="text-xs font-semibold text-navy truncate">{u.name}</p>
+              <p class="text-xs text-gray-400 truncate">{u.store}</p>
+            </div>
+          </div>
+          <div class="shrink-0 text-right">
+            <p class="text-xs text-gray-400">OTP</p>
+            <p class="text-sm font-bold text-navy tracking-widest">123456</p>
+          </div>
+        </button>
+      ))}
+
+      <!-- Admins -->
+      <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mt-3">Admins</p>
+      {[
+        { name: 'Dev Admin',   phone: '7000000001', label: 'City Admin · Hyderabad' },
+        { name: 'Dev Master',  phone: '7000000002', label: 'Master Admin · Full Access' },
+      ].map(u => (
+        <button class="dev-fill w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-gray-100 hover:border-navy hover:bg-navy/5 transition-all text-left group"
+                data-phone={u.phone} data-otp="123456">
+          <div class="flex items-center gap-2 min-w-0">
+            <div class="w-7 h-7 rounded-lg flex items-center justify-center text-sm shrink-0"
+                 style="background:#1C2E4A10">🛡️</div>
+            <div class="min-w-0">
+              <p class="text-xs font-semibold text-navy truncate">{u.name}</p>
+              <p class="text-xs text-gray-400 truncate">{u.label}</p>
+            </div>
+          </div>
+          <div class="shrink-0 text-right">
+            <p class="text-xs text-gray-400">OTP</p>
+            <p class="text-sm font-bold text-navy tracking-widest">123456</p>
+          </div>
+        </button>
+      ))}
+    </div>
+  </div>}
+
+</AuthLayout>
+
+<script>
+  // ── Form submission ──────────────────────────────────────────────────────────
+  const form      = document.getElementById('login-form') as HTMLFormElement;
+  const btnText   = document.getElementById('btn-text')!;
+  const spinner   = document.getElementById('btn-spinner')!;
+  const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+  const errorBox  = document.getElementById('form-error')!;
+  const phoneInp  = document.getElementById('phone') as HTMLInputElement;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const phone = phoneInp.value.trim().replace(/\D/g, '');
+    if (phone.length !== 10) { showError('Enter a valid 10-digit mobile number'); return; }
+
+    setLoading(true);
+    errorBox.classList.add('hidden');
+    try {
+      const res = await fetch('/api/v1/auth/otp/send/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: `+91${phone}`, is_signup: true }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.detail ?? d.message ?? 'Failed to send OTP');
+      }
+      window.location.href = `/auth/otp?phone=${encodeURIComponent(`+91${phone}`)}`;
+    } catch (err: any) {
+      showError(err.message ?? 'Something went wrong. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  function setLoading(v: boolean) {
+    submitBtn.disabled = v;
+    btnText.textContent = v ? 'Sending OTP…' : 'Get OTP';
+    spinner.classList.toggle('hidden', !v);
+  }
+  function showError(msg: string) {
+    errorBox.textContent = msg;
+    errorBox.classList.remove('hidden');
+  }
+
+  // ── Dev panel toggle ─────────────────────────────────────────────────────────
+  const devToggle = document.getElementById('dev-toggle')!;
+  const devPanel  = document.getElementById('dev-panel')!;
+  const devChevron = document.getElementById('dev-chevron')!;
+  devToggle.addEventListener('click', () => {
+    const open = devPanel.classList.toggle('hidden');
+    devChevron.style.transform = open ? '' : 'rotate(180deg)';
+  });
+
+  // ── Dev fill buttons ─────────────────────────────────────────────────────────
+  document.querySelectorAll<HTMLButtonElement>('.dev-fill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const phone = btn.dataset.phone ?? '';
+      const otp   = btn.dataset.otp   ?? '';
+      phoneInp.value = phone;
+      // Store OTP so the OTP page can auto-fill it
+      sessionStorage.setItem('ns_dev_otp', otp);
+      // Visual feedback
+      btn.style.borderColor = '#1C2E4A';
+      setTimeout(() => form.requestSubmit(), 150);
+    });
+  });
+</script>

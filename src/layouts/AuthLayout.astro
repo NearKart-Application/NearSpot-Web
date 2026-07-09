@@ -1,0 +1,30 @@
+---
+import Layout from './Layout.astro';
+interface Props { title?: string }
+const { title } = Astro.props;
+---
+<Layout title={title}>
+  <div class="min-h-screen flex flex-col bg-white">
+
+    <!-- Top brand section (Navy gradient, like mobile splash) -->
+    <div class="bg-gradient-to-br from-navy to-navy/80 flex flex-col items-center justify-center pt-16 pb-10 px-6 relative overflow-hidden">
+      <!-- Background circles -->
+      <div class="absolute -top-16 -right-16 w-56 h-56 bg-white/5 rounded-full"></div>
+      <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-gold/10 rounded-full"></div>
+
+      <!-- Logo -->
+      <div class="relative z-10 flex flex-col items-center">
+        <div class="w-20 h-20 bg-gold rounded-[22px] flex items-center justify-center shadow-xl mb-4">
+          <span class="text-navy font-black text-4xl leading-none">N</span>
+        </div>
+        <h1 class="text-white text-3xl font-black tracking-tight">NearSpot</h1>
+        <p class="text-white/60 text-sm mt-1 font-medium">Discover what's near you</p>
+      </div>
+    </div>
+
+    <!-- White card section (slides up like a bottom sheet) -->
+    <div class="flex-1 bg-white rounded-t-3xl -mt-5 relative z-10 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] px-6 pt-8 pb-10 flex flex-col max-w-md mx-auto w-full">
+      <slot />
+    </div>
+  </div>
+</Layout>

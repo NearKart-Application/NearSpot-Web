@@ -1,0 +1,35 @@
+---
+import '../styles/global.css';
+interface Props {
+  title?: string;
+  description?: string;
+  ogImage?: string;
+}
+const { title = 'NearSpot', description = 'Discover local stores & deals near you', ogImage = '/og.png' } = Astro.props;
+const pageTitle = title === 'NearSpot' ? 'NearSpot' : `${title} | NearSpot`;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title"       content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image"       content={ogImage} />
+    <meta property="og:type"        content="website" />
+    <meta name="theme-color"        content="#1C2E4A" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <slot name="head" />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
+

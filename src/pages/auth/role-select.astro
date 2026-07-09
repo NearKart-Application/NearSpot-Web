@@ -1,0 +1,170 @@
+---
+import AuthLayout from '../../layouts/AuthLayout.astro';
+---
+<AuthLayout title="Choose Your Role">
+
+  <!-- Step 1: Role selection -->
+  <div id="step-role">
+    <h2 class="text-xl font-bold text-navy mb-1">How will you use NearSpot?</h2>
+    <p class="text-gray-500 text-sm mb-8">You can change this later from your profile</p>
+
+    <div class="space-y-4">
+      <button data-role="customer"
+              class="role-card w-full text-left p-5 border-2 border-gray-200 rounded-2xl hover:border-navy hover:bg-navy/5 transition-all group">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-navy/10">🛍️</div>
+          <div>
+            <div class="font-semibold text-navy">Customer</div>
+            <div class="text-sm text-gray-500 mt-0.5">Discover and shop from local stores near you</div>
+          </div>
+          <div class="ml-auto text-gray-300 group-hover:text-navy">›</div>
+        </div>
+      </button>
+
+      <button data-role="vendor"
+              class="role-card w-full text-left p-5 border-2 border-gray-200 rounded-2xl hover:border-gold hover:bg-gold/5 transition-all group">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 bg-yellow-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-gold/10">🏪</div>
+          <div>
+            <div class="font-semibold text-navy">Vendor</div>
+            <div class="text-sm text-gray-500 mt-0.5">List your store, manage products and reach customers</div>
+          </div>
+          <div class="ml-auto text-gray-300 group-hover:text-gold">›</div>
+        </div>
+      </button>
+    </div>
+
+    <div id="error" class="hidden mt-4 text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2"></div>
+  </div>
+
+  <!-- Step 2: Business type (shown only for vendors) -->
+  <div id="step-business" class="hidden">
+    <button id="back-btn" class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-navy transition-colors mb-6">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Back
+    </button>
+
+    <h2 class="text-xl font-bold text-navy mb-1">Type of Business</h2>
+    <p class="text-gray-500 text-sm mb-8">This helps customers understand what you offer</p>
+
+    <div class="space-y-4">
+      <button data-btype="product"
+              class="btype-card w-full text-left p-5 border-2 border-gray-200 rounded-2xl hover:border-navy hover:bg-navy/5 transition-all group">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-navy/10">🛍️</div>
+          <div>
+            <div class="font-semibold text-navy">Products</div>
+            <div class="text-sm text-gray-500 mt-0.5">You sell physical items — clothing, electronics, food, etc.</div>
+          </div>
+          <div class="ml-auto text-gray-300 group-hover:text-navy">›</div>
+        </div>
+      </button>
+
+      <button data-btype="service"
+              class="btype-card w-full text-left p-5 border-2 border-gray-200 rounded-2xl hover:border-gold hover:bg-gold/5 transition-all group">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 bg-yellow-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-gold/10">🛠️</div>
+          <div>
+            <div class="font-semibold text-navy">Services</div>
+            <div class="text-sm text-gray-500 mt-0.5">You offer services — salon, repairs, tailoring, etc.</div>
+          </div>
+          <div class="ml-auto text-gray-300 group-hover:text-gold">›</div>
+        </div>
+      </button>
+
+      <button data-btype="home"
+              class="btype-card w-full text-left p-5 border-2 border-gray-200 rounded-2xl hover:border-emerald-500 hover:bg-emerald-50/50 transition-all group">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-2xl group-hover:bg-emerald-100">🏠</div>
+          <div>
+            <div class="font-semibold text-navy">Home Business</div>
+            <div class="text-sm text-gray-500 mt-0.5">Homemade products or services run from home</div>
+          </div>
+          <div class="ml-auto text-gray-300 group-hover:text-emerald-500">›</div>
+        </div>
+      </button>
+    </div>
+
+    <div id="error2" class="hidden mt-4 text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2"></div>
+  </div>
+
+</AuthLayout>
+
+<script>
+  let pending = false;
+
+  // Step 1: role selection
+  document.querySelectorAll('.role-card').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (pending) return;
+      const el = btn as HTMLButtonElement;
+      const role = el.dataset.role!;
+
+      if (role === 'customer') {
+        // Customer flow — no business type needed
+        pending = true;
+        document.querySelectorAll('.role-card').forEach(b => (b as HTMLButtonElement).disabled = true);
+        el.classList.add('opacity-60', 'cursor-wait');
+        document.getElementById('error')!.classList.add('hidden');
+        await submitRole('customer', null);
+      } else {
+        // Vendor — show business type step
+        document.getElementById('step-role')!.classList.add('hidden');
+        document.getElementById('step-business')!.classList.remove('hidden');
+      }
+    });
+  });
+
+  // Step 2: back button
+  document.getElementById('back-btn')!.addEventListener('click', () => {
+    document.getElementById('step-business')!.classList.add('hidden');
+    document.getElementById('step-role')!.classList.remove('hidden');
+  });
+
+  // Step 2: business type selection
+  document.querySelectorAll('.btype-card').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (pending) return;
+      pending = true;
+      const el = btn as HTMLButtonElement;
+      const btype = el.dataset.btype!;
+      document.querySelectorAll('.btype-card').forEach(b => (b as HTMLButtonElement).disabled = true);
+      el.classList.add('opacity-60', 'cursor-wait');
+      document.getElementById('error2')!.classList.add('hidden');
+      await submitRole('vendor', btype);
+    });
+  });
+
+  async function submitRole(role: string, businessType: string | null) {
+    try {
+      const access = localStorage.getItem('ns_access');
+      if (!access) { window.location.href = '/auth/login'; return; }
+
+      const res = await fetch('/api/v1/auth/me/', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${access}` },
+        body: JSON.stringify({ ui_mode: role }),
+      });
+      if (!res.ok) throw new Error('Failed to set role');
+
+      const user = JSON.parse(localStorage.getItem('ns_user') ?? '{}');
+      user.ui_mode = role;
+      localStorage.setItem('ns_user', JSON.stringify(user));
+
+      if (businessType) {
+        localStorage.setItem('ns_business_type', businessType);
+      }
+
+      window.location.href = role === 'vendor' ? '/vendor/store-setup' : '/';
+    } catch {
+      pending = false;
+      document.querySelectorAll('.role-card, .btype-card').forEach(b => (b as HTMLButtonElement).disabled = false);
+      document.querySelectorAll('.role-card, .btype-card').forEach(b => b.classList.remove('opacity-60', 'cursor-wait'));
+      const errEl = document.getElementById(role === 'vendor' ? 'error2' : 'error')!;
+      errEl.classList.remove('hidden');
+      errEl.textContent = 'Could not save your selection. Please try again.';
+    }
+  }
+</script>

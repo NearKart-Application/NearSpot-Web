@@ -1,0 +1,146 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import api from '../../lib/api';
+---
+<AppLayout title="Refer & Earn">
+  <div class="max-w-lg mx-auto space-y-6">
+    <div>
+      <h1 class="text-2xl font-black text-navy">Refer & Earn</h1>
+      <p class="text-gray-500 text-sm mt-1">Invite friends and earn bonus points together</p>
+    </div>
+
+    <!-- How it works -->
+    <div class="bg-gradient-to-br from-gold/20 to-amber-50 rounded-2xl p-5 border border-gold/30">
+      <h2 class="font-black text-navy text-base mb-4">How it works</h2>
+      <div class="space-y-3">
+        {[
+          { step: '1', text: 'Copy your referral code below' },
+          { step: '2', text: 'Share it with friends via WhatsApp, SMS, or social media' },
+          { step: '3', text: 'When they sign up and shop, you both earn bonus loyalty points!' },
+        ].map(s => (
+          <div class="flex items-start gap-3">
+            <div class="w-7 h-7 rounded-full bg-navy text-white text-xs font-black flex items-center justify-center shrink-0 mt-0.5">{s.step}</div>
+            <p class="text-sm text-navy/80">{s.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <!-- Referral code island -->
+    <div id="referral-section" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
+          <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="font-bold text-navy">Your Referral Code</h3>
+          <p class="text-xs text-gray-400" id="referral-count">Loading…</p>
+        </div>
+      </div>
+
+      <div class="flex gap-2">
+        <div class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 flex items-center">
+          <span id="referral-code" class="font-black text-navy tracking-widest text-sm">—</span>
+        </div>
+        <button id="copy-btn"
+          class="px-5 py-3 bg-navy text-white rounded-xl text-sm font-bold hover:bg-navy/90 transition-colors">
+          Copy
+        </button>
+      </div>
+
+      <!-- Share buttons -->
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button id="share-whatsapp"
+          class="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-green-500 text-white text-sm font-bold hover:bg-green-600 transition-colors">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347"/>
+          </svg>
+          WhatsApp
+        </button>
+        <button id="share-native"
+          class="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gray-100 text-navy text-sm font-bold hover:bg-gray-200 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+          </svg>
+          Share
+        </button>
+      </div>
+    </div>
+
+    <!-- Not logged in state -->
+    <div id="login-prompt" class="hidden text-center py-12 px-6">
+      <div class="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center mb-4 mx-auto">
+        <svg class="w-9 h-9 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/>
+        </svg>
+      </div>
+      <h2 class="text-xl font-black text-navy">Sign in to refer friends</h2>
+      <p class="text-gray-400 text-sm mt-2">Get your referral code and start earning together.</p>
+      <a href="/auth/login" class="mt-6 btn-primary px-10 py-3 inline-block">Sign In</a>
+    </div>
+  </div>
+</AppLayout>
+
+<script>
+  const token = localStorage.getItem('ns_access');
+  const section = document.getElementById('referral-section')!;
+  const loginPrompt = document.getElementById('login-prompt')!;
+
+  if (!token) {
+    section.classList.add('hidden');
+    loginPrompt.classList.remove('hidden');
+  } else {
+    fetch('/api/v1/loyalty/', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.referral_code) {
+          document.getElementById('referral-code')!.textContent = data.referral_code;
+          const count = data.referrals_count ?? 0;
+          document.getElementById('referral-count')!.textContent =
+            `${count} friend${count !== 1 ? 's' : ''} referred`;
+        }
+      })
+      .catch(() => {});
+
+    // Copy button
+    document.getElementById('copy-btn')!.addEventListener('click', () => {
+      const code = document.getElementById('referral-code')!.textContent ?? '';
+      if (!code || code === '—') return;
+      navigator.clipboard.writeText(code).then(() => {
+        const btn = document.getElementById('copy-btn')!;
+        btn.textContent = '✓ Copied!';
+        btn.classList.replace('bg-navy', 'bg-green-500');
+        setTimeout(() => {
+          btn.textContent = 'Copy';
+          btn.classList.replace('bg-green-500', 'bg-navy');
+        }, 2000);
+      });
+    });
+
+    // WhatsApp share
+    document.getElementById('share-whatsapp')!.addEventListener('click', () => {
+      const code = document.getElementById('referral-code')!.textContent ?? '';
+      const msg = `Join NearSpot and discover amazing local stores near you! Use my code ${code} to get bonus points when you sign up. Download: https://nearspot.in`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    });
+
+    // Native share
+    document.getElementById('share-native')!.addEventListener('click', async () => {
+      const code = document.getElementById('referral-code')!.textContent ?? '';
+      const shareData = {
+        title: 'Join NearSpot',
+        text: `Use my code ${code} to get bonus loyalty points on NearSpot!`,
+        url: 'https://nearspot.in',
+      };
+      if (navigator.share) {
+        await navigator.share(shareData).catch(() => {});
+      } else {
+        const code2 = document.getElementById('referral-code')!.textContent ?? '';
+        navigator.clipboard.writeText(code2);
+        alert('Code copied to clipboard!');
+      }
+    });
+  }
+</script>

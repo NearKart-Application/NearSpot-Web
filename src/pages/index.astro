@@ -1,0 +1,20 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import HomeIsland from '../components/islands/HomeIsland';
+
+// SSR: pre-fetch banners + categories so the island paints instantly
+let banners: any[] = [];
+let categories: any[] = [];
+try {
+  const base = (import.meta.env.API_BASE as string | undefined) ?? 'http://localhost:8000/api/v1';
+  const [bRes, cRes] = await Promise.all([
+    fetch(`${base}/admin-panel/banners/active/`).catch(() => null),
+    fetch(`${base}/products/categories/?is_active=true`).catch(() => null),
+  ]);
+  if (bRes?.ok) { const bData = await bRes.json(); banners = bData?.results ?? (Array.isArray(bData) ? bData : []); }
+  if (cRes?.ok) categories = (await cRes.json()).results ?? [];
+} catch {}
+---
+<AppLayout title="Discover" fullWidth noFooter>
+  <HomeIsland client:load banners={banners} categories={categories} />
+</AppLayout>

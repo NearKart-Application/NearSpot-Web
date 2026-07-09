@@ -1,0 +1,91 @@
+---
+import AuthLayout from '../../layouts/AuthLayout.astro';
+---
+<AuthLayout title="Create Account">
+
+  <h2 class="text-2xl font-black text-navy mb-1">Join NearSpot 🎉</h2>
+  <p class="text-gray-500 text-sm mb-7">Enter your mobile number to create your account</p>
+
+  <form id="signup-form" class="space-y-4">
+    <div>
+      <label class="label" for="phone">Mobile Number</label>
+      <div class="flex gap-2">
+        <div class="flex items-center gap-1.5 input w-20 shrink-0 bg-gray-50 justify-center cursor-default select-none">
+          <span>🇮🇳</span>
+          <span class="text-sm font-semibold text-gray-600">+91</span>
+        </div>
+        <input id="phone" name="phone" type="tel" inputmode="numeric"
+               maxlength="10" placeholder="9876543210"
+               class="input flex-1 text-base font-medium tracking-wide" required autofocus />
+      </div>
+    </div>
+
+    <div id="form-error" class="hidden text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-4 py-3"></div>
+
+    <button type="submit" id="submit-btn" class="btn-primary w-full py-3.5 text-base mt-2">
+      <span id="btn-text">Get OTP</span>
+      <span id="btn-spinner" class="hidden spinner w-4 h-4"></span>
+    </button>
+  </form>
+
+  <p class="text-xs text-gray-400 text-center mt-4">
+    By creating an account you agree to our
+    <a href="/terms" class="text-navy underline">Terms</a> &amp;
+    <a href="/privacy" class="text-navy underline">Privacy Policy</a>
+  </p>
+
+  <div class="flex items-center gap-3 my-6">
+    <div class="flex-1 h-px bg-gray-100"></div>
+    <span class="text-xs text-gray-400 font-medium">ALREADY HAVE AN ACCOUNT?</span>
+    <div class="flex-1 h-px bg-gray-100"></div>
+  </div>
+
+  <a href="/auth/login" class="btn-outline w-full py-3 text-base text-center block">
+    Sign In
+  </a>
+
+</AuthLayout>
+
+<script>
+  const form      = document.getElementById('signup-form') as HTMLFormElement;
+  const btnText   = document.getElementById('btn-text')!;
+  const spinner   = document.getElementById('btn-spinner')!;
+  const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+  const errorBox  = document.getElementById('form-error')!;
+  const phoneInp  = document.getElementById('phone') as HTMLInputElement;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const phone = phoneInp.value.trim().replace(/\D/g, '');
+    if (phone.length !== 10) { showError('Enter a valid 10-digit mobile number'); return; }
+
+    setLoading(true);
+    errorBox.classList.add('hidden');
+    try {
+      const res = await fetch('/api/v1/auth/otp/send/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: `+91${phone}` }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.detail ?? d.message ?? 'Failed to send OTP');
+      }
+      window.location.href = `/auth/otp?phone=${encodeURIComponent(`+91${phone}`)}`;
+    } catch (err: any) {
+      showError(err.message ?? 'Something went wrong. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  function setLoading(v: boolean) {
+    submitBtn.disabled = v;
+    btnText.textContent = v ? 'Sending OTP…' : 'Get OTP';
+    spinner.classList.toggle('hidden', !v);
+  }
+  function showError(msg: string) {
+    errorBox.textContent = msg;
+    errorBox.classList.remove('hidden');
+  }
+</script>
