@@ -204,7 +204,7 @@ function Inner({ productId }: { productId?: string }) {
 
         <div className="flex gap-3 pt-2">
           <button onClick={() => saveMut.mutate()}
-            disabled={saveMut.isPending || !form.name.trim() || !form.base_price}
+            disabled={saveMut.isPending || !form.name.trim() || !(parseFloat(form.base_price) > 0)}
             className="flex-1 btn-primary py-3 rounded-xl font-bold text-sm disabled:opacity-60">
             {saveMut.isPending ? (isEdit ? 'Saving…' : 'Creating…') : (isEdit ? 'Save Changes' : 'Create Product')}
           </button>

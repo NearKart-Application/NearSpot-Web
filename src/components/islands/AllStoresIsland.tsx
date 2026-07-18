@@ -68,7 +68,7 @@ function StoreCard({ store }: { store: Store }) {
         <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
           {rating > 0 ? (
             <span className="flex items-center gap-0.5 font-semibold text-gray-700">
-              <span className="text-amber-400">★</span>{rating.toFixed(1)}
+              <span className="text-amber-400">★</span>{parseFloat(String(rating ?? '0')).toFixed(1)}
               {store.review_count ? <span className="text-gray-400 font-normal">({store.review_count})</span> : null}
             </span>
           ) : (

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
+import { auth } from '../../lib/auth';
 
 interface GroupMember {
   id: string;
@@ -13,7 +14,7 @@ interface Group {
   id: string;
   name: string;
   group_type: 'customer' | 'vendor';
-  created_by: { id: string; full_name?: string };
+  created_by: { id: string; full_name?: string; profile_id?: string };
   members?: GroupMember[];
   members_count?: number;
   created_at: string;
@@ -75,7 +76,7 @@ function GroupThread({ group, userId, onBack }: {
 
   const messages = msgsQ.data?.results ?? [];
   const memberCount = group.members_count ?? group.members?.length ?? 0;
-  const isAdmin = group.created_by.id === userId;
+  const isAdmin = group.created_by.profile_id === auth.user()?.profile_id;
 
   const handleSend = () => {
     const text = msg.trim();
@@ -275,7 +276,7 @@ function Inner() {
         <div className="space-y-3">
           {groups.map(g => {
             const memberCount = g.members_count ?? g.members?.length ?? 0;
-            const isAdmin = g.created_by.id === userId;
+            const isAdmin = g.created_by.profile_id === auth.user()?.profile_id;
             return (
               <button key={g.id} onClick={() => setSelected(g)}
                 className="w-full bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4 flex items-center gap-4 hover:border-navy hover:shadow-md transition-all text-left">

@@ -283,7 +283,7 @@ function Inner({ storeId, initialStore }: { storeId: string; initialStore: Store
           {store.rating > 0 && (
             <div className="flex items-center gap-1.5">
               <StarRating value={store.rating} />
-              <span className="text-sm font-bold text-navy">{store.rating.toFixed(1)}</span>
+              <span className="text-sm font-bold text-navy">{parseFloat(String(store.rating ?? '0')).toFixed(1)}</span>
               <span className="text-xs text-gray-400">({store.review_count})</span>
             </div>
           )}
@@ -456,7 +456,7 @@ function Inner({ storeId, initialStore }: { storeId: string; initialStore: Store
                 <div className="p-2">
                   <p className="text-xs font-bold text-navy truncate">{s.name}</p>
                   <p className="text-[10px] text-gray-400 capitalize">{s.category}</p>
-                  {s.rating > 0 && <p className="text-[10px] text-gray-600 mt-0.5">⭐ {s.rating.toFixed(1)}</p>}
+                  {s.rating > 0 && <p className="text-[10px] text-gray-600 mt-0.5">⭐ {parseFloat(String(s.rating ?? '0')).toFixed(1)}</p>}
                 </div>
               </a>
             ))}

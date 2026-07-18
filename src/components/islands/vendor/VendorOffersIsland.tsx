@@ -111,7 +111,7 @@ function Inner() {
     queryKey: ['vendor-store-id'],
     queryFn: () => api.get('/stores/mine/').then(r => r.data),
   });
-  const storeId: string = (storeData as any)?.id ?? '';
+  const storeId: string = Array.isArray(storeData) ? ((storeData[0] as any)?.id ?? '') : ((storeData as any)?.id ?? '');
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['vendor-offers', storeId],

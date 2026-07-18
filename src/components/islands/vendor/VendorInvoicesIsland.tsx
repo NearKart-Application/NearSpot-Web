@@ -7,7 +7,7 @@ import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 // Actual API field names from mobile app
 interface InvoiceItem {
   name: string;
-  price: number;
+  price: number | string;
   qty: number;
   product_id?: string;
 }
@@ -19,7 +19,7 @@ interface Invoice {
   customer_ns_code?: string;
   items: InvoiceItem[];
   notes?: string;
-  total: number;
+  total: number | string;
   is_sent: boolean;
   created_at: string;
   pdf_url?: string;
@@ -39,7 +39,7 @@ function fmtAmt(n: number) {
 
 // ── Invoice detail modal ──────────────────────────────────────────────────────
 function InvoiceDetail({ invoice, onClose }: { invoice: Invoice; onClose: () => void }) {
-  const subtotal = invoice.items.reduce((s, i) => s + i.price * i.qty, 0);
+  const subtotal = invoice.items.reduce((s, i) => s + parseFloat(String(i.price ?? '0')) * i.qty, 0);
   const discount = invoice.discount_type === 'percentage'
     ? subtotal * (invoice.discount_value ?? 0) / 100
     : (invoice.discount_value ?? 0);
@@ -79,9 +79,9 @@ function InvoiceDetail({ invoice, onClose }: { invoice: Invoice; onClose: () => 
                 <div key={idx} className="flex items-center justify-between px-4 py-3 border-b border-gray-100 last:border-0">
                   <div>
                     <p className="text-sm font-semibold text-gray-800">{item.name}</p>
-                    <p className="text-xs text-gray-400">Qty {item.qty} × {fmtAmt(item.price)}</p>
+                    <p className="text-xs text-gray-400">Qty {item.qty} × {fmtAmt(parseFloat(String(item.price ?? '0')))}</p>
                   </div>
-                  <p className="text-sm font-bold text-navy">{fmtAmt(item.price * item.qty)}</p>
+                  <p className="text-sm font-bold text-navy">{fmtAmt(parseFloat(String(item.price ?? '0')) * item.qty)}</p>
                 </div>
               ))}
             </div>
@@ -329,7 +329,7 @@ function Inner() {
       )
     : invoices;
 
-  const totalRevenue = invoices.reduce((s, i) => s + i.total, 0);
+  const totalRevenue = invoices.reduce((s, i) => s + parseFloat(String(i.total ?? '0')), 0);
   const sentCount = invoices.filter(i => i.is_sent).length;
 
   return (

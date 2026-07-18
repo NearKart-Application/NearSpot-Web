@@ -336,11 +336,21 @@ function Inner() {
           <div className="text-center text-white px-6">
             <div className="text-5xl mb-4">🎬</div>
             <h3 className="font-bold text-lg">
-              {tab === 'following' ? 'No videos from followed stores' : 'No videos available'}
+              {tab === 'following' && !isLoggedIn
+                ? 'Sign in to see videos'
+                : tab === 'following' ? 'No videos from followed stores' : 'No videos available'}
             </h3>
             <p className="text-white/60 text-sm mt-2">
-              {tab === 'following' ? 'Follow stores to see their video content here.' : 'Check back soon for new videos from local stores.'}
+              {tab === 'following' && !isLoggedIn
+                ? 'Follow stores to see their video content here.'
+                : tab === 'following' ? 'Follow stores to see their video content here.' : 'Check back soon for new videos from local stores.'}
             </p>
+            {tab === 'following' && !isLoggedIn && (
+              <a href="/auth/login"
+                className="mt-4 inline-block px-6 py-2.5 bg-white text-navy text-sm font-bold rounded-xl hover:bg-white/90 transition-colors">
+                Sign In
+              </a>
+            )}
           </div>
         </div>
       ) : (

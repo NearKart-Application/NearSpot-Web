@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { QueryClientProvider, useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { auth } from '../../../lib/auth';
@@ -136,6 +136,14 @@ function Inner() {
   const [showReferral, setShowReferral] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
+  const [websiteReqDone, setWebsiteReqDone] = useState(false);
+  const [websiteReqErr, setWebsiteReqErr] = useState('');
+
+  const websiteReqMut = useMutation({
+    mutationFn: () => api.post('/stores/mine/website-request/', {}),
+    onSuccess: () => { setWebsiteReqDone(true); setWebsiteReqErr(''); },
+    onError: () => setWebsiteReqErr('Request failed. Please try again.'),
+  });
 
   const { data: store } = useQuery({
     queryKey: ['vendor-store-settings'],
@@ -184,7 +192,7 @@ function Inner() {
         <SettingsRow icon="👥" title="Staff Members" subtitle="Manage your store team" href="/vendor/staff" />
         <SettingsRow icon="🏷️" title="Discount Codes" subtitle="Create and manage promo codes" href="/vendor/discount-codes" />
         <SettingsRow icon="🚫" title="Blocked Customers" subtitle="View and manage blocked customers" href="/vendor/blacklist" />
-        <SettingsRow icon="🌐" title="Request Website" subtitle="Get a dedicated website for your store" href="/vendor/website-request" />
+        <SettingsRow icon="🌐" title="Request Website" subtitle={websiteReqDone ? '✓ Request sent!' : websiteReqErr || 'Get a dedicated website for your store'} onClick={() => { if (!websiteReqDone) websiteReqMut.mutate(); }} />
       </div>
 
       {/* Account */}

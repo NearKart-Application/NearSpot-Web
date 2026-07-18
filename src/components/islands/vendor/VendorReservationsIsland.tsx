@@ -164,7 +164,7 @@ function ReservationCard({ res, onUpdate }: { res: Reservation; onUpdate: () => 
             placeholder="Add vendor note to customer…"
             className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-navy/40" />
           <button onClick={() => {
-            api.patch(`/reservations/${res.id}/status/`, { vendor_note: noteInput }).then(() => {
+            api.patch(`/reservations/${res.id}/status/`, { status: res.status, vendor_note: noteInput }).then(() => {
               setShowNote(false); setNoteInput(''); qc.invalidateQueries({ queryKey: ['vendor-reservations'] });
             });
           }} className="btn-primary btn-sm px-4">Send</button>

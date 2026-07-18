@@ -63,10 +63,6 @@ function LocationPickerSheet({ onClose }: { onClose: () => void }) {
       }
     } catch { /* */ }
 
-    api.get('/auth/popular-locations/').then(r => {
-      setPopularLocs(r.data?.results ?? []);
-    }).catch(() => {});
-
     setTimeout(() => inputRef.current?.focus(), 150);
   }, []);
 

@@ -4,10 +4,10 @@ import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 
 interface Transaction {
-  id: string; type: string; amount: number; description: string; created_at: string;
+  id: string; type: string; amount: number | string; description: string; created_at: string;
 }
 interface WalletData {
-  balance: number; currency: string; transactions?: Transaction[];
+  balance: number | string; currency: string; transactions?: Transaction[];
 }
 
 function fmtDate(s: string) {
@@ -26,7 +26,7 @@ function Inner() {
   });
 
   const transactions: Transaction[] = Array.isArray(txData) ? txData : (txData as any)?.results ?? [];
-  const balance = wallet?.balance ?? 0;
+  const balance = parseFloat(String(wallet?.balance ?? '0'));
 
   const typeIcon: Record<string, string> = {
     credit: '⬆️', debit: '⬇️', refund: '↩️',
@@ -90,7 +90,7 @@ function Inner() {
                     <p className="text-xs text-gray-400 capitalize">{tx.type} · {fmtDate(tx.created_at)}</p>
                   </div>
                   <p className={`text-sm font-bold shrink-0 ${isCredit ? 'text-green-600' : 'text-red-500'}`}>
-                    {isCredit ? '+' : '-'}₹{Math.abs(tx.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    {isCredit ? '+' : '-'}₹{Math.abs(parseFloat(String(tx.amount ?? '0'))).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
               );

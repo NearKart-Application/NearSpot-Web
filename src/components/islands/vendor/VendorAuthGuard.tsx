@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { auth } from '../../../lib/auth';
 
 export function IslandError({ error, refetch }: { error: unknown; refetch?: () => void }) {
   const msg = (error as any)?.response?.data?.detail ?? (error as any)?.response?.data?.message ?? (error as any)?.message ?? 'Something went wrong';
@@ -22,7 +23,12 @@ export function useVendorAuth() {
 
   useEffect(() => {
     const token = localStorage.getItem('ns_access');
-    setStatus(token ? 'ok' : 'unauthenticated');
+    const user = auth.user();
+    if (!token || !user || (user.ui_mode !== 'vendor' && !user.is_vendor)) {
+      setStatus('unauthenticated');
+    } else {
+      setStatus('ok');
+    }
   }, []);
 
   return status;

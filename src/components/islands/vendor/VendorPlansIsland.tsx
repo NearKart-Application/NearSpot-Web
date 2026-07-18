@@ -5,7 +5,7 @@ import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 
 interface Plan {
-  id: string; name: string; display_name: string; price: number; billing_cycle: string;
+  id: string; name: string; display_name: string; price: number | string; billing_cycle: string;
   video_limit: number; product_limit: number; features: string[];
   is_popular?: boolean; store_type?: string;
 }
@@ -103,7 +103,7 @@ function Inner() {
                   )}
                   <h3 className="font-black text-navy text-lg">{plan.display_name}</h3>
                   <p className="text-3xl font-black text-navy mt-2">
-                    ₹{plan.price.toLocaleString('en-IN')}
+                    ₹{parseFloat(String(plan.price)).toLocaleString('en-IN')}
                     <span className="text-sm font-normal text-gray-400">/{plan.billing_cycle}</span>
                   </p>
                   <div className="mt-4 space-y-2 mb-5">

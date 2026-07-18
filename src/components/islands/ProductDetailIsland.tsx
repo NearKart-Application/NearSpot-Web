@@ -78,8 +78,8 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
   const reviews: any[] = reviewsData?.results ?? (Array.isArray(reviewsData) ? reviewsData : []);
 
   const imgs  = product.images?.length ? product.images : [''];
-  const orig  = product.price ?? 0;
-  const sale  = product.is_on_sale && product.sale_price != null ? product.sale_price : null;
+  const orig  = parseFloat(String(product.price ?? '0'));
+  const sale  = product.is_on_sale && product.sale_price != null ? parseFloat(String(product.sale_price)) : null;
   const finalPrice = sale ?? orig;
   const discount = sale ? Math.round((1 - sale / orig) * 100) : 0;
   const inStock = product.stock_count > 0;
