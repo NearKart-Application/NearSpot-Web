@@ -106,7 +106,7 @@ function NotifCard({ notif, onRead }: { notif: Notification; onRead: () => void 
   const link  = notif.data?.reservation_id ? `/customer/reservations`
                : notif.data?.store_id ? `/stores/${notif.data.store_id}`
                : notif.data?.product_id ? `/products/${notif.data.product_id}`
-               : notif.data?.conversation_id ? `/chat/${notif.data.conversation_id}`
+               : notif.data?.conversation_id ? `/customer/chat?conversation=${notif.data.conversation_id}`
                : null;
 
   function handleClick(e: React.MouseEvent) {

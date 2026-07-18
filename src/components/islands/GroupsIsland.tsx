@@ -211,7 +211,7 @@ function Inner() {
   const qc = useQueryClient();
   const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('ns_access');
   const userId: string = (() => {
-    try { return JSON.parse(localStorage.getItem('ns_user') ?? '{}').id ?? ''; } catch { return ''; }
+    try { return String(JSON.parse(localStorage.getItem('ns_user') ?? '{}').id ?? ''); } catch { return ''; }
   })();
 
   const [selected, setSelected] = useState<Group | null>(null);

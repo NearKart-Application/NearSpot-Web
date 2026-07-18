@@ -46,7 +46,7 @@ function Inner() {
 
   const purchasesQ = useQuery<{ results: Purchase[]; count: number }>({
     queryKey: ['purchases'],
-    queryFn: () => api.get('/stores/purchases/').then(r => r.data),
+    queryFn: () => api.get('/reservations/').then(r => r.data),
     enabled: isLoggedIn,
   });
 

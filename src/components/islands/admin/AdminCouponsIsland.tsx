@@ -139,7 +139,7 @@ function Inner() {
   const { data, isLoading, error, refetch } = useQuery<Coupon[]>({
     queryKey: ['admin-coupons', tab],
     queryFn: () =>
-      api.get('/admin-panel/coupons/', { params: tab !== 'all' ? { status: tab } : {} }).then((r) => r.data),
+      api.get('/admin-panel/coupons/', { params: tab !== 'all' ? { status: tab } : {} }).then((r) => Array.isArray(r.data) ? r.data : (r.data?.results ?? [])),
   });
 
   const create = useMutation({

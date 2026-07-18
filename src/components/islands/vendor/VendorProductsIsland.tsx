@@ -39,7 +39,7 @@ function Inner() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: string) => api.delete(`/products/${id}/update/`),
+    mutationFn: (id: string) => api.delete(`/products/${id}/`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vendor-products'] }),
   });
 
@@ -205,7 +205,7 @@ function Inner() {
                     <td className="px-4 py-3">
                       <div className="flex gap-2 flex-wrap">
                         <a href={`/vendor/products/${p.id}/edit`} className="text-xs text-navy font-bold hover:underline">Edit</a>
-                        <a href={`/vendor/inventory?product=${p.id}`} className="text-xs text-amber-700 font-bold hover:underline">Stock</a>
+                        <a href="/vendor/inventory" className="text-xs text-amber-700 font-bold hover:underline">Stock</a>
                         <button onClick={() => {
                           if (confirm(`Delete "${p.name}"?`)) deleteMut.mutate(p.id);
                         }} className="text-xs text-red-500 font-bold hover:underline">Delete</button>

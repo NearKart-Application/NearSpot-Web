@@ -47,12 +47,12 @@ function Inner() {
 
   const { data: productStats } = useQuery<ProductStat[]>({
     queryKey: ['vendor-product-stats'],
-    queryFn: () => api.get('/analytics/vendor/products/').then(r => r.data),
+    queryFn: () => api.get('/analytics/vendor/products/').then(r => r.data?.results ?? r.data ?? []),
   });
 
   const { data: videoStats } = useQuery<VideoStat[]>({
     queryKey: ['vendor-video-stats'],
-    queryFn: () => api.get('/analytics/vendor/videos/').then(r => r.data),
+    queryFn: () => api.get('/analytics/vendor/videos/').then(r => r.data?.results ?? r.data ?? []),
   });
 
   if (isLoading) return (
@@ -66,8 +66,8 @@ function Inner() {
 
   if (isError) return <IslandError error={error} refetch={refetch} />;
 
-  const topProducts: ProductStat[] = Array.isArray(productStats) ? productStats.slice(0, 5) : [];
-  const topVideos: VideoStat[] = Array.isArray(videoStats) ? videoStats.slice(0, 5) : [];
+  const topProducts: ProductStat[] = (productStats ?? []).slice(0, 5);
+  const topVideos: VideoStat[] = (videoStats ?? []).slice(0, 5);
 
   return (
     <div className="space-y-6">

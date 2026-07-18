@@ -50,7 +50,7 @@ function notifLink(n: { notification_type: string; data?: Record<string, any> })
   if (t === 'review')              return '/vendor/reviews';
   if (t === 'wallet' || t === 'wallet_transfer' || t === 'payment_request') return '/vendor/wallet';
   if (t === 'new_product')         return '/vendor/products';
-  if (n.data?.conversation_id)     return `/chat/${n.data.conversation_id}`;
+  if (n.data?.conversation_id)     return `/customer/chat?conversation=${n.data.conversation_id}`;
   return null;
 }
 

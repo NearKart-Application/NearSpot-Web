@@ -155,7 +155,7 @@ const isDev = import.meta.env.DEV;
       const res = await fetch('/api/v1/auth/otp/send/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone_number: `+91${phone}`, is_signup: true }),
+        body: JSON.stringify({ phone_number: `+91${phone}`, is_signup: false }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
