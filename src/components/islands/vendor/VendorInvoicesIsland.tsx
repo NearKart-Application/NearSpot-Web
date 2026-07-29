@@ -33,7 +33,7 @@ interface Invoice {
 function fmtDate(s: string) {
   return new Date(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
 }
-function fmtAmt(n: number) {
+function fmtAmt(n: number | string) {
   return `₹${Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
