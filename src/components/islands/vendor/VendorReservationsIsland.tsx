@@ -44,15 +44,17 @@ function ActionDialog({ action, customerName, onConfirm, onClose }: {
   const [note, setNote] = useState('');
   const [noteError, setNoteError] = useState(false);
   const needsNote = action === 'reject' || action === 'cancel';
+  const isConfirm = action === 'confirm';
+  const QUICK_NOTES = ['Getting ready — come in 10 mins', 'Ready in 15 mins', 'Ready in 20 mins', 'Come anytime, item is ready'];
 
   const titles: Record<DialogAction, string> = {
     confirm: 'Confirm Reservation', reject: 'Reject Reservation',
     complete: 'Mark Completed', cancel: 'Emergency Cancellation',
   };
   const bodies: Record<DialogAction, string> = {
-    confirm: `Confirm hold for ${customerName || 'this customer'}?`,
+    confirm: `Confirm hold for ${customerName || 'this customer'}? Add a readiness message to send them.`,
     reject: 'Reject this reservation? The customer will be notified with your reason.',
-    complete: 'Mark as completed? This means the customer picked up the item.',
+    complete: 'Mark as completed? Customer will earn 20 loyalty points for picking up.',
     cancel: 'Emergency cancel this confirmed reservation? The customer will be notified with your reason.',
   };
 
@@ -62,6 +64,22 @@ function ActionDialog({ action, customerName, onConfirm, onClose }: {
       <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
         <h3 className="font-bold text-navy mb-2">{titles[action]}</h3>
         <p className="text-sm text-gray-600 mb-4">{bodies[action]}</p>
+        {isConfirm && (
+          <div className="mb-4">
+            <p className="text-xs font-semibold text-gray-500 mb-2">Quick message to customer:</p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {QUICK_NOTES.map(q => (
+                <button key={q} onClick={() => setNote(q)}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-all ${note === q ? 'bg-navy text-white border-navy' : 'border-gray-200 text-gray-600 hover:border-navy'}`}>
+                  {q}
+                </button>
+              ))}
+            </div>
+            <textarea value={note} onChange={e => setNote(e.target.value)}
+              placeholder="Or type a custom message…"
+              rows={2} className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm resize-none focus:outline-none focus:border-navy/40" />
+          </div>
+        )}
         {needsNote && (
           <div className="mb-4">
             <textarea value={note} onChange={e => { setNote(e.target.value); setNoteError(false); }}
