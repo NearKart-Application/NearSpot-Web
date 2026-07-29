@@ -214,11 +214,11 @@ function Inner() {
             </div>
             {c.used_count === 0 && (
               <button
-                onClick={() => { if (confirm('Deactivate this coupon?')) del.mutate(c.id); }}
+                onClick={() => { if (confirm('Delete this coupon? This cannot be undone.')) del.mutate(c.id); }}
                 disabled={del.isPending}
                 className="btn-danger btn-sm shrink-0"
               >
-                Deactivate
+                Delete
               </button>
             )}
           </div>

@@ -34,7 +34,7 @@ function Inner() {
 
   const toggleVisible = useMutation({
     mutationFn: ({ id, visible }: { id: string; visible: boolean }) =>
-      api.put(`/products/${id}/update/`, { is_visible: visible }),
+      api.patch(`/products/${id}/`, { is_visible: visible }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vendor-products'] }),
   });
 

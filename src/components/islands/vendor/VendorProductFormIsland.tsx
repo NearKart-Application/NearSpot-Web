@@ -72,7 +72,7 @@ function Inner({ productId }: { productId?: string }) {
         colors: form.colors.split(',').map(c => c.trim()).filter(Boolean),
       };
       return isEdit
-        ? api.put(`/products/${productId}/update/`, payload)
+        ? api.put(`/products/${productId}/`, payload)
         : api.post('/products/', payload);
     },
     onSuccess: () => {

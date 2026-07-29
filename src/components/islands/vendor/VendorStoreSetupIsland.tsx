@@ -96,7 +96,7 @@ function Inner() {
   }, [store]);
 
   const updateMut = useMutation({
-    mutationFn: () => api.put(`/stores/${store!.id}/update/`, form),
+    mutationFn: () => api.patch(`/stores/${store!.id}/`, form),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['vendor-store'] });
       setSaved(true);

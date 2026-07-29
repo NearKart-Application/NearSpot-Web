@@ -37,12 +37,12 @@ function Inner() {
 
   const toggleMut = useMutation({
     mutationFn: ({ id, field, val }: { id: string; field: string; val: boolean }) =>
-      api.patch(`/videos/${id}/update/`, { [field]: val }),
+      api.patch(`/videos/${id}/`, { [field]: val }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vendor-videos'] }),
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: string) => api.delete(`/videos/${id}/delete/`),
+    mutationFn: (id: string) => api.delete(`/videos/${id}/`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vendor-videos'] }),
   });
 

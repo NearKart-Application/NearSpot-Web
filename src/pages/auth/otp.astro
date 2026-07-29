@@ -46,8 +46,9 @@ import AuthLayout from '../../layouts/AuthLayout.astro';
 </AuthLayout>
 
 <script>
-  const params = new URLSearchParams(location.search);
-  const phone  = params.get('phone') ?? '';
+  const params   = new URLSearchParams(location.search);
+  const phone    = params.get('phone') ?? '';
+  const isSignup = params.get('signup') === 'true' || localStorage.getItem('ns_is_signup') === 'true';
   document.getElementById('display-phone')!.textContent = phone;
 
   const inputs    = Array.from(document.querySelectorAll<HTMLInputElement>('[data-idx]'));
@@ -153,7 +154,7 @@ import AuthLayout from '../../layouts/AuthLayout.astro';
       await fetch('/api/v1/auth/otp/send/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone_number: phone }),
+        body: JSON.stringify({ phone_number: phone, is_signup: isSignup }),
       });
     } catch { /* silent */ }
     startResendTimer();
