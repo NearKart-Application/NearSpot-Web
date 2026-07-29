@@ -65,13 +65,13 @@ import AuthLayout from '../../layouts/AuthLayout.astro';
       const res = await fetch('/api/v1/auth/otp/send/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone_number: `+91${phone}` }),
+        body: JSON.stringify({ phone_number: `+91${phone}`, is_signup: true }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         throw new Error(d.detail ?? d.message ?? 'Failed to send OTP');
       }
-      window.location.href = `/auth/otp?phone=${encodeURIComponent(`+91${phone}`)}`;
+      window.location.href = `/auth/otp?phone=${encodeURIComponent(`+91${phone}`)}&signup=true`;
     } catch (err: any) {
       showError(err.message ?? 'Something went wrong. Try again.');
     } finally {
