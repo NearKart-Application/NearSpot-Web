@@ -196,9 +196,12 @@ function Inner() {
     queryFn: () => api.get('/inventory/purchase-orders/').then(r => r.data),
   });
 
+  const [selectVals, setSelectVals] = useState<Record<string, string>>({});
+
   const { data: suppliersData } = useQuery({
     queryKey: ['vendor-suppliers'],
     queryFn: () => api.get('/inventory/suppliers/').then(r => r.data),
+    enabled: showCreate,
   });
 
   const markReceivedMut = useMutation({
@@ -316,8 +319,15 @@ function Inner() {
                         )}
                         {po.status === 'draft' && (
                           <select
-                            onChange={e => { if (e.target.value) changeStatusMut.mutate({ id: po.id, status: e.target.value }); }}
-                            defaultValue=""
+                            value={selectVals[po.id] ?? ''}
+                            onChange={e => {
+                              const status = e.target.value;
+                              if (!status) return;
+                              setSelectVals(p => ({ ...p, [po.id]: status }));
+                              changeStatusMut.mutate({ id: po.id, status }, {
+                                onError: () => setSelectVals(p => ({ ...p, [po.id]: '' })),
+                              });
+                            }}
                             className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-navy/40"
                           >
                             <option value="" disabled>Change status</option>

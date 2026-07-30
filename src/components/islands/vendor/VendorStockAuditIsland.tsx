@@ -51,7 +51,14 @@ function AuditDetail({
   const [notes, setNotes] = useState(audit.notes ?? '');
   const [error, setError] = useState('');
 
-  const isLocked = audit.status === 'completed' || audit.status === 'cancelled';
+  const { data: liveAudit = audit } = useQuery<Audit>({
+    queryKey: ['vendor-audit', audit.id],
+    queryFn: () => api.get(`/inventory/audits/${audit.id}/`).then(r => r.data),
+    initialData: audit,
+    staleTime: 0,
+  });
+
+  const isLocked = liveAudit.status === 'completed' || liveAudit.status === 'cancelled';
 
   const saveMut = useMutation({
     mutationFn: () => {
@@ -122,8 +129,8 @@ function AuditDetail({
           <h1 className="text-xl font-bold text-navy">Audit Detail</h1>
           <p className="text-xs text-gray-400 font-mono">{audit.id.slice(0, 8).toUpperCase()}</p>
         </div>
-        <span className={`text-xs font-bold px-3 py-1 rounded-full ${STATUS_COLORS[audit.status]}`}>
-          {STATUS_LABELS[audit.status]}
+        <span className={`text-xs font-bold px-3 py-1 rounded-full ${STATUS_COLORS[liveAudit.status]}`}>
+          {STATUS_LABELS[liveAudit.status]}
         </span>
       </div>
 
@@ -274,13 +281,17 @@ function Inner() {
     queryFn: () => api.get('/inventory/audits/').then(r => r.data),
   });
 
+  const [newAuditError, setNewAuditError] = useState<string | null>(null);
+
   const newAuditMut = useMutation({
     mutationFn: () =>
       api.post('/inventory/audits/', { status: 'in_progress', items: [], notes: '', total_discrepancy: 0 }),
     onSuccess: (res) => {
+      setNewAuditError(null);
       qc.invalidateQueries({ queryKey: ['vendor-audits'] });
       setSelectedAudit(res.data);
     },
+    onError: (e: any) => setNewAuditError(e?.response?.data?.detail ?? 'Failed to create audit'),
   });
 
   const audits: Audit[] = data?.results ?? (Array.isArray(data) ? data : []);
@@ -309,6 +320,12 @@ function Inner() {
           {newAuditMut.isPending ? 'Creating…' : '+ New Audit'}
         </button>
       </div>
+
+      {newAuditError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
+          {newAuditError}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-4">{[...Array(3)].map((_, i) => <div key={i} className="card h-20 animate-pulse" />)}</div>

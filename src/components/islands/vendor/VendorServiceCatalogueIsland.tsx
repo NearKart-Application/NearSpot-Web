@@ -256,9 +256,12 @@ function Inner() {
     queryFn: () => api.get('/stores/mine/services/').then(r => r.data),
   });
 
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const deleteMut = useMutation({
     mutationFn: (id: string) => api.delete(`/stores/mine/services/${id}/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['vendor-services'] }),
+    onSuccess: () => { setDeleteError(null); qc.invalidateQueries({ queryKey: ['vendor-services'] }); },
+    onError: (e: any) => setDeleteError(e?.response?.data?.detail ?? 'Failed to delete service'),
   });
 
   const toggleMut = useMutation({
@@ -277,6 +280,12 @@ function Inner() {
 
   return (
     <div className="space-y-6">
+      {deleteError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
+          {deleteError}
+        </div>
+      )}
+
       {/* Notice banner */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 text-sm text-blue-700">
         ℹ️ <span className="font-semibold">Note:</span> Service catalogue is only relevant for service-type vendors (salons, repair shops, etc.). Product vendors can ignore this section.

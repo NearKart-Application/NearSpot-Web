@@ -228,9 +228,12 @@ function Inner() {
     queryFn: () => api.get('/inventory/suppliers/').then(r => r.data),
   });
 
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const deleteMut = useMutation({
     mutationFn: (id: string) => api.patch(`/inventory/suppliers/${id}/`, { is_active: false }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['vendor-suppliers'] }),
+    onSuccess: () => { setDeleteError(null); qc.invalidateQueries({ queryKey: ['vendor-suppliers'] }); },
+    onError: (e: any) => setDeleteError(e?.response?.data?.detail ?? 'Failed to deactivate supplier'),
   });
 
   const suppliers: Supplier[] = data?.results ?? (Array.isArray(data) ? data : []);
@@ -252,6 +255,12 @@ function Inner() {
           + Add Supplier
         </button>
       </div>
+
+      {deleteError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
+          {deleteError}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-4">{[...Array(3)].map((_, i) => <div key={i} className="card h-28 animate-pulse" />)}</div>
