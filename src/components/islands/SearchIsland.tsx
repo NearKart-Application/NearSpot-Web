@@ -11,7 +11,7 @@ interface Store {
   avatar?: string; cover_image?: string;
   is_open: boolean; rating?: number; avg_rating?: number; review_count?: number;
   distance_km?: number; top_offer_label?: string; active_offer_labels?: string[];
-  follower_count?: number; store_type?: string;
+  follower_count?: number; store_type?: string; is_verified?: boolean;
 }
 
 type Tab      = 'products' | 'stores' | 'services';
@@ -49,7 +49,10 @@ function StoreCard({ store, view }: { store: Store; view: ViewMode }) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-bold text-navy text-sm">{store.name}</h3>
+          <h3 className="font-bold text-navy text-sm flex items-center gap-1 min-w-0">
+            <span className="truncate">{store.name}</span>
+            {store.is_verified && <span className="shrink-0 text-blue-500 text-[10px] font-black">✓</span>}
+          </h3>
           <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${
             store.is_open ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
           }`}>{store.is_open ? 'Open' : 'Closed'}</span>
@@ -103,7 +106,10 @@ function StoreCard({ store, view }: { store: Store; view: ViewMode }) {
               className="w-full h-full object-cover" />
           </div>
           <div className="min-w-0">
-            <p className="font-bold text-navy text-xs truncate">{store.name}</p>
+            <div className="flex items-center gap-0.5 min-w-0">
+              <p className="font-bold text-navy text-xs truncate">{store.name}</p>
+              {store.is_verified && <span className="shrink-0 text-blue-500 text-[9px] font-black">✓</span>}
+            </div>
             <div className="flex items-center gap-1 flex-wrap">
               <p className="text-[10px] text-gray-400 capitalize">{store.category}</p>
               {store.store_type && (

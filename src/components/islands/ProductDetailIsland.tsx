@@ -10,7 +10,7 @@ interface ProductDetail {
   category: string; subcategory?: string;
   price: number; sale_price?: number;
   images: string[];
-  store: { id: string; name: string; avatar?: string; rating: number; review_count: number; };
+  store: { id: string; name: string; avatar?: string; rating: number; review_count: number; is_verified?: boolean; };
   distance_km?: number;
   sizes: SizeOption[]; colors: string[];
   stock_count: number;
@@ -64,6 +64,13 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
     queryFn:  () => api.get(`/products/${productId}/reviews/`).then(r => r.data),
     enabled: !!product,
   });
+
+  const { data: loyalty } = useQuery({
+    queryKey: ['loyalty-balance'],
+    queryFn:  () => api.get('/loyalty/').then(r => r.data),
+    staleTime: 60_000,
+  });
+  const loyaltyBalance: number = loyalty?.balance ?? 0;
 
   if (prodLoading || !product) return (
     <div className="min-h-screen bg-white animate-pulse">
@@ -288,6 +295,11 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
                 Earn 20 pts on pickup
               </span>
             </div>
+            {loyaltyBalance > 0 && (
+              <p className="text-xs text-purple-600 font-semibold mb-2">
+                You have {loyaltyBalance} pts (≈ ₹{Math.floor(loyaltyBalance / 10)}) — redeem at checkout
+              </p>
+            )}
             {product.stock_count <= 5 && (
               <p className="text-xs font-semibold text-amber-700 mb-3">
                 Only {product.stock_count} left — reserve to secure yours before someone else does!
@@ -357,7 +369,7 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
                 className="flex-1 text-center py-2.5 bg-navy text-white text-sm font-bold rounded-xl hover:bg-navy/90 transition-colors">
                 Track Reservation
               </a>
-              <a href={`/customer/chat?store=${product.store.id}`}
+              <a href={`/customer/chat?store=${product.store.id}&product=${product.id}&productName=${encodeURIComponent(product.name)}`}
                 className="flex-1 text-center py-2.5 border border-navy text-navy text-sm font-bold rounded-xl hover:bg-navy/5 transition-colors">
                 💬 Message Store
               </a>
@@ -374,7 +386,10 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs text-gray-400">Sold by</p>
-            <p className="text-sm font-bold text-navy truncate">{product.store.name}</p>
+            <div className="flex items-center gap-1">
+              <p className="text-sm font-bold text-navy truncate">{product.store.name}</p>
+              {product.store.is_verified && <span className="shrink-0 text-blue-500 text-xs font-black">✓</span>}
+            </div>
             {product.store.rating > 0 && (
               <div className="flex items-center gap-1 mt-0.5">
                 <StarRating value={product.store.rating} />
@@ -409,7 +424,7 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
 
       {/* Sticky CTA */}
       <div className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 px-4 py-3 flex gap-3 z-30">
-        <a href={`/customer/chat?store=${product.store.id}`}
+        <a href={`/customer/chat?store=${product.store.id}&product=${product.id}&productName=${encodeURIComponent(product.name)}`}
            className="w-12 h-12 shrink-0 flex items-center justify-center rounded-xl border border-gray-200 text-gray-700 hover:border-navy hover:text-navy transition-colors"
            title="Chat with store">
           💬
