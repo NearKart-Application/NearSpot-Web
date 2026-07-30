@@ -243,11 +243,23 @@ function Inner() {
     const convId  = params.get('conversation');
 
     if (storeId) {
+      const productId   = params.get('product');
+      const productName = params.get('productName');
       // Start or get conversation with this store
       setStarting(true);
       api.post('/conversations/start/', { store_id: storeId })
-        .then(res => {
-          setSelected(res.data);
+        .then(async res => {
+          const conv = res.data;
+          // If arriving from a product page, send an automatic opening message so
+          // the vendor immediately knows which product the customer is asking about.
+          if (productId && productName) {
+            try {
+              await api.post(`/conversations/${conv.id}/messages/`, {
+                content: `Hi! I'm interested in "${productName}". Is it available?`,
+              });
+            } catch { /* non-critical — open chat even if auto-message fails */ }
+          }
+          setSelected(conv);
           // Clean URL
           history.replaceState({}, '', '/customer/chat');
         })

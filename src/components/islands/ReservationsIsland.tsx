@@ -63,7 +63,8 @@ function Countdown({ expiresAt, status }: { expiresAt: string; status: string })
   );
 }
 
-function CancelModal({ res, onConfirm, onClose, cancelError }: { res: Reservation; onConfirm: () => void; onClose: () => void; cancelError?: boolean }) {
+function CancelModal({ res, onConfirm, onClose, cancelError }: { res: Reservation; onConfirm: (reason: string) => void; onClose: () => void; cancelError?: boolean }) {
+  const [reason, setReason] = useState('');
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
       <div className="bg-white rounded-3xl w-full max-w-sm p-6">
@@ -74,6 +75,13 @@ function CancelModal({ res, onConfirm, onClose, cancelError }: { res: Reservatio
             This will cancel your hold for <strong>{res.product.name}</strong> at {res.store.name}.
           </p>
         </div>
+        <textarea
+          value={reason}
+          onChange={e => setReason(e.target.value)}
+          placeholder="Reason for cancellation (optional)"
+          rows={2}
+          className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 mb-3 resize-none focus:outline-none focus:border-navy"
+        />
         {cancelError && (
           <p className="text-xs text-red-500 text-center mb-3">Failed to cancel. Please try again.</p>
         )}
@@ -82,7 +90,7 @@ function CancelModal({ res, onConfirm, onClose, cancelError }: { res: Reservatio
             className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">
             Keep It
           </button>
-          <button onClick={onConfirm}
+          <button onClick={() => onConfirm(reason)}
             className="flex-1 py-3 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors">
             Yes, Cancel
           </button>
@@ -251,7 +259,8 @@ function Inner() {
   });
 
   const cancelMut = useMutation({
-    mutationFn: (id: string) => api.post(`/reservations/${id}/cancel/`, { cancel_reason: '' }),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      api.post(`/reservations/${id}/cancel/`, { cancel_reason: reason }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['reservations'] });
       setCancelTarget(null);
@@ -345,7 +354,7 @@ function Inner() {
       {cancelTarget && (
         <CancelModal
           res={cancelTarget}
-          onConfirm={() => cancelMut.mutate(cancelTarget.id)}
+          onConfirm={(reason) => cancelMut.mutate({ id: cancelTarget.id, reason })}
           onClose={() => setCancelTarget(null)}
           cancelError={cancelMut.isError}
         />
