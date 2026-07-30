@@ -1,8 +1,11 @@
 import axios from 'axios';
 
-const BASE = (typeof process !== 'undefined' && process.env.API_BASE)
-  ? process.env.API_BASE
-  : '/api/v1';
+const _env = (import.meta as Record<string, any>).env ?? {};
+const BASE: string =
+  _env.API_BASE ||
+  _env.PUBLIC_API_BASE ||
+  (typeof process !== 'undefined' ? process.env?.API_BASE : undefined) ||
+  '/api/v1';
 
 export const api = axios.create({ baseURL: BASE, timeout: 15_000 });
 

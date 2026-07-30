@@ -50,6 +50,7 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
   const [discountApplied, setDiscountApplied] = useState<string | null>(null);
   const [notifyDone, setNotifyDone] = useState(false);
   const [reserveError, setReserveError] = useState<string | null>(null);
+  const [redeemPts, setRedeemPts]   = useState(false);
 
   const { data: product, isLoading: prodLoading } = useQuery<ProductDetail>({
     queryKey: ['product', productId],
@@ -121,7 +122,7 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
         ...(selSize ? { size: selSize } : {}),
         ...(selSizeObj?.variant_id ? { variant_id: selSizeObj.variant_id } : {}),
         ...(selColor ? { color: selColor } : {}),
-        points_to_redeem: 0,
+        points_to_redeem: redeemPts ? loyaltyBalance : 0,
       });
       setReserved(res.data);
     } catch (err: any) {
@@ -296,9 +297,15 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
               </span>
             </div>
             {loyaltyBalance > 0 && (
-              <p className="text-xs text-purple-600 font-semibold mb-2">
-                You have {loyaltyBalance} pts (≈ ₹{Math.floor(loyaltyBalance / 10)}) — redeem at checkout
-              </p>
+              <label className="flex items-center gap-2 text-xs text-purple-700 cursor-pointer mb-2">
+                <input
+                  type="checkbox"
+                  checked={redeemPts}
+                  onChange={e => setRedeemPts(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-purple-600 cursor-pointer"
+                />
+                Redeem {loyaltyBalance} pts (−₹{Math.floor(loyaltyBalance / 10)}) at checkout
+              </label>
             )}
             {product.stock_count <= 5 && (
               <p className="text-xs font-semibold text-amber-700 mb-3">

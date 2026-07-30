@@ -76,7 +76,10 @@ function GroupThread({ group, userId, onBack }: {
 
   const messages = msgsQ.data?.results ?? [];
   const memberCount = group.members_count ?? group.members?.length ?? 0;
-  const isAdmin = group.created_by.profile_id === auth.user()?.profile_id;
+  const myProfileId = auth.user()?.profile_id;
+  const isAdmin =
+    (!!myProfileId && group.created_by.profile_id === myProfileId) ||
+    (!!userId && !!group.members?.some(m => m.user.id === userId && m.role === 'admin'));
 
   const handleSend = () => {
     const text = msg.trim();
@@ -276,7 +279,10 @@ function Inner() {
         <div className="space-y-3">
           {groups.map(g => {
             const memberCount = g.members_count ?? g.members?.length ?? 0;
-            const isAdmin = g.created_by.profile_id === auth.user()?.profile_id;
+            const myGProfileId = auth.user()?.profile_id;
+            const isAdmin =
+              (!!myGProfileId && g.created_by.profile_id === myGProfileId) ||
+              (!!userId && !!g.members?.some(m => m.user.id === userId && m.role === 'admin'));
             return (
               <button key={g.id} onClick={() => setSelected(g)}
                 className="w-full bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4 flex items-center gap-4 hover:border-navy hover:shadow-md transition-all text-left">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { QueryClientProvider, useQuery, useMutation } from '@tanstack/react-query';
+import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
@@ -18,9 +18,22 @@ function fmtDate(s: string) {
   return new Date(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+async function loadRazorpay() {
+  if ((window as any).Razorpay) return;
+  await new Promise<void>((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.onload  = () => resolve();
+    s.onerror = () => reject(new Error('Razorpay load failed'));
+    document.head.appendChild(s);
+  });
+}
+
 function Inner() {
+  const qc = useQueryClient();
   const [coupon, setCoupon]   = useState('');
   const [couponMsg, setCouponMsg] = useState('');
+  const [payMsg, setPayMsg]   = useState<string | null>(null);
 
   const { data: sub, isLoading: subLoading } = useQuery<Subscription>({
     queryKey: ['vendor-subscription'],
@@ -30,6 +43,43 @@ function Inner() {
   const { data: plansData, isLoading: plansLoading } = useQuery<Plan[]>({
     queryKey: ['billing-plans'],
     queryFn: () => api.get('/billing/plans/').then(r => r.data),
+  });
+
+  const payMut = useMutation({
+    mutationFn: (planName: string) =>
+      api.post('/billing/payment/initiate/', { plan_name: planName }).then(r => r.data),
+    onSuccess: async (data: any, planName: string) => {
+      try {
+        await loadRazorpay();
+        const rzp = new (window as any).Razorpay({
+          key:      data.razorpay_key_id,
+          amount:   data.amount,
+          currency: data.currency || 'INR',
+          order_id: data.razorpay_order_id,
+          name:     'NearSpot',
+          description: `${planName} subscription`,
+          handler: async (response: any) => {
+            try {
+              await api.post('/billing/payment/verify/', {
+                razorpay_order_id:   response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature:  response.razorpay_signature,
+                plan_name: planName,
+              });
+              qc.invalidateQueries({ queryKey: ['vendor-subscription'] });
+              setPayMsg('✅ Subscription activated successfully!');
+            } catch {
+              setPayMsg('❌ Payment verification failed. Please contact support.');
+            }
+          },
+          modal: { ondismiss: () => {} },
+        });
+        rzp.open();
+      } catch {
+        setPayMsg('❌ Could not open payment. Please try again.');
+      }
+    },
+    onError: () => setPayMsg('❌ Could not initiate payment. Please try again.'),
   });
 
   const validateCoupon = useMutation({
@@ -46,6 +96,12 @@ function Inner() {
         <h1 className="text-xl font-bold text-navy">Plans & Subscription</h1>
         <p className="text-sm text-gray-400">Manage your NearSpot plan</p>
       </div>
+
+      {payMsg && (
+        <div className={`px-4 py-3 rounded-xl text-sm font-semibold ${payMsg.startsWith('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+          {payMsg}
+        </div>
+      )}
 
       {/* Current subscription */}
       {!subLoading && sub && (
@@ -122,9 +178,11 @@ function Inner() {
                     ))}
                   </div>
                   {!isCurrent && (
-                    <button onClick={() => alert('Payment integration coming soon. Please use the mobile app to upgrade.')}
-                      className="w-full btn-primary py-2.5 rounded-xl text-sm font-bold">
-                      {sub?.is_active ? 'Upgrade' : 'Subscribe'}
+                    <button
+                      onClick={() => { setPayMsg(null); payMut.mutate(plan.name); }}
+                      disabled={payMut.isPending}
+                      className="w-full btn-primary py-2.5 rounded-xl text-sm font-bold disabled:opacity-50">
+                      {payMut.isPending ? 'Processing…' : sub?.is_active ? 'Upgrade' : 'Subscribe'}
                     </button>
                   )}
                 </div>
