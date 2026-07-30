@@ -266,7 +266,7 @@ function Inner() {
 
   const toggleMut = useMutation({
     mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
-      api.put(`/stores/mine/services/${id}/`, { is_active }),
+      api.patch(`/stores/mine/services/${id}/`, { is_active }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vendor-services'] }),
   });
 

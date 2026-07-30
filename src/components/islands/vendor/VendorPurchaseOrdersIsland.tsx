@@ -36,10 +36,12 @@ const EMPTY_ITEM: POItem = { sku: '', qty: 1, unit_cost: 0 };
 
 function POModal({
   suppliers,
+  suppliersLoading,
   onClose,
   onSuccess,
 }: {
   suppliers: Supplier[];
+  suppliersLoading?: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -90,10 +92,16 @@ function POModal({
               <select
                 value={supplier}
                 onChange={e => setSupplier(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40"
+                disabled={suppliersLoading}
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40 disabled:opacity-60"
               >
-                <option value="">— No supplier —</option>
-                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {suppliersLoading
+                  ? <option value="">Loading suppliers…</option>
+                  : <>
+                      <option value="">— No supplier —</option>
+                      {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </>
+                }
               </select>
             </div>
             <div>
@@ -197,8 +205,9 @@ function Inner() {
   });
 
   const [selectVals, setSelectVals] = useState<Record<string, string>>({});
+  const [receivingId, setReceivingId] = useState<string | null>(null);
 
-  const { data: suppliersData } = useQuery({
+  const { data: suppliersData, isLoading: suppliersLoading } = useQuery({
     queryKey: ['vendor-suppliers'],
     queryFn: () => api.get('/inventory/suppliers/').then(r => r.data),
     enabled: showCreate,
@@ -206,7 +215,8 @@ function Inner() {
 
   const markReceivedMut = useMutation({
     mutationFn: (id: string) => api.patch(`/inventory/purchase-orders/${id}/`, { status: 'received' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['vendor-purchase-orders'] }),
+    onSuccess: () => { setReceivingId(null); qc.invalidateQueries({ queryKey: ['vendor-purchase-orders'] }); },
+    onError: () => setReceivingId(null),
   });
 
   const changeStatusMut = useMutation({
@@ -310,11 +320,11 @@ function Inner() {
                       <div className="flex items-center gap-2 justify-end">
                         {po.status === 'sent' && (
                           <button
-                            onClick={() => markReceivedMut.mutate(po.id)}
-                            disabled={markReceivedMut.isPending}
-                            className="text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg transition-colors"
+                            onClick={() => { setReceivingId(po.id); markReceivedMut.mutate(po.id); }}
+                            disabled={receivingId === po.id}
+                            className="text-xs font-bold text-green-700 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
                           >
-                            Mark Received
+                            {receivingId === po.id ? '…' : 'Mark Received'}
                           </button>
                         )}
                         {po.status === 'draft' && (
@@ -346,7 +356,7 @@ function Inner() {
       )}
 
       {showCreate && (
-        <POModal suppliers={suppliers} onClose={() => setShowCreate(false)} onSuccess={handleSuccess} />
+        <POModal suppliers={suppliers} suppliersLoading={suppliersLoading} onClose={() => setShowCreate(false)} onSuccess={handleSuccess} />
       )}
     </div>
   );
