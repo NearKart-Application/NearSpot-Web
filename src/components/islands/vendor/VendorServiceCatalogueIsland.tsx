@@ -257,6 +257,7 @@ function Inner() {
   });
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [toggleError, setToggleError] = useState<string | null>(null);
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => api.delete(`/stores/mine/services/${id}/`),
@@ -267,7 +268,8 @@ function Inner() {
   const toggleMut = useMutation({
     mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
       api.patch(`/stores/mine/services/${id}/`, { is_active }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['vendor-services'] }),
+    onSuccess: () => { setToggleError(null); qc.invalidateQueries({ queryKey: ['vendor-services'] }); },
+    onError: (e: any) => setToggleError(e?.response?.data?.detail ?? 'Failed to update service'),
   });
 
   const services: Service[] = data?.results ?? (Array.isArray(data) ? data : []);
@@ -283,6 +285,11 @@ function Inner() {
       {deleteError && (
         <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
           {deleteError}
+        </div>
+      )}
+      {toggleError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
+          {toggleError}
         </div>
       )}
 
