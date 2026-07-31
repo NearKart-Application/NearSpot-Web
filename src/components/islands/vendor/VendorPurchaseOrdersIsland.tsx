@@ -148,7 +148,7 @@ function POModal({
                     type="number"
                     min="1"
                     value={item.qty}
-                    onChange={e => setItem(idx, 'qty', parseInt(e.target.value) || 1)}
+                    onChange={e => { const v = parseInt(e.target.value); setItem(idx, 'qty', isNaN(v) ? 1 : Math.max(1, v)); }}
                     className="rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-navy/40"
                   />
                   <input
@@ -206,6 +206,7 @@ function Inner() {
 
   const [selectVals, setSelectVals] = useState<Record<string, string>>({});
   const [receivingId, setReceivingId] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   const { data: suppliersData, isLoading: suppliersLoading } = useQuery({
     queryKey: ['vendor-suppliers'],
@@ -222,7 +223,8 @@ function Inner() {
   const changeStatusMut = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       api.patch(`/inventory/purchase-orders/${id}/`, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['vendor-purchase-orders'] }),
+    onSuccess: () => { setStatusError(null); qc.invalidateQueries({ queryKey: ['vendor-purchase-orders'] }); },
+    onError: (e: any) => setStatusError(e?.response?.data?.detail ?? 'Failed to update status'),
   });
 
   const orders: PurchaseOrder[] = data?.results ?? (Array.isArray(data) ? data : []);
@@ -239,6 +241,12 @@ function Inner() {
 
   return (
     <div className="space-y-6">
+      {statusError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600 flex items-center justify-between">
+          <span>{statusError}</span>
+          <button onClick={() => setStatusError(null)} className="ml-3 text-red-400 hover:text-red-600 font-bold">✕</button>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-navy">Purchase Orders</h1>
