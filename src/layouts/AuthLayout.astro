@@ -4,27 +4,32 @@ interface Props { title?: string }
 const { title } = Astro.props;
 ---
 <Layout title={title}>
-  <div class="min-h-screen flex flex-col bg-white">
+  <div class="min-h-screen flex flex-col" style="background: linear-gradient(145deg, #0F172A 0%, #1a2e52 50%, #0F172A 100%);">
 
-    <!-- Top brand section (Navy gradient, like mobile splash) -->
-    <div class="bg-gradient-to-br from-navy to-navy/80 flex flex-col items-center justify-center pt-16 pb-10 px-6 relative overflow-hidden">
-      <!-- Background circles -->
-      <div class="absolute -top-16 -right-16 w-56 h-56 bg-white/5 rounded-full"></div>
-      <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-gold/10 rounded-full"></div>
+    <!-- Background decoration -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+      <div class="absolute -top-24 -right-24 w-72 h-72 bg-gold/8 rounded-full blur-3xl"></div>
+      <div class="absolute top-1/2 -left-16 w-48 h-48 bg-blue-500/5 rounded-full blur-2xl"></div>
+      <div class="absolute -bottom-20 right-1/4 w-64 h-64 bg-gold/6 rounded-full blur-3xl"></div>
+    </div>
 
-      <!-- Logo -->
-      <div class="relative z-10 flex flex-col items-center">
-        <div class="w-20 h-20 bg-gold rounded-[22px] flex items-center justify-center shadow-xl mb-4">
-          <span class="text-navy font-black text-4xl leading-none">N</span>
+    <!-- Brand section -->
+    <div class="flex flex-col items-center justify-center pt-14 pb-8 px-6 relative z-10 animate-scale-in">
+      <div class="flex flex-col items-center">
+        <div class="w-16 h-16 rounded-[20px] flex items-center justify-center mb-4 animate-float"
+             style="background: linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%); box-shadow: 0 8px 32px rgba(245,158,11,0.4), 0 2px 8px rgba(245,158,11,0.2);">
+          <span class="text-navy font-black text-3xl leading-none">N</span>
         </div>
-        <h1 class="text-white text-3xl font-black tracking-tight">NearSpot</h1>
-        <p class="text-white/60 text-sm mt-1 font-medium">Discover what's near you</p>
+        <h1 class="text-white text-2xl font-extrabold tracking-tight">NearSpot</h1>
+        <p class="text-white/50 text-sm mt-1 font-medium">Discover what's near you</p>
       </div>
     </div>
 
-    <!-- White card section (slides up like a bottom sheet) -->
-    <div class="flex-1 bg-white rounded-t-3xl -mt-5 relative z-10 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] px-6 pt-8 pb-10 flex flex-col max-w-md mx-auto w-full">
-      <slot />
+    <!-- Card panel -->
+    <div class="flex-1 relative z-10 flex flex-col animate-slide-up">
+      <div class="bg-white rounded-t-3xl flex-1 px-6 pt-8 pb-10 flex flex-col max-w-md mx-auto w-full" style="box-shadow: 0 -12px 48px rgba(0,0,0,0.22), 0 -2px 8px rgba(0,0,0,0.1)">
+        <slot />
+      </div>
     </div>
   </div>
 </Layout>

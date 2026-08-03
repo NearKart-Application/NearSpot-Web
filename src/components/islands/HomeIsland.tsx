@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
 import { ProductCardGrid, type ProductData } from '../ui/ProductCard';
@@ -77,6 +78,15 @@ const CAT_COLORS: Record<string, string> = {
    Sub-components
 ───────────────────────────────────────────────────────────────────────────── */
 
+const gridContainer = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
+};
+const gridItem = {
+  hidden: { opacity: 0, y: 22, scale: 0.96 },
+  show:   { opacity: 1, y: 0,  scale: 1,   transition: { duration: 0.38, ease: 'easeOut' as const } },
+};
+
 // Store card — Zomato/Swiggy style with full cover image
 function StoreCard({ store }: { store: Store }) {
   const rating = store.rating ?? store.avg_rating ?? 0;
@@ -85,17 +95,25 @@ function StoreCard({ store }: { store: Store }) {
   const offers  = store.active_offer_labels ?? (store.top_offer_label ? [store.top_offer_label] : []);
 
   return (
-    <a href={`/stores/${store.id}`}
-      className="block bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
+    <motion.a
+      href={`/stores/${store.id}`}
+      variants={gridItem}
+      whileHover={{ y: -4, boxShadow: '0 12px 32px rgb(15 23 42 / 0.15)' }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ duration: 0.2 }}
+      className="block bg-white rounded-2xl overflow-hidden border border-gray-100 group"
+    >
       {/* Cover image */}
-      <div className="relative h-36 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+      <div className="relative h-40 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
         <Img src={store.cover_image} alt={store.name} fallback="store" loading="lazy"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
         {/* Open/Closed pill */}
         <div className="absolute top-2.5 right-2.5">
-          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shadow ${
-            store.is_open ? 'bg-green-500 text-white' : 'bg-gray-600/80 text-white'
-          }`}>{store.is_open ? 'OPEN' : 'CLOSED'}</span>
+          {store.is_open ? (
+            <span className="bg-emerald-500 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-sm">OPEN</span>
+          ) : (
+            <span className="bg-gray-700/80 backdrop-blur-sm text-white text-[10px] font-black px-2.5 py-0.5 rounded-full">CLOSED</span>
+          )}
         </div>
         {/* Top offer badge */}
         {offers.length > 0 && (
@@ -109,11 +127,11 @@ function StoreCard({ store }: { store: Store }) {
       <div className="p-3">
         <div className="flex items-start gap-2.5">
           {/* Avatar */}
-          <div className="w-9 h-9 rounded-xl bg-gray-100 border border-gray-200 overflow-hidden shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-white border-2 border-white overflow-hidden shrink-0 shadow-sm -mt-5 ml-3 relative z-10">
             <Img src={store.avatar} alt={store.name} fallback="avatar"
               className="w-full h-full object-cover" />
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 mt-0.5">
             <div className="flex items-start justify-between gap-1">
               <h3 className="font-bold text-navy text-sm leading-tight truncate">{store.name}</h3>
               {store.is_verified && <span className="text-blue-500 text-xs shrink-0">✓</span>}
@@ -135,7 +153,7 @@ function StoreCard({ store }: { store: Store }) {
         <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
           {rating > 0 ? (
             <span className="flex items-center gap-0.5 font-semibold text-gray-700">
-              <span className="text-amber-400">★</span>{rating.toFixed(1)}
+              <span className="text-amber-400 text-sm">★</span>{rating.toFixed(1)}
               {store.review_count ? <span className="text-gray-400 font-normal">({store.review_count})</span> : null}
             </span>
           ) : (
@@ -148,7 +166,7 @@ function StoreCard({ store }: { store: Store }) {
           <div className="mt-1.5 text-[11px] font-semibold text-orange-600 bg-orange-50 rounded-lg px-2 py-0.5 w-fit">🌴 On Holiday</div>
         )}
       </div>
-    </a>
+    </motion.a>
   );
 }
 
@@ -163,9 +181,15 @@ function FlashDealCard({ product, wishlisted, onWishlist }: {
   const disc   = (sale && base && sale < base) ? Math.round((1 - sale / base) * 100) : 0;
 
   return (
-    <div className="relative w-40 shrink-0 group">
+    <motion.div
+      className="relative w-40 shrink-0 group"
+      variants={gridItem}
+      whileHover={{ y: -3 }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ duration: 0.2 }}
+    >
       <a href={`/products/${product.id}`}
-        className="block bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+        className="block bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg transition-shadow duration-200">
         {/* Image */}
         <div className="relative h-40 bg-gray-50 overflow-hidden">
           <Img src={img} alt={product.name} fallback="product" loading="lazy"
@@ -181,7 +205,7 @@ function FlashDealCard({ product, wishlisted, onWishlist }: {
             </div>
           )}
           {/* Hover reserve button */}
-          <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-200 bg-navy/95 py-2.5 text-center text-white text-xs font-bold">
+          <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-navy/95 backdrop-blur-sm py-2.5 text-center text-white text-xs font-bold">
             📌 Reserve
           </div>
         </div>
@@ -206,7 +230,7 @@ function FlashDealCard({ product, wishlisted, onWishlist }: {
             d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
         </svg>
       </button>
-    </div>
+    </motion.div>
   );
 }
 
@@ -221,26 +245,37 @@ function BannerCarousel({ banners }: { banners: Banner[] }) {
   if (!banners.length) return null;
   const b = banners[idx];
   return (
-    <div className="relative mx-4 h-36 rounded-2xl overflow-hidden shadow-sm cursor-pointer"
+    <div className="relative mx-4 h-44 rounded-2xl overflow-hidden shadow-sm cursor-pointer"
       onClick={() => { if (b.link_value) window.location.href = b.link_value; }}>
       <div className="absolute inset-0 bg-gradient-to-r from-navy to-navy/80" />
-      {b.image_url && (
-        <Img src={b.image_url} alt={b.title} fallback="banner" loading="eager"
-          className="absolute inset-0 w-full h-full object-cover" />
-      )}
-      <div className="absolute inset-0 bg-gradient-to-r from-navy/80 via-navy/60 to-transparent" />
+      <AnimatePresence mode="popLayout">
+        {b.image_url && (
+          <motion.div
+            key={idx}
+            className="absolute inset-0"
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -30 }}
+            transition={{ duration: 0.35, ease: 'easeInOut' }}
+          >
+            <Img src={b.image_url} alt={b.title} fallback="banner" loading="eager"
+              className="w-full h-full object-cover" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <div className="absolute inset-0 bg-gradient-to-r from-navy/90 via-navy/60 to-transparent" />
       <div className="absolute inset-0 p-5 flex flex-col justify-center">
         {b.badge_text && (
-          <span className="inline-block bg-gold text-navy text-[10px] font-black px-2 py-0.5 rounded-full mb-2 w-fit uppercase tracking-wide">{b.badge_text}</span>
+          <span className="inline-block bg-gold text-navy text-[10px] font-black px-3 py-1 rounded-full mb-2 w-fit uppercase tracking-widest shadow-sm">{b.badge_text}</span>
         )}
-        <h3 className="text-white font-extrabold text-xl leading-tight">{b.title}</h3>
+        <h3 className="text-white font-extrabold text-2xl leading-tight">{b.title}</h3>
         {b.subtitle && <p className="text-white/80 text-sm mt-1">{b.subtitle}</p>}
       </div>
       {banners.length > 1 && (
-        <div className="absolute bottom-3 right-4 flex gap-1.5">
+        <div className="absolute bottom-3 right-4 flex gap-1.5 items-center">
           {banners.map((_, i) => (
-            <button key={i} onClick={() => setIdx(i)}
-              className={`w-1.5 h-1.5 rounded-full transition-all ${i === idx ? 'bg-white w-4' : 'bg-white/50'}`} />
+            <button key={i} onClick={e => { e.stopPropagation(); setIdx(i); }}
+              className={`rounded-full transition-all ${i === idx ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/40'}`} />
           ))}
         </div>
       )}
@@ -253,12 +288,12 @@ function StoreSkeletons() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
       {[...Array(8)].map((_, i) => (
-        <div key={i} className="bg-white rounded-2xl overflow-hidden border border-gray-100 animate-pulse">
-          <div className="h-36 bg-gray-200" />
+        <div key={i} className="bg-white rounded-2xl overflow-hidden border border-gray-100">
+          <div className="h-40 animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer" />
           <div className="p-3 space-y-2">
-            <div className="h-3.5 bg-gray-200 rounded-full w-3/4" />
-            <div className="h-3 bg-gray-200 rounded-full w-1/2" />
-            <div className="h-3 bg-gray-200 rounded-full w-2/3" />
+            <div className="h-3.5 animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full w-3/4" />
+            <div className="h-3 animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full w-1/2" />
+            <div className="h-3 animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full w-2/3" />
           </div>
         </div>
       ))}
@@ -270,12 +305,12 @@ function ProductSkeletons() {
   return (
     <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
       {[...Array(6)].map((_, i) => (
-        <div key={i} className="w-36 shrink-0 bg-white rounded-2xl overflow-hidden border border-gray-100 animate-pulse">
-          <div className="h-36 bg-gray-200" />
+        <div key={i} className="w-36 shrink-0 bg-white rounded-2xl overflow-hidden border border-gray-100">
+          <div className="h-36 animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer" />
           <div className="p-2.5 space-y-2">
-            <div className="h-3 bg-gray-200 rounded-full w-full" />
-            <div className="h-3 bg-gray-200 rounded-full w-2/3" />
-            <div className="h-4 bg-gray-200 rounded-full w-1/2" />
+            <div className="h-3 animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full w-full" />
+            <div className="h-3 animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full w-2/3" />
+            <div className="h-4 animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full w-1/2" />
           </div>
         </div>
       ))}
@@ -286,16 +321,13 @@ function ProductSkeletons() {
 // Section header
 function SectionHead({ title, subtitle, href }: { title: string; subtitle?: string; href?: string }) {
   return (
-    <div className="flex items-end justify-between mb-4">
-      <div>
+    <div className="flex items-end justify-between mb-4 px-4">
+      <div className="flex items-center gap-2">
+        <div className="w-1 h-5 bg-gold rounded-full" />
         <h2 className="text-base font-extrabold text-navy leading-none">{title}</h2>
-        {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+        {subtitle && <p className="text-xs text-gray-400">• {subtitle}</p>}
       </div>
-      {href && (
-        <a href={href} className="text-[11px] font-bold text-navy/60 hover:text-navy transition-colors uppercase tracking-wider">
-          View all →
-        </a>
-      )}
+      {href && <a href={href} className="text-[11px] font-bold text-navy/50 hover:text-navy transition-colors uppercase tracking-wider">See all →</a>}
     </div>
   );
 }
@@ -483,7 +515,10 @@ function Inner({ initBanners, initCategories }: { initBanners: Banner[]; initCat
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-8">
 
       {/* ── Home Sub-header ─────────────────────────────────────────────── */}
-      <div className="bg-navy sticky top-16 z-30 shadow-md">
+      <div
+        className="sticky top-16 z-30 shadow-md border-b border-white/10"
+        style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1a2e52 100%)' }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-12 flex items-center gap-2">
 
           {/* Location button */}
@@ -572,26 +607,41 @@ function Inner({ initBanners, initCategories }: { initBanners: Banner[]; initCat
           {categories.length > 0 && (
             <section>
               <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-1">
-                <button onClick={() => setCategory(null)}
-                  className={`flex flex-col items-center gap-1.5 shrink-0 w-16 group`}>
+                <motion.button
+                  onClick={() => setCategory(null)}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0 }}
+                  className="flex flex-col items-center gap-1.5 shrink-0 w-16 group"
+                >
                   <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl transition-all ${
-                    !category ? 'bg-navy text-white shadow-lg' : 'bg-white border border-gray-200 text-gray-500 hover:border-navy/30'
+                    !category
+                      ? 'bg-navy text-white shadow-sm scale-105'
+                      : 'bg-white text-gray-600 border border-gray-200 hover:border-navy/30 hover:text-navy'
                   }`}>🔍</div>
                   <span className="text-[11px] font-semibold text-gray-500">All</span>
-                </button>
-                {categories.map(cat => {
+                </motion.button>
+                {categories.map((cat, index) => {
                   const sel = category === cat.slug;
                   const clr = CAT_COLORS[cat.slug] ?? 'bg-gray-100 text-gray-600';
                   return (
-                    <button key={cat.id} onClick={() => setCategory(sel ? null : cat.slug)}
-                      className="flex flex-col items-center gap-1.5 shrink-0 w-16">
+                    <motion.button
+                      key={cat.id}
+                      onClick={() => setCategory(sel ? null : cat.slug)}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: (index + 1) * 0.03 }}
+                      className="flex flex-col items-center gap-1.5 shrink-0 w-16"
+                    >
                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl transition-all ${
-                        sel ? 'bg-navy text-white shadow-lg' : `${clr} hover:scale-105`
+                        sel
+                          ? 'bg-navy text-white shadow-sm scale-105'
+                          : `${clr} bg-white border border-gray-200 hover:border-navy/30 hover:text-navy`
                       }`}>
                         {cat.icon ?? CAT_ICONS[cat.slug] ?? '🏷️'}
                       </div>
                       <span className="text-[11px] font-semibold text-gray-500 truncate w-full text-center">{cat.name}</span>
-                    </button>
+                    </motion.button>
                   );
                 })}
               </div>
@@ -624,45 +674,55 @@ function Inner({ initBanners, initCategories }: { initBanners: Banner[]; initCat
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              <motion.div
+                className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+                variants={gridContainer}
+                initial="hidden"
+                animate="show"
+              >
                 {stores.map(s => <StoreCard key={s.id} store={s} />)}
-              </div>
+              </motion.div>
             )}
           </section>
 
           {/* Flash Deals */}
           {(dealsQ.isLoading || deals.length > 0) && (
             <section>
-              <div className="flex items-end justify-between mb-4">
+              <div className="flex items-end justify-between mb-4 px-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-6 bg-red-500 rounded-full" />
+                  <div className="w-1 h-5 bg-red-500 rounded-full" />
                   <div>
                     <h2 className="text-base font-extrabold text-navy leading-none">Flash Deals</h2>
                     <p className="text-xs text-red-500 font-semibold mt-0.5">Limited time offers near you</p>
                   </div>
                 </div>
-                <a href="/products" className="text-[11px] font-bold text-navy/60 hover:text-navy transition-colors uppercase tracking-wider">
-                  View all →
+                <a href="/products" className="text-[11px] font-bold text-navy/50 hover:text-navy transition-colors uppercase tracking-wider">
+                  See all →
                 </a>
               </div>
               {dealsQ.isLoading
                 ? <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
                     {[...Array(5)].map((_, i) => (
-                      <div key={i} className="w-40 shrink-0 bg-white rounded-2xl border border-gray-100 animate-pulse">
-                        <div className="h-40 bg-gray-200 rounded-t-2xl" />
+                      <div key={i} className="w-40 shrink-0 bg-white rounded-2xl border border-gray-100">
+                        <div className="h-40 animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-t-2xl" />
                         <div className="p-2.5 space-y-2">
-                          <div className="h-3 bg-gray-200 rounded-full w-full" />
-                          <div className="h-4 bg-gray-200 rounded-full w-2/3" />
+                          <div className="h-3 animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full w-full" />
+                          <div className="h-4 animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full w-2/3" />
                         </div>
                       </div>
                     ))}
                   </div>
-                : <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
+                : <motion.div
+                    className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2"
+                    variants={gridContainer}
+                    initial="hidden"
+                    animate="show"
+                  >
                     {deals.map(p => (
                       <FlashDealCard key={p.id} product={p}
                         wishlisted={wishlisted.has(p.id)} onWishlist={() => toggleWishlist(p.id)} />
                     ))}
-                  </div>
+                  </motion.div>
               }
             </section>
           )}
@@ -674,12 +734,12 @@ function Inner({ initBanners, initCategories }: { initBanners: Banner[]; initCat
               {prodQ.isLoading
                 ? <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                     {[...Array(8)].map((_, i) => (
-                      <div key={i} className="bg-white rounded-2xl border border-gray-100 animate-pulse">
-                        <div className="aspect-square bg-gray-200 rounded-t-2xl" />
+                      <div key={i} className="bg-white rounded-2xl border border-gray-100">
+                        <div className="aspect-square animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-t-2xl" />
                         <div className="p-3 space-y-2">
-                          <div className="h-3 bg-gray-200 rounded-full w-2/3" />
-                          <div className="h-4 bg-gray-200 rounded-full" />
-                          <div className="h-4 bg-gray-200 rounded-full w-1/2" />
+                          <div className="h-3 animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full w-2/3" />
+                          <div className="h-4 animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full" />
+                          <div className="h-4 animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-shimmer rounded-full w-1/2" />
                         </div>
                       </div>
                     ))}

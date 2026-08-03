@@ -1,9 +1,19 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
 import { ProductCardGrid, ProductCardList, type ProductData } from '../ui/ProductCard';
 import Img from '../ui/Img';
+
+const listContainer = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.055, delayChildren: 0.02 } },
+};
+const listItem = {
+  hidden: { opacity: 0, y: 18, scale: 0.97 },
+  show:   { opacity: 1, y: 0,  scale: 1,   transition: { duration: 0.35, ease: 'easeOut' as const } },
+};
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 interface Store {
@@ -550,24 +560,38 @@ function Inner({ initTab }: { initTab: Tab }) {
             </div>
           ) : tab === 'products' ? (
             view === 'grid' ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+              <motion.div
+                className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4"
+                variants={listContainer} initial="hidden" animate="show"
+              >
                 {products.map(p => (
-                  <ProductCardGrid key={p.id} product={p}
-                    wishlisted={wishlisted.has(p.id)} onWishlist={() => toggleWishlist(p.id)} />
+                  <motion.div key={p.id} variants={listItem}>
+                    <ProductCardGrid product={p}
+                      wishlisted={wishlisted.has(p.id)} onWishlist={() => toggleWishlist(p.id)} />
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             ) : (
-              <div className="space-y-3">
+              <motion.div className="space-y-3" variants={listContainer} initial="hidden" animate="show">
                 {products.map(p => (
-                  <ProductCardList key={p.id} product={p}
-                    wishlisted={wishlisted.has(p.id)} onWishlist={() => toggleWishlist(p.id)} />
+                  <motion.div key={p.id} variants={listItem}>
+                    <ProductCardList product={p}
+                      wishlisted={wishlisted.has(p.id)} onWishlist={() => toggleWishlist(p.id)} />
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             )
           ) : (
-            <div className={`grid gap-4 ${view === 'grid' ? 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
-              {(tab === 'services' ? services : stores).map(s => <StoreCard key={s.id} store={s} view={view} />)}
-            </div>
+            <motion.div
+              className={`grid gap-4 ${view === 'grid' ? 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}
+              variants={listContainer} initial="hidden" animate="show"
+            >
+              {(tab === 'services' ? services : stores).map(s => (
+                <motion.div key={s.id} variants={listItem}>
+                  <StoreCard store={s} view={view} />
+                </motion.div>
+              ))}
+            </motion.div>
           )}
         </div>
       </div>

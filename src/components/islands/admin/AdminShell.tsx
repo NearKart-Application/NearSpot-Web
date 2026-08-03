@@ -1,23 +1,55 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentType } from 'react';
+import { motion } from 'framer-motion';
+import {
+  LayoutDashboard,
+  Store,
+  Users,
+  Package,
+  Image,
+  Tag,
+  TicketPercent,
+  Globe,
+  ClipboardList,
+  Shield,
+  CreditCard,
+  Link2,
+  LogOut,
+  ChevronRight,
+} from 'lucide-react';
 import { auth } from '../../../lib/auth';
 
+const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
+  dashboard:    LayoutDashboard,
+  stores:       Store,
+  users:        Users,
+  products:     Package,
+  image:        Image,
+  tag:          Tag,
+  ticket:       TicketPercent,
+  globe:        Globe,
+  clipboard:    ClipboardList,
+  shield:       Shield,
+  'credit-card': CreditCard,
+  link:         Link2,
+};
+
 const NAV_ALL = [
-  { label: 'Dashboard',         href: '/admin/dashboard',         icon: '📊' },
-  { label: 'Stores',            href: '/admin/stores',            icon: '🏪' },
-  { label: 'Users',             href: '/admin/users',             icon: '👥' },
-  { label: 'Products',          href: '/admin/products',          icon: '📦' },
-  { label: 'Banners',           href: '/admin/banners',           icon: '🖼' },
-  { label: 'Categories',        href: '/admin/categories',        icon: '🗂' },
-  { label: 'Offer Templates',   href: '/admin/offer-templates',   icon: '🏷' },
-  { label: 'Coupons',           href: '/admin/coupons',           icon: '🎟' },
-  { label: 'Website Requests',  href: '/admin/website-requests',  icon: '🌐' },
-  { label: 'Activity Log',      href: '/admin/activity-log',      icon: '📋' },
+  { label: 'Dashboard',         href: '/admin/dashboard',         icon: 'dashboard' },
+  { label: 'Stores',            href: '/admin/stores',            icon: 'stores' },
+  { label: 'Users',             href: '/admin/users',             icon: 'users' },
+  { label: 'Products',          href: '/admin/products',          icon: 'products' },
+  { label: 'Banners',           href: '/admin/banners',           icon: 'image' },
+  { label: 'Categories',        href: '/admin/categories',        icon: 'tag' },
+  { label: 'Offer Templates',   href: '/admin/offer-templates',   icon: 'ticket' },
+  { label: 'Coupons',           href: '/admin/coupons',           icon: 'ticket' },
+  { label: 'Website Requests',  href: '/admin/website-requests',  icon: 'globe' },
+  { label: 'Activity Log',      href: '/admin/activity-log',      icon: 'clipboard' },
 ];
 
 const NAV_MASTER = [
-  { label: 'Manage Admins',  href: '/admin/admins',          icon: '🛡' },
-  { label: 'Plans',          href: '/admin/plans',           icon: '💳' },
-  { label: 'Referral Config',href: '/admin/referral-config', icon: '🔗' },
+  { label: 'Manage Admins',   href: '/admin/admins',          icon: 'shield' },
+  { label: 'Plans',           href: '/admin/plans',           icon: 'credit-card' },
+  { label: 'Referral Config', href: '/admin/referral-config', icon: 'link' },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -43,7 +75,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   if (status === 'loading') {
     return (
       <div className="flex items-center justify-center min-h-screen bg-surface">
-        <div className="w-8 h-8 spinner" />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+          className="flex flex-col items-center gap-3"
+        >
+          <div className="w-10 h-10 spinner" />
+          <p className="text-xs text-gray-400 font-medium">Loading…</p>
+        </motion.div>
       </div>
     );
   }
@@ -51,87 +91,143 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   if (status === 'denied') return null;
 
   const navItems = isMaster ? [...NAV_ALL, ...NAV_MASTER] : NAV_ALL;
+  const activeItem = navItems.find((n) => path === n.href || path.startsWith(n.href + '/'));
 
   return (
-    <div className="flex min-h-screen bg-surface">
-      <aside
+    <div className="flex min-h-screen bg-gray-50">
+      {/* Sidebar */}
+      <motion.aside
+        initial={{ x: -20, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className="fixed inset-y-0 left-0 w-[260px] flex flex-col z-30"
-        style={{ backgroundColor: '#1C2E4A' }}
+        style={{ background: 'linear-gradient(180deg, #0B1120 0%, #0F172A 40%, #070C18 100%)' }}
       >
-        <div className="h-16 flex items-center px-5 border-b border-white/10 shrink-0">
-          <span className="text-white font-bold text-lg tracking-tight">NearSpot</span>
+        {/* Logo / Header */}
+        <div className="h-16 flex items-center gap-3 px-5 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+          <motion.div
+            whileHover={{ rotate: 8, scale: 1.1 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black shrink-0 shadow-lg"
+            style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)', color: '#0F172A' }}
+          >
+            N
+          </motion.div>
+          <span className="text-white font-bold text-base tracking-tight flex-1">NearSpot</span>
           <span
-            className="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full"
-            style={{ backgroundColor: '#F7B731', color: '#1C2E4A' }}
+            className="text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 tracking-wide uppercase"
+            style={{ background: isMaster ? 'linear-gradient(135deg, #F59E0B, #FBBF24)' : 'rgba(255,255,255,0.12)', color: isMaster ? '#0F172A' : 'rgba(255,255,255,0.7)' }}
           >
             {isMaster ? 'Master' : 'Admin'}
           </span>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
-          {navItems.map((item) => {
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-3 space-y-0.5 scrollbar-hide">
+          {navItems.map((item, index) => {
             const isActive = path === item.href || path.startsWith(item.href + '/');
+            const Icon = ICON_MAP[item.icon] ?? LayoutDashboard;
             return (
-              <a
+              <motion.a
                 key={item.href}
                 href={item.href}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all"
-                style={
-                  isActive
-                    ? { backgroundColor: '#F7B731', color: '#1C2E4A' }
-                    : { color: 'rgba(255,255,255,0.75)' }
-                }
-                onMouseEnter={(e) => {
-                  if (!isActive) (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.1)';
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) (e.currentTarget as HTMLElement).style.backgroundColor = '';
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.035, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                whileHover={{ x: isActive ? 0 : 3 }}
+                whileTap={{ scale: 0.97 }}
+                className="flex items-center gap-3 rounded-xl text-sm transition-all duration-200 mx-1 relative"
+                style={{
+                  padding: '10px 12px',
+                  color: isActive ? 'white' : 'rgba(255,255,255,0.52)',
+                  background: isActive ? 'rgba(255,255,255,0.13)' : 'transparent',
+                  fontWeight: isActive ? 600 : 500,
+                  boxShadow: isActive ? 'inset 3px 0 0 #F59E0B' : 'none',
                 }}
               >
-                <span className="text-base w-5 text-center">{item.icon}</span>
-                {item.label}
-              </a>
+                <Icon className="w-4 h-4 shrink-0" />
+                <span className="flex-1">{item.label}</span>
+                {isActive && (
+                  <motion.span
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ backgroundColor: '#F59E0B' }}
+                  />
+                )}
+              </motion.a>
             );
           })}
         </nav>
 
-        <div className="px-3 py-4 border-t border-white/10 shrink-0">
-          <div className="flex items-center gap-3 px-3 py-2">
+        {/* Bottom: user + logout */}
+        <div className="px-3 py-4 shrink-0 space-y-1" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+          <div className="flex items-center gap-3 px-3 py-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)' }}>
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-              style={{ backgroundColor: '#F7B731', color: '#1C2E4A' }}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ring-2"
+              style={{ background: 'linear-gradient(135deg, #F59E0B, #FBBF24)', color: '#0F172A' }}
             >
               {userName.charAt(0).toUpperCase()}
             </div>
-            <span className="text-white text-sm font-medium truncate flex-1">{userName}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-sm font-medium truncate">{userName}</p>
+              <p className="text-white/35 text-[10px]">{isMaster ? 'Master Admin' : 'Admin'}</p>
+            </div>
           </div>
-          <button
+          <motion.button
+            whileHover={{ x: 2 }}
+            whileTap={{ scale: 0.97 }}
             onClick={() => auth.logout()}
-            className="mt-2 w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-red-400 hover:bg-white/10 hover:text-red-300 transition-all"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200"
+            style={{ color: 'rgba(248,113,113,0.8)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.12)'; (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'rgba(248,113,113,0.8)'; }}
           >
-            <span>🚪</span> Logout
-          </button>
+            <LogOut className="w-4 h-4 shrink-0" />
+            Logout
+          </motion.button>
         </div>
-      </aside>
+      </motion.aside>
 
+      {/* Main area */}
       <div className="flex-1 ml-[260px] flex flex-col min-h-screen">
-        <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 sticky top-0 z-20">
-          <h1 className="text-sm font-semibold text-gray-500">
-            {navItems.find((n) => path === n.href || path.startsWith(n.href + '/'))?.label ?? 'Admin Panel'}
-          </h1>
+        {/* Top header */}
+        <header className="h-16 bg-white/90 backdrop-blur-xl border-b border-gray-100/80 flex items-center justify-between px-6 sticky top-0 z-20" style={{ boxShadow: '0 1px 0 rgba(15,23,42,0.06)' }}>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom, #F59E0B, #D97706)' }} />
+              <motion.h1
+                key={activeItem?.label}
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+                className="text-sm font-bold text-gray-800"
+              >
+                {activeItem?.label ?? 'Admin Panel'}
+              </motion.h1>
+            </div>
+          </div>
           <div className="flex items-center gap-3">
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-              style={{ backgroundColor: '#1C2E4A', color: 'white' }}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-offset-1"
+              style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1e3a5f 100%)', color: 'white', outline: '2px solid rgba(15,23,42,0.15)', outlineOffset: '2px' }}
             >
               {userName.charAt(0).toUpperCase()}
             </div>
-            <span className="text-sm font-medium text-gray-700">{userName}</span>
+            <span className="text-sm font-medium text-gray-700 hidden sm:block">{userName}</span>
           </div>
         </header>
 
+        {/* Page content */}
         <main className="flex-1 p-6">
-          {children}
+          <motion.div
+            key={path}
+            initial={{ opacity: 0, y: 14, scale: 0.99 }}
+            animate={{ opacity: 1, y: 0,  scale: 1 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {children}
+          </motion.div>
         </main>
       </div>
     </div>
