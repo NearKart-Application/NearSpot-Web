@@ -41,6 +41,15 @@ const isDev = import.meta.env.DEV;
     Create Account
   </a>
 
+  <!-- Admin password login link -->
+  <div class="mt-6 text-center">
+    <a href="/admin/login"
+       class="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-navy transition-colors">
+      <span>🛡️</span>
+      <span>Admin? Sign in with password</span>
+    </a>
+  </div>
+
   <!-- ── Dev Test Credentials (development only) ─────────── -->
   {isDev && <div class="mt-8 border border-dashed border-gray-200 rounded-2xl overflow-hidden">
     <button id="dev-toggle"

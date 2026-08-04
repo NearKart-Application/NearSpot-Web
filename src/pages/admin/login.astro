@@ -160,8 +160,8 @@ const isDev = import.meta.env.DEV;
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ email, password }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail ?? data.message ?? 'Invalid credentials');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail ?? data.message ?? (res.status === 404 ? 'Admin login not yet enabled — use OTP login below' : 'Invalid credentials'));
 
       sessionToken = data.session_token;
       otpTargetEl.textContent = data.otp_sent_to; // masked phone e.g. "+91 98765 ***21"
@@ -210,7 +210,7 @@ const isDev = import.meta.env.DEV;
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ session_token: sessionToken, otp: getOtp() }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail ?? data.message ?? 'Invalid OTP');
 
       // Save tokens (same shape as OTP login)

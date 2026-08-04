@@ -35,10 +35,8 @@ export function StepUpOtpDialog({ action, onVerified, onCancel }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ phone_number: phone, is_signup: false }),
       });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d.detail ?? 'Failed to send OTP');
-      }
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.detail ?? d.message ?? 'Failed to send OTP');
       setSent(true);
       startCountdown();
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
@@ -96,8 +94,8 @@ export function StepUpOtpDialog({ action, onVerified, onCancel }: Props) {
         },
         body: JSON.stringify({ phone_number: phone, otp: code }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail ?? 'Invalid OTP — try again');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail ?? data.message ?? 'Invalid OTP — try again');
       onVerified();
     } catch (err: any) {
       setError(err.message ?? 'Verification failed');
