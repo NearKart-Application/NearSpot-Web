@@ -52,17 +52,21 @@ const NAV_MASTER = [
   { label: 'Referral Config', href: '/admin/referral-config', icon: 'link' },
 ];
 
+const INACTIVITY_MS  = 30 * 60 * 1000; // 30 minutes
+const WARNING_MS     = 25 * 60 * 1000; // warn at 25 minutes
+
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  const [status, setStatus] = useState<'loading' | 'ok' | 'denied'>('loading');
-  const [userName, setUserName] = useState('');
-  const [isMaster, setIsMaster] = useState(false);
-  const [path, setPath] = useState('');
+  const [status, setStatus]           = useState<'loading' | 'ok' | 'denied'>('loading');
+  const [userName, setUserName]       = useState('');
+  const [isMaster, setIsMaster]       = useState(false);
+  const [path, setPath]               = useState('');
+  const [showWarning, setShowWarning] = useState(false);
 
   useEffect(() => {
     const user = auth.user();
     const mode = (user as any)?.ui_mode ?? (user as any)?.role;
     if (!user || !auth.isLoggedIn() || (mode !== 'admin' && mode !== 'master_admin')) {
-      window.location.href = '/auth/login';
+      window.location.href = '/admin/login';
       setStatus('denied');
       return;
     }
@@ -70,6 +74,28 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     setIsMaster(mode === 'master_admin');
     setPath(window.location.pathname);
     setStatus('ok');
+
+    // ── Inactivity timeout (30 min) ──────────────────────────────────────────
+    let warnTimer:   ReturnType<typeof setTimeout>;
+    let logoutTimer: ReturnType<typeof setTimeout>;
+
+    function resetTimers() {
+      clearTimeout(warnTimer);
+      clearTimeout(logoutTimer);
+      setShowWarning(false);
+      warnTimer   = setTimeout(() => setShowWarning(true),     WARNING_MS);
+      logoutTimer = setTimeout(() => { auth.logout(); window.location.href = '/admin/login'; }, INACTIVITY_MS);
+    }
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'] as const;
+    events.forEach(ev => document.addEventListener(ev, resetTimers, { passive: true }));
+    resetTimers();
+
+    return () => {
+      clearTimeout(warnTimer);
+      clearTimeout(logoutTimer);
+      events.forEach(ev => document.removeEventListener(ev, resetTimers));
+    };
   }, []);
 
   if (status === 'loading') {
@@ -91,9 +117,34 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   if (status === 'denied') return null;
 
   const navItems = isMaster ? [...NAV_ALL, ...NAV_MASTER] : NAV_ALL;
+
+  // ── Inactivity warning overlay ───────────────────────────────────────────────
+  const warningOverlay = showWarning && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl"
+      >
+        <div className="text-4xl mb-3">⏱️</div>
+        <h3 className="text-lg font-bold text-navy mb-2">Session Expiring Soon</h3>
+        <p className="text-sm text-gray-500 mb-6">
+          You will be automatically logged out in <strong>5 minutes</strong> due to inactivity.
+        </p>
+        <button
+          onClick={() => setShowWarning(false)}
+          className="w-full py-3 rounded-xl bg-navy text-white font-bold text-sm hover:bg-navy/90 transition-colors"
+        >
+          I'm still here
+        </button>
+      </motion.div>
+    </div>
+  );
   const activeItem = navItems.find((n) => path === n.href || path.startsWith(n.href + '/'));
 
   return (
+    <>
+    {warningOverlay}
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
       <motion.aside
@@ -231,5 +282,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
+    </>
+
   );
 }

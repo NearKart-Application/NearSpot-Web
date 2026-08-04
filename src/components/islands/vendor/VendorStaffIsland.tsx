@@ -4,18 +4,24 @@ import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
+import { StepUpOtpDialog } from '@/components/ui/StepUpOtpDialog';
 
 interface StaffMember {
   id: string; name: string; phone?: string; profile_id?: string;
   role: string; created_at: string; is_active: boolean;
 }
 
+type PendingAction =
+  | { type: 'add' }
+  | { type: 'remove'; id: string; name: string };
+
 function Inner() {
   const qc = useQueryClient();
-  const [showAdd, setShowAdd] = useState(false);
-  const [phone, setPhone]     = useState('');
-  const [role, setRole]       = useState('staff');
-  const [error, setError]     = useState('');
+  const [showAdd, setShowAdd]           = useState(false);
+  const [phone, setPhone]               = useState('');
+  const [role, setRole]                 = useState('staff');
+  const [error, setError]               = useState('');
+  const [pending, setPending]           = useState<PendingAction | null>(null);
 
   const { data, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ['vendor-staff'],
@@ -36,11 +42,36 @@ function Inner() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vendor-staff'] }),
   });
 
+  function requestAdd() {
+    if (!phone.trim()) return;
+    setPending({ type: 'add' });
+  }
+
+  function requestRemove(id: string, name: string) {
+    setPending({ type: 'remove', id, name });
+  }
+
+  function onStepUpVerified() {
+    if (!pending) return;
+    if (pending.type === 'add')    addMut.mutate();
+    if (pending.type === 'remove') removeMut.mutate(pending.id);
+    setPending(null);
+  }
+
   const staff: StaffMember[] = Array.isArray(data) ? data : (data?.results ?? []);
 
   const ROLES = ['owner', 'manager', 'staff', 'cashier'];
 
   return (
+    <>
+    {pending && (
+      <StepUpOtpDialog
+        action={pending.type === 'add' ? 'add a staff member' : `remove ${(pending as any).name}`}
+        onVerified={onStepUpVerified}
+        onCancel={() => setPending(null)}
+      />
+    )}
+
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -71,7 +102,7 @@ function Inner() {
             </div>
           </div>
           {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
-          <Button onClick={() => addMut.mutate()} disabled={addMut.isPending || !phone.trim()}
+          <Button onClick={requestAdd} disabled={addMut.isPending || !phone.trim()}
             size="sm" className="px-6 py-2.5">
             {addMut.isPending ? 'Adding…' : 'Add Member'}
           </Button>
@@ -119,8 +150,8 @@ function Inner() {
               <div className="flex items-center gap-3 shrink-0">
                 <span className="text-xs font-bold capitalize px-2.5 py-1 rounded-full bg-navy/8 text-navy">{s.role}</span>
                 {s.role !== 'owner' && (
-                  <button onClick={() => { if (confirm(`Remove ${s.name} from staff?`)) removeMut.mutate(s.id); }}
-                    className="text-sm text-red-500 hover:text-red-700">🗑️</button>
+                  <button onClick={() => requestRemove(s.id, s.name)}
+                    className="text-sm text-red-500 hover:text-red-700" title="Remove staff member">🗑️</button>
                 )}
               </div>
             </div>
@@ -128,6 +159,7 @@ function Inner() {
         </div>
       )}
     </div>
+    </>
   );
 }
 

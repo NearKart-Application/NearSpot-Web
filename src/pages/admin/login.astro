@@ -1,0 +1,299 @@
+---
+import AuthLayout from '../../layouts/AuthLayout.astro';
+const isDev = import.meta.env.DEV;
+---
+<AuthLayout title="Admin Login">
+
+  <!-- Step 1: Email + Password -->
+  <div id="step-password">
+    <div class="flex items-center gap-2 mb-6">
+      <span class="inline-flex items-center justify-center w-6 h-6 rounded-md text-[10px] font-black text-white"
+            style="background: linear-gradient(135deg, #0F172A, #1e3a5f)">🛡️</span>
+      <span class="text-xs font-bold uppercase tracking-widest text-gray-400">Admin Portal</span>
+    </div>
+
+    <h2 class="text-2xl font-black text-navy mb-1">Admin Sign In</h2>
+    <p class="text-gray-500 text-sm mb-7">Enter your admin credentials to continue</p>
+
+    <form id="password-form" class="space-y-4">
+      <div>
+        <label class="label" for="email">Email Address</label>
+        <input id="email" name="email" type="email" inputmode="email"
+               placeholder="admin@nearspot.in"
+               class="input w-full" required autofocus />
+      </div>
+      <div>
+        <label class="label" for="password">Password</label>
+        <div class="relative">
+          <input id="password" name="password" type="password"
+                 placeholder="••••••••"
+                 class="input w-full pr-11" required />
+          <button type="button" id="toggle-pw"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-navy transition-colors text-sm select-none">
+            👁️
+          </button>
+        </div>
+      </div>
+
+      <div id="pw-error" class="hidden text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-4 py-3"></div>
+
+      <button type="submit" id="pw-btn" class="btn-primary w-full py-3.5 text-base mt-2">
+        <span id="pw-btn-text">Continue →</span>
+        <span id="pw-spinner" class="hidden spinner w-4 h-4"></span>
+      </button>
+    </form>
+
+    <div class="flex items-center gap-3 my-6">
+      <div class="flex-1 h-px bg-gray-100"></div>
+      <span class="text-xs text-gray-400 font-medium">OR</span>
+      <div class="flex-1 h-px bg-gray-100"></div>
+    </div>
+    <a href="/auth/login"
+       class="btn-outline w-full py-3 text-sm text-center block text-gray-500">
+      Login with OTP (Phone)
+    </a>
+
+    {isDev && (
+      <div class="mt-6 border border-dashed border-amber-200 rounded-2xl p-4 bg-amber-50/40">
+        <p class="text-xs font-bold text-amber-600 uppercase tracking-wide mb-2">🧪 Dev Credentials</p>
+        <p class="text-xs text-amber-700 mb-3">
+          Backend must expose <code class="bg-amber-100 px-1 rounded">POST /auth/admin/login/</code>.
+          Until then use the OTP path above.
+        </p>
+        <button id="dev-fill"
+                class="w-full text-left px-3 py-2.5 rounded-xl border border-amber-200 hover:border-amber-400 hover:bg-amber-50 transition-all"
+                data-email="admin@nearspot.in" data-password="AdminPass@123">
+          <p class="text-xs font-semibold text-navy">Dev Admin</p>
+          <p class="text-xs text-gray-400">admin@nearspot.in</p>
+        </button>
+      </div>
+    )}
+  </div>
+
+  <!-- Step 2: OTP 2FA -->
+  <div id="step-otp" class="hidden">
+    <div class="text-center mb-6">
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3"
+           style="background: rgba(15,23,42,0.06)">🔐</div>
+      <h2 class="text-2xl font-black text-navy mb-1">Two-Factor Verify</h2>
+      <p class="text-gray-500 text-sm">
+        OTP sent to <strong id="otp-target" class="text-navy font-semibold"></strong>
+      </p>
+    </div>
+
+    <div class="flex gap-2.5 justify-center mb-4" id="otp-boxes">
+      {[0,1,2,3,4,5].map(i => (
+        <input type="text" inputmode="numeric" maxlength="1"
+               class="w-12 h-14 text-center text-xl font-bold border-2 border-gray-200 rounded-2xl focus:border-navy focus:ring-0 transition outline-none bg-gray-50 focus:bg-white"
+               data-idx={i} />
+      ))}
+    </div>
+
+    <div id="otp-error" class="hidden text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-4"></div>
+
+    <button id="otp-verify-btn" class="btn-primary w-full py-3.5 text-base" disabled>
+      <span id="otp-btn-text">Verify & Sign In</span>
+      <span id="otp-btn-spinner" class="hidden spinner w-4 h-4"></span>
+    </button>
+
+    <div class="text-center mt-5 text-sm text-gray-500">
+      Didn't receive it?
+      <button id="resend-btn" class="text-navy font-semibold hover:underline ml-1" disabled>
+        Resend in <span id="resend-timer">30</span>s
+      </button>
+    </div>
+
+    <button id="back-btn"
+            class="mt-5 w-full text-center text-sm text-gray-400 hover:text-navy transition-colors">
+      ← Back to login
+    </button>
+  </div>
+
+</AuthLayout>
+
+<script>
+  // ── State ─────────────────────────────────────────────────────────────────────
+  let sessionToken = ''; // temporary token returned by backend after password step
+
+  // ── Elements ──────────────────────────────────────────────────────────────────
+  const stepPw  = document.getElementById('step-password')!;
+  const stepOtp = document.getElementById('step-otp')!;
+
+  const pwForm    = document.getElementById('password-form') as HTMLFormElement;
+  const emailInp  = document.getElementById('email') as HTMLInputElement;
+  const pwInp     = document.getElementById('password') as HTMLInputElement;
+  const pwError   = document.getElementById('pw-error')!;
+  const pwBtn     = document.getElementById('pw-btn') as HTMLButtonElement;
+  const pwBtnText = document.getElementById('pw-btn-text')!;
+  const pwSpinner = document.getElementById('pw-spinner')!;
+  const togglePw  = document.getElementById('toggle-pw')!;
+
+  const otpInputs    = Array.from(document.querySelectorAll<HTMLInputElement>('[data-idx]'));
+  const otpTargetEl  = document.getElementById('otp-target')!;
+  const otpError     = document.getElementById('otp-error')!;
+  const otpVerifyBtn = document.getElementById('otp-verify-btn') as HTMLButtonElement;
+  const otpBtnText   = document.getElementById('otp-btn-text')!;
+  const otpBtnSpin   = document.getElementById('otp-btn-spinner')!;
+  const resendBtn    = document.getElementById('resend-btn') as HTMLButtonElement;
+  const backBtn      = document.getElementById('back-btn')!;
+
+  // ── Password show/hide ─────────────────────────────────────────────────────────
+  togglePw.addEventListener('click', () => {
+    const isPw = pwInp.type === 'password';
+    pwInp.type = isPw ? 'text' : 'password';
+    togglePw.textContent = isPw ? '🙈' : '👁️';
+  });
+
+  // ── Step 1: Submit email + password ──────────────────────────────────────────
+  pwForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email    = emailInp.value.trim();
+    const password = pwInp.value;
+
+    setPwLoading(true);
+    pwError.classList.add('hidden');
+
+    try {
+      // Backend: POST /auth/admin/login/ → { session_token, otp_sent_to }
+      const res  = await fetch('/api/v1/auth/admin/login/', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail ?? data.message ?? 'Invalid credentials');
+
+      sessionToken = data.session_token;
+      otpTargetEl.textContent = data.otp_sent_to; // masked phone e.g. "+91 98765 ***21"
+
+      stepPw.classList.add('hidden');
+      stepOtp.classList.remove('hidden');
+      otpInputs[0]?.focus();
+      startResendTimer();
+    } catch (err: any) {
+      showPwError(err.message ?? 'Something went wrong');
+    } finally {
+      setPwLoading(false);
+    }
+  });
+
+  // ── OTP box navigation ────────────────────────────────────────────────────────
+  otpInputs.forEach((inp, i) => {
+    inp.addEventListener('input', () => {
+      inp.value = inp.value.replace(/\D/g, '');
+      if (inp.value) otpInputs[i + 1]?.focus();
+      checkOtpComplete();
+    });
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !inp.value) otpInputs[i - 1]?.focus();
+    });
+    inp.addEventListener('paste', (e) => {
+      const paste = e.clipboardData?.getData('text').replace(/\D/g, '').slice(0, 6) ?? '';
+      paste.split('').forEach((ch, j) => { if (otpInputs[j]) otpInputs[j].value = ch; });
+      otpInputs[Math.min(paste.length, 5)]?.focus();
+      checkOtpComplete();
+      e.preventDefault();
+    });
+  });
+
+  function getOtp() { return otpInputs.map(i => i.value).join(''); }
+  function checkOtpComplete() { otpVerifyBtn.disabled = getOtp().length !== 6; }
+
+  // ── Step 2: Verify OTP ────────────────────────────────────────────────────────
+  otpVerifyBtn.addEventListener('click', async () => {
+    setOtpLoading(true);
+    otpError.classList.add('hidden');
+    try {
+      // Backend: POST /auth/admin/verify-otp/ → { access, refresh, user }
+      const res  = await fetch('/api/v1/auth/admin/verify-otp/', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ session_token: sessionToken, otp: getOtp() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail ?? data.message ?? 'Invalid OTP');
+
+      // Save tokens (same shape as OTP login)
+      localStorage.setItem('ns_access',  data.access);
+      localStorage.setItem('ns_refresh', data.refresh);
+      const raw     = data.user ?? {};
+      const uiMode  = raw.ui_mode ?? raw.role ?? '';
+      localStorage.setItem('ns_user', JSON.stringify({
+        ...raw, ui_mode: uiMode,
+        is_admin: uiMode === 'admin' || uiMode === 'master_admin',
+      }));
+
+      // Record admin login timestamp for inactivity tracking
+      localStorage.setItem('ns_admin_last_active', String(Date.now()));
+
+      window.location.href = '/admin/dashboard';
+    } catch (err: any) {
+      otpError.textContent = err.message;
+      otpError.classList.remove('hidden');
+      otpInputs.forEach(i => i.value = '');
+      otpInputs[0]?.focus();
+    } finally {
+      setOtpLoading(false);
+    }
+  });
+
+  // ── Resend OTP ────────────────────────────────────────────────────────────────
+  let countdown: ReturnType<typeof setInterval>;
+  function startResendTimer() {
+    let t = 30;
+    resendBtn.disabled = true;
+    resendBtn.innerHTML = `Resend in <span id="resend-timer">${t}</span>s`;
+    clearInterval(countdown);
+    countdown = setInterval(() => {
+      t--;
+      const el = document.getElementById('resend-timer');
+      if (el) el.textContent = String(t);
+      if (t <= 0) { clearInterval(countdown); resendBtn.disabled = false; resendBtn.textContent = 'Resend OTP'; }
+    }, 1000);
+  }
+
+  resendBtn.addEventListener('click', async () => {
+    // Backend: POST /auth/admin/resend-otp/ → resends OTP for given session_token
+    try {
+      await fetch('/api/v1/auth/admin/resend-otp/', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ session_token: sessionToken }),
+      });
+    } catch { /* silent */ }
+    startResendTimer();
+  });
+
+  // ── Back ──────────────────────────────────────────────────────────────────────
+  backBtn.addEventListener('click', () => {
+    stepOtp.classList.add('hidden');
+    stepPw.classList.remove('hidden');
+    sessionToken = '';
+    otpInputs.forEach(i => i.value = '');
+    clearInterval(countdown);
+    emailInp.focus();
+  });
+
+  // ── Dev fill ──────────────────────────────────────────────────────────────────
+  document.getElementById('dev-fill')?.addEventListener('click', (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    emailInp.value = btn.dataset.email ?? '';
+    pwInp.value    = btn.dataset.password ?? '';
+  });
+
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+  function setPwLoading(v: boolean) {
+    pwBtn.disabled = v;
+    pwBtnText.textContent = v ? 'Verifying…' : 'Continue →';
+    pwSpinner.classList.toggle('hidden', !v);
+  }
+  function setOtpLoading(v: boolean) {
+    otpVerifyBtn.disabled = v;
+    otpBtnText.textContent = v ? 'Verifying…' : 'Verify & Sign In';
+    otpBtnSpin.classList.toggle('hidden', !v);
+  }
+  function showPwError(msg: string) {
+    pwError.textContent = msg;
+    pwError.classList.remove('hidden');
+  }
+</script>
