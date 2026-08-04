@@ -4,6 +4,7 @@ import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import Img from '../../ui/Img';
+import { Button } from '@/components/ui/button';
 
 interface Variant { id: string; name: string; sku: string; price: number; stock_quantity: number; }
 interface StockAlert {
@@ -43,10 +44,10 @@ function EditStockModal({ variant, productId, onClose, onSuccess }: {
         <input value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. restock, damage, sale"
           className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm mb-3 focus:outline-none focus:border-navy/40" />
         {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
-        <button onClick={() => updateMut.mutate()} disabled={updateMut.isPending || !qty}
-          className="w-full btn-primary py-3 rounded-xl font-bold">
+        <Button onClick={() => updateMut.mutate()} disabled={updateMut.isPending || !qty}
+          className="w-full py-3 rounded-xl font-bold">
           {updateMut.isPending ? 'Updating…' : 'Update Stock'}
-        </button>
+        </Button>
       </div>
     </div>
   );

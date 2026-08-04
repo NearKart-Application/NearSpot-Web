@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tan
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
+import { Button } from '@/components/ui/button';
 
 // Actual API field names from mobile app
 interface InvoiceItem {
@@ -297,10 +298,10 @@ function CreateInvoiceModal({ onClose, onSuccess }: { onClose: () => void; onSuc
 
           {formError && <p className="text-xs text-red-500 bg-red-50 rounded-xl px-4 py-2">{formError}</p>}
 
-          <button onClick={() => createMut.mutate()} disabled={createMut.isPending || !valid}
-            className="w-full btn-primary py-3 rounded-xl font-bold disabled:opacity-50">
+          <Button onClick={() => createMut.mutate()} disabled={createMut.isPending || !valid}
+            className="w-full py-3 rounded-xl font-bold disabled:opacity-50">
             {createMut.isPending ? 'Creating…' : 'Create Invoice'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -339,9 +340,9 @@ function Inner() {
           <h1 className="text-xl font-bold text-navy">Invoices</h1>
           <p className="text-sm text-gray-400">{invoices.length} invoices · {fmtAmt(totalRevenue)} total</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="btn-primary px-4 py-2 text-sm rounded-xl font-bold">
+        <Button onClick={() => setShowCreate(true)} className="px-4 py-2 text-sm rounded-xl font-bold">
           + Create Invoice
-        </button>
+        </Button>
       </div>
 
       {/* Stats */}

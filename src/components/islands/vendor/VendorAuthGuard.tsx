@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { auth } from '../../../lib/auth';
+import { Button } from '@/components/ui/button';
 
 export function IslandError({ error, refetch }: { error: unknown; refetch?: () => void }) {
   const msg = (error as any)?.response?.data?.detail ?? (error as any)?.response?.data?.message ?? (error as any)?.message ?? 'Something went wrong';
@@ -13,7 +14,7 @@ export function IslandError({ error, refetch }: { error: unknown; refetch?: () =
       {status === 401 && (
         <p className="text-sm text-red-500 mb-3">Session expired. <a href="/auth/login" className="underline font-bold">Log in again</a>.</p>
       )}
-      {refetch && <button onClick={refetch} className="btn-primary mt-2 px-6 py-2.5 rounded-xl text-sm font-bold">Retry</button>}
+      {refetch && <Button onClick={refetch} className="mt-2">Retry</Button>}
     </div>
   );
 }
@@ -24,7 +25,11 @@ export function useVendorAuth() {
   useEffect(() => {
     const token = localStorage.getItem('ns_access');
     const user = auth.user();
-    if (!token || !user || (user.ui_mode !== 'vendor' && !user.is_vendor)) {
+    const isVendor =
+      user?.ui_mode === 'vendor' ||
+      (user as any)?.role === 'vendor' ||
+      user?.is_vendor === true;
+    if (!token || !user || !isVendor) {
       setStatus('unauthenticated');
     } else {
       setStatus('ok');

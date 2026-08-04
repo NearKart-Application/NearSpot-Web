@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tan
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
+import { Button } from '@/components/ui/button';
 
 interface Supplier { id: string; name: string; }
 interface POItem { product_id?: string; sku: string; qty: number; unit_cost: number; }
@@ -181,13 +182,13 @@ function POModal({
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50">
             Cancel
           </button>
-          <button
+          <Button
             onClick={() => mut.mutate()}
             disabled={mut.isPending}
-            className="flex-1 btn-primary py-2.5 rounded-xl font-bold text-sm"
+            className="flex-1 py-2.5 rounded-xl font-bold text-sm"
           >
             {mut.isPending ? 'Creating…' : 'Create PO'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -252,9 +253,9 @@ function Inner() {
           <h1 className="text-xl font-bold text-navy">Purchase Orders</h1>
           <p className="text-sm text-gray-400">{orders.length} order{orders.length !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="btn-primary px-5 py-2.5 rounded-xl font-bold text-sm">
+        <Button onClick={() => setShowCreate(true)} className="px-5 py-2.5 rounded-xl font-bold text-sm">
           + Create PO
-        </button>
+        </Button>
       </div>
 
       {/* Status filter */}
@@ -283,9 +284,9 @@ function Inner() {
           <div className="text-4xl mb-3">📋</div>
           <p className="font-semibold text-gray-600">No purchase orders{statusFilter !== 'all' ? ` with status "${STATUS_LABELS[statusFilter]}"` : ''}</p>
           {statusFilter === 'all' && (
-            <button onClick={() => setShowCreate(true)} className="btn-primary mt-4 px-6 py-2.5 rounded-xl text-sm font-bold">
+            <Button onClick={() => setShowCreate(true)} className="mt-4 px-6 py-2.5 rounded-xl text-sm font-bold">
               Create First PO
-            </button>
+            </Button>
           )}
         </div>
       ) : (

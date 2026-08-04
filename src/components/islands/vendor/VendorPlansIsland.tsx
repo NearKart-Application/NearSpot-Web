@@ -3,11 +3,14 @@ import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tan
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
+import { Button } from '@/components/ui/button';
 
 interface Plan {
-  id: string; name: string; display_name: string; price: number | string; billing_cycle: string;
-  video_limit: number; product_limit: number; features: string[];
+  id: string; name: string; display_name: string; price: number | string;
+  billing_cycle?: string; duration_days?: number;
+  video_limit: number; product_limit: number; features?: string[];
   is_popular?: boolean; store_type?: string;
+  video_limit_display?: string; product_limit_display?: string;
 }
 interface Subscription {
   plan: string; display_name?: string; is_active: boolean;
@@ -55,7 +58,7 @@ function Inner() {
           key:      data.razorpay_key_id,
           amount:   data.amount,
           currency: data.currency || 'INR',
-          order_id: data.razorpay_order_id,
+          order_id: data.order_id ?? data.razorpay_order_id,
           name:     'NearSpot',
           description: `${planName} subscription`,
           handler: async (response: any) => {
@@ -111,8 +114,8 @@ function Inner() {
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Current Plan</p>
               <h2 className="text-2xl font-black text-navy">{sub.display_name ?? sub.plan}</h2>
               <div className="flex gap-4 mt-2 text-sm text-gray-500">
-                <span>📦 {sub.product_limit === -1 ? 'Unlimited' : sub.product_limit} products</span>
-                <span>🎬 {sub.video_limit === -1 ? 'Unlimited' : sub.video_limit} videos</span>
+                <span>📦 {sub.product_limit <= 0 ? 'Unlimited' : sub.product_limit} products</span>
+                <span>🎬 {sub.video_limit <= 0 ? 'Unlimited' : sub.video_limit} videos</span>
               </div>
             </div>
             <div className="text-right">
@@ -160,16 +163,18 @@ function Inner() {
                   <h3 className="font-black text-navy text-lg">{plan.display_name}</h3>
                   <p className="text-3xl font-black text-navy mt-2">
                     ₹{parseFloat(String(plan.price)).toLocaleString('en-IN')}
-                    <span className="text-sm font-normal text-gray-400">/{plan.billing_cycle}</span>
+                    <span className="text-sm font-normal text-gray-400">
+                      /{plan.billing_cycle ?? (plan.duration_days === 30 ? 'month' : plan.duration_days === 365 ? 'year' : `${plan.duration_days}d`)}
+                    </span>
                   </p>
                   <div className="mt-4 space-y-2 mb-5">
                     <p className="text-xs text-gray-600 flex items-center gap-1.5">
                       <span className="text-green-500">✓</span>
-                      {plan.product_limit === -1 ? 'Unlimited products' : `${plan.product_limit} products`}
+                      {plan.product_limit_display ?? (plan.product_limit <= 0 ? 'Unlimited products' : `${plan.product_limit} products`)}
                     </p>
                     <p className="text-xs text-gray-600 flex items-center gap-1.5">
                       <span className="text-green-500">✓</span>
-                      {plan.video_limit === -1 ? 'Unlimited videos' : `${plan.video_limit} videos`}
+                      {plan.video_limit_display ?? (plan.video_limit <= 0 ? 'Unlimited videos' : `${plan.video_limit} videos`)}
                     </p>
                     {(plan.features ?? []).map((f, i) => (
                       <p key={i} className="text-xs text-gray-600 flex items-center gap-1.5">
@@ -178,12 +183,12 @@ function Inner() {
                     ))}
                   </div>
                   {!isCurrent && (
-                    <button
+                    <Button
                       onClick={() => { setPayMsg(null); payMut.mutate(plan.name); }}
                       disabled={payMut.isPending}
-                      className="w-full btn-primary py-2.5 rounded-xl text-sm font-bold disabled:opacity-50">
+                      className="w-full py-2.5 rounded-xl text-sm font-bold disabled:opacity-50">
                       {payMut.isPending ? 'Processing…' : sub?.is_active ? 'Upgrade' : 'Subscribe'}
-                    </button>
+                    </Button>
                   )}
                 </div>
               );
@@ -199,8 +204,8 @@ function Inner() {
           <input value={coupon} onChange={e => setCoupon(e.target.value.toUpperCase())}
             placeholder="Enter coupon code"
             className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-mono uppercase focus:outline-none focus:border-navy/40" />
-          <button onClick={() => validateCoupon.mutate()} disabled={validateCoupon.isPending || !coupon.trim()}
-            className="btn-outline btn-sm px-5 py-2.5">Validate</button>
+          <Button onClick={() => validateCoupon.mutate()} disabled={validateCoupon.isPending || !coupon.trim()}
+            variant="outline" size="sm" className="px-5 py-2.5">Validate</Button>
         </div>
         {couponMsg && <p className="text-sm mt-2">{couponMsg}</p>}
       </div>

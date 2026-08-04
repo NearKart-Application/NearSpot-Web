@@ -4,6 +4,7 @@ import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import Img from '../../ui/Img';
+import { Button } from '@/components/ui/button';
 
 interface Video {
   id: string; title: string; description?: string;
@@ -61,9 +62,9 @@ function Inner() {
           <h1 className="text-xl font-bold text-navy">Videos</h1>
           <p className="text-sm text-gray-400">{stats.total} videos · {stats.views.toLocaleString()} views</p>
         </div>
-        <button className="btn-primary btn-sm px-4 py-2 text-sm" onClick={() => alert('Use the mobile app to upload videos')}>
+        <Button size="sm" className="px-4 py-2 text-sm" onClick={() => alert('Use the mobile app to upload videos')}>
           + Upload Video
-        </button>
+        </Button>
       </div>
 
       {/* Stats */}

@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tan
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
+import { Button } from '@/components/ui/button';
 
 interface StaffMember {
   id: string; name: string; phone?: string; profile_id?: string;
@@ -46,9 +47,9 @@ function Inner() {
           <h1 className="text-xl font-bold text-navy">Staff Management</h1>
           <p className="text-sm text-gray-400">{staff.length} team member{staff.length !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={() => setShowAdd(v => !v)} className="btn-primary btn-sm px-4 py-2 text-sm">
+        <Button onClick={() => setShowAdd(v => !v)} size="sm" className="px-4 py-2 text-sm">
           {showAdd ? '✕ Cancel' : '+ Add Member'}
-        </button>
+        </Button>
       </div>
 
       {/* Add form */}
@@ -70,10 +71,10 @@ function Inner() {
             </div>
           </div>
           {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
-          <button onClick={() => addMut.mutate()} disabled={addMut.isPending || !phone.trim()}
-            className="btn-primary btn-sm px-6 py-2.5">
+          <Button onClick={() => addMut.mutate()} disabled={addMut.isPending || !phone.trim()}
+            size="sm" className="px-6 py-2.5">
             {addMut.isPending ? 'Adding…' : 'Add Member'}
-          </button>
+          </Button>
           <p className="text-xs text-gray-400 mt-2">The user must already have a NearSpot account.</p>
         </div>
       )}

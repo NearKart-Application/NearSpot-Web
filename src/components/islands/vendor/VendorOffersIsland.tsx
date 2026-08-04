@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tan
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
+import { Button } from '@/components/ui/button';
 
 interface Offer {
   id: string; title: string; description?: string; offer_type?: string;
@@ -93,10 +94,10 @@ function AddOfferModal({ storeId, onClose, onSuccess }: { storeId: string; onClo
             </div>
           </div>
           {error && <p className="text-xs text-red-500">{error}</p>}
-          <button onClick={() => createMut.mutate()} disabled={createMut.isPending || !title || !validFrom || !validUntil}
-            className="w-full btn-primary py-3 rounded-xl font-bold">
+          <Button onClick={() => createMut.mutate()} disabled={createMut.isPending || !title || !validFrom || !validUntil}
+            className="w-full py-3 rounded-xl font-bold">
             {createMut.isPending ? 'Creating…' : 'Create Offer'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -135,7 +136,7 @@ function Inner() {
           <h1 className="text-xl font-bold text-navy">Offers</h1>
           <p className="text-sm text-gray-400">{active.length} active offer{active.length !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="btn-primary btn-sm px-4 py-2 text-sm">+ New Offer</button>
+        <Button onClick={() => setShowAdd(true)} size="sm" className="px-4 py-2 text-sm">+ New Offer</Button>
       </div>
 
       {isLoading ? (
@@ -147,7 +148,7 @@ function Inner() {
           <div className="text-4xl mb-3">🏷️</div>
           <p className="font-semibold text-gray-600">No offers yet</p>
           <p className="text-sm mt-1">Create offers to attract more customers</p>
-          <button onClick={() => setShowAdd(true)} className="mt-4 btn-primary btn-sm px-6 py-2">Create your first offer</button>
+          <Button onClick={() => setShowAdd(true)} size="sm" className="mt-4 px-6 py-2">Create your first offer</Button>
         </div>
       ) : (
         <div className="space-y-3">

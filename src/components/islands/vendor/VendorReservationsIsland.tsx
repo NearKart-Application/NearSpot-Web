@@ -4,6 +4,7 @@ import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import Img from '../../ui/Img';
+import { Button } from '@/components/ui/button';
 
 interface Reservation {
   id: string;
@@ -89,13 +90,13 @@ function ActionDialog({ action, customerName, onConfirm, onClose }: {
           </div>
         )}
         <div className="flex gap-2">
-          <button onClick={() => {
+          <Button onClick={() => {
             if (needsNote && !note.trim()) { setNoteError(true); return; }
             onConfirm(note);
-          }} className={`flex-1 py-2.5 rounded-xl text-sm font-bold ${action === 'reject' || action === 'cancel' ? 'btn-danger' : 'btn-primary'}`}>
+          }} variant={action === 'reject' || action === 'cancel' ? 'destructive' : 'default'} className="flex-1 py-2.5 rounded-xl text-sm font-bold">
             {action === 'cancel' ? 'Cancel Reservation' : action === 'reject' ? 'Reject' : action === 'complete' ? 'Mark Completed' : 'Confirm'}
-          </button>
-          <button onClick={onClose} className="flex-1 btn-outline py-2.5 rounded-xl text-sm font-bold">Dismiss</button>
+          </Button>
+          <Button onClick={onClose} variant="outline" className="flex-1 py-2.5 rounded-xl text-sm font-bold">Dismiss</Button>
         </div>
       </div>
     </div>
@@ -157,21 +158,21 @@ function ReservationCard({ res, onUpdate }: { res: Reservation; onUpdate: () => 
       {/* Actions — pending */}
       {res.status === 'pending' && (
         <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
-          <button onClick={() => setDialog('confirm')} disabled={updateStatus.isPending}
-            className="flex-1 btn-primary btn-sm py-2">✅ Confirm</button>
-          <button onClick={() => setDialog('reject')} disabled={updateStatus.isPending}
-            className="flex-1 btn-danger btn-sm py-2">✗ Reject</button>
-          <button onClick={() => setShowNote(v => !v)} className="btn-outline btn-sm px-3 py-2">📝</button>
+          <Button onClick={() => setDialog('confirm')} disabled={updateStatus.isPending}
+            size="sm" className="flex-1 py-2">✅ Confirm</Button>
+          <Button onClick={() => setDialog('reject')} disabled={updateStatus.isPending}
+            variant="destructive" size="sm" className="flex-1 py-2">✗ Reject</Button>
+          <Button onClick={() => setShowNote(v => !v)} variant="outline" size="sm" className="px-3 py-2">📝</Button>
         </div>
       )}
       {/* Actions — confirmed */}
       {res.status === 'confirmed' && (
         <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
-          <button onClick={() => setDialog('complete')} disabled={updateStatus.isPending}
-            className="flex-1 btn-primary btn-sm py-2">✅ Mark Completed</button>
-          <button onClick={() => setDialog('cancel')} disabled={updateStatus.isPending}
-            className="flex-1 btn-danger btn-sm py-2">⚠️ Emergency Cancel</button>
-          <button onClick={() => setShowNote(v => !v)} className="btn-outline btn-sm px-3 py-2">📝</button>
+          <Button onClick={() => setDialog('complete')} disabled={updateStatus.isPending}
+            size="sm" className="flex-1 py-2">✅ Mark Completed</Button>
+          <Button onClick={() => setDialog('cancel')} disabled={updateStatus.isPending}
+            variant="destructive" size="sm" className="flex-1 py-2">⚠️ Emergency Cancel</Button>
+          <Button onClick={() => setShowNote(v => !v)} variant="outline" size="sm" className="px-3 py-2">📝</Button>
         </div>
       )}
 
@@ -181,11 +182,11 @@ function ReservationCard({ res, onUpdate }: { res: Reservation; onUpdate: () => 
           <input value={noteInput} onChange={e => setNoteInput(e.target.value)}
             placeholder="Add vendor note to customer…"
             className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-navy/40" />
-          <button onClick={() => {
+          <Button onClick={() => {
             api.patch(`/reservations/${res.id}/status/`, { status: res.status, vendor_note: noteInput }).then(() => {
               setShowNote(false); setNoteInput(''); qc.invalidateQueries({ queryKey: ['vendor-reservations'] });
             });
-          }} className="btn-primary btn-sm px-4">Send</button>
+          }} size="sm" className="px-4">Send</Button>
         </div>
       )}
 

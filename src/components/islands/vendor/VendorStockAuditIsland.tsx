@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tan
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
+import { Button } from '@/components/ui/button';
 
 interface AuditItem {
   variant_id?: string;
@@ -251,13 +252,13 @@ function AuditDetail({
             >
               {saveMut.isPending ? 'Saving…' : 'Save Progress'}
             </button>
-            <button
+            <Button
               onClick={() => { if (confirm('Complete this audit? This cannot be undone.')) completeMut.mutate(); }}
               disabled={completeMut.isPending || isLocked}
-              className="flex-1 btn-primary py-2.5 rounded-xl font-bold text-sm"
+              className="flex-1 py-2.5 rounded-xl font-bold text-sm"
             >
               {completeMut.isPending ? 'Completing…' : 'Complete Audit'}
-            </button>
+            </Button>
             <button
               onClick={() => { if (confirm('Cancel this audit?')) cancelMut.mutate(); }}
               disabled={cancelMut.isPending || isLocked}
@@ -312,13 +313,13 @@ function Inner() {
           <h1 className="text-xl font-bold text-navy">Stock Audits</h1>
           <p className="text-sm text-gray-400">{audits.length} audit{audits.length !== 1 ? 's' : ''}</p>
         </div>
-        <button
+        <Button
           onClick={() => newAuditMut.mutate()}
           disabled={newAuditMut.isPending}
-          className="btn-primary px-5 py-2.5 rounded-xl font-bold text-sm"
+          className="px-5 py-2.5 rounded-xl font-bold text-sm"
         >
           {newAuditMut.isPending ? 'Creating…' : '+ New Audit'}
-        </button>
+        </Button>
       </div>
 
       {newAuditError && (
@@ -336,13 +337,13 @@ function Inner() {
           <div className="text-4xl mb-3">🔍</div>
           <p className="font-semibold text-gray-600">No audits conducted yet</p>
           <p className="text-sm mt-1">Run a stock audit to compare system vs physical inventory</p>
-          <button
+          <Button
             onClick={() => newAuditMut.mutate()}
             disabled={newAuditMut.isPending}
-            className="btn-primary mt-4 px-6 py-2.5 rounded-xl text-sm font-bold"
+            className="mt-4 px-6 py-2.5 rounded-xl text-sm font-bold"
           >
             Start First Audit
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="space-y-3">

@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tan
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
+import { Button } from '@/components/ui/button';
 
 interface Service {
   id: string;
@@ -180,13 +181,13 @@ function ServiceModal({
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50">
             Cancel
           </button>
-          <button
+          <Button
             onClick={() => mut.mutate()}
             disabled={mut.isPending || !form.name}
-            className="flex-1 btn-primary py-2.5 rounded-xl font-bold text-sm"
+            className="flex-1 py-2.5 rounded-xl font-bold text-sm"
           >
             {mut.isPending ? 'Saving…' : initial ? 'Save Changes' : 'Add Service'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -303,9 +304,9 @@ function Inner() {
           <h1 className="text-xl font-bold text-navy">Service Catalogue</h1>
           <p className="text-sm text-gray-400">{services.length} service{services.length !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="btn-primary px-5 py-2.5 rounded-xl font-bold text-sm">
+        <Button onClick={() => setShowAdd(true)} className="px-5 py-2.5 rounded-xl font-bold text-sm">
           + Add Service
-        </button>
+        </Button>
       </div>
 
       {isLoading ? (
@@ -319,9 +320,9 @@ function Inner() {
           <div className="text-4xl mb-3">💆</div>
           <p className="font-semibold text-gray-600">No services listed</p>
           <p className="text-sm mt-1">Add services your customers can book or enquire about</p>
-          <button onClick={() => setShowAdd(true)} className="btn-primary mt-4 px-6 py-2.5 rounded-xl text-sm font-bold">
+          <Button onClick={() => setShowAdd(true)} className="mt-4 px-6 py-2.5 rounded-xl text-sm font-bold">
             Add First Service
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

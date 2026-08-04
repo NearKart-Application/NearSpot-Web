@@ -5,6 +5,7 @@ import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
 import { ProductCardGrid, ProductCardList, type ProductData } from '../ui/ProductCard';
 import Img from '../ui/Img';
+import { Button } from '@/components/ui/button';
 
 const listContainer = {
   hidden: {},
@@ -548,13 +549,13 @@ function Inner({ initTab }: { initTab: Tab }) {
               </p>
               <div className="flex gap-2 mt-5">
                 {radius < 10 && (
-                  <button onClick={() => setRadius(r => Math.min(r * 2, 10))}
-                    className="btn-primary px-5">Expand to {Math.min(radius * 2, 10)}km</button>
+                  <Button onClick={() => setRadius(r => Math.min(r * 2, 10))}
+                    className="px-5">Expand to {Math.min(radius * 2, 10)}km</Button>
                 )}
                 {activeFilterCount > 0 && (
-                  <button onClick={() => {
+                  <Button variant="outline" onClick={() => {
                     setCategory(null); setOnSale(false); setIsOpenOnly(false); setMinRating(0);
-                  }} className="btn-outline px-5">Clear filters</button>
+                  }} className="px-5">Clear filters</Button>
                 )}
               </div>
             </div>

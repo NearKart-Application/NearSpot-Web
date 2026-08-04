@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery, useMutation } from '@tanstack/react-quer
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard } from './VendorAuthGuard';
+import { Button } from '@/components/ui/button';
 
 interface ProductFormData {
   name: string;
@@ -203,11 +204,11 @@ function Inner({ productId }: { productId?: string }) {
         {error && <p className="text-sm text-red-500 font-semibold">{error}</p>}
 
         <div className="flex gap-3 pt-2">
-          <button onClick={() => saveMut.mutate()}
+          <Button onClick={() => saveMut.mutate()}
             disabled={saveMut.isPending || !form.name.trim() || !(parseFloat(form.base_price) > 0)}
-            className="flex-1 btn-primary py-3 rounded-xl font-bold text-sm disabled:opacity-60">
+            className="flex-1 py-3 rounded-xl font-bold text-sm disabled:opacity-60">
             {saveMut.isPending ? (isEdit ? 'Saving…' : 'Creating…') : (isEdit ? 'Save Changes' : 'Create Product')}
-          </button>
+          </Button>
           <a href="/vendor/products"
             className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:border-navy hover:text-navy transition-colors text-center">
             Cancel

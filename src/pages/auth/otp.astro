@@ -107,11 +107,24 @@ import AuthLayout from '../../layouts/AuthLayout.astro';
 
       localStorage.setItem('ns_access',  data.access);
       localStorage.setItem('ns_refresh', data.refresh);
-      localStorage.setItem('ns_user',    JSON.stringify(data.user));
+
+      // Normalize API user object — backend returns `role`, front-end auth lib expects `ui_mode`
+      const rawUser = data.user ?? {};
+      const resolvedMode = rawUser.ui_mode ?? rawUser.role ?? '';
+      const normalizedUser = {
+        ...rawUser,
+        ui_mode:    resolvedMode,
+        is_vendor:  resolvedMode === 'vendor',
+        is_admin:   resolvedMode === 'admin' || resolvedMode === 'master_admin',
+        avatar_url: rawUser.avatar_url ?? rawUser.avatar ?? '',
+      };
+      localStorage.setItem('ns_user', JSON.stringify(normalizedUser));
 
       // Backend returns ui_mode (customer/vendor) and is_new flag
       const uiMode = data.user?.ui_mode ?? data.user?.role;
-      if (data.is_new || !uiMode) { window.location.href = '/auth/role-select'; return; }
+      // Admin/master_admin users skip role-select — they never set a location so is_new is always true
+      const isAdminRole = uiMode === 'admin' || uiMode === 'master_admin';
+      if (!isAdminRole && (data.is_new || !uiMode)) { window.location.href = '/auth/role-select'; return; }
 
       const redirectMap: Record<string, string> = {
         customer: '/', vendor: '/vendor/dashboard',

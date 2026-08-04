@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
+import { Button } from '@/components/ui/button';
 
 interface Notification {
   id: string;
@@ -287,7 +288,7 @@ function Inner() {
                 {filter === 'unread' ? 'You have no unread notifications.' : 'Your notifications will appear here.'}
               </p>
               {filter === 'unread' && (
-                <button onClick={() => setFilter('all')} className="mt-4 btn-outline">View all</button>
+                <Button variant="outline" onClick={() => setFilter('all')} className="mt-4">View all</Button>
               )}
             </div>
           ) : (

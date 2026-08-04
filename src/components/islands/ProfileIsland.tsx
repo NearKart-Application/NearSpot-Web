@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tan
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
 import Img from '../ui/Img';
+import { Button } from '@/components/ui/button';
 
 interface User {
   id: string; profile_id?: string; phone_number: string; role: string;
@@ -158,13 +159,13 @@ function Inner() {
               </div>
               {updateError && <p className="text-xs text-red-500 font-semibold">{updateError}</p>}
               <div className="flex gap-2">
-                <button onClick={() => updateMut.mutate({ full_name: name, email })}
+                <Button onClick={() => updateMut.mutate({ full_name: name, email })}
                   disabled={updateMut.isPending}
-                  className="flex-1 btn-primary py-2.5">
+                  className="flex-1 py-2.5">
                   {updateMut.isPending ? 'Saving…' : 'Save Changes'}
-                </button>
-                <button onClick={() => setEditMode(false)}
-                  className="flex-1 btn-outline py-2.5">Cancel</button>
+                </Button>
+                <Button variant="outline" onClick={() => setEditMode(false)}
+                  className="flex-1 py-2.5">Cancel</Button>
               </div>
             </div>
           ) : (

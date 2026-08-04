@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tan
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
+import { Button } from '@/components/ui/button';
 
 interface DiscountCode {
   id: string; code: string; discount_type: string;
@@ -104,10 +105,10 @@ function AddCodeModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
             </div>
           </div>
           {error && <p className="text-xs text-red-500">{error}</p>}
-          <button onClick={() => createMut.mutate()} disabled={createMut.isPending || !code || !value}
-            className="w-full btn-primary py-3 rounded-xl font-bold">
+          <Button onClick={() => createMut.mutate()} disabled={createMut.isPending || !code || !value}
+            className="w-full py-3 rounded-xl font-bold">
             {createMut.isPending ? 'Creating…' : 'Create Code'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -143,7 +144,7 @@ function Inner() {
           <h1 className="text-xl font-bold text-navy">Discount Codes</h1>
           <p className="text-sm text-gray-400">{codes.filter(c => c.is_active).length} active codes</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="btn-primary btn-sm px-4 py-2 text-sm">+ New Code</button>
+        <Button onClick={() => setShowAdd(true)} size="sm" className="px-4 py-2 text-sm">+ New Code</Button>
       </div>
 
       {isLoading ? (
@@ -154,7 +155,7 @@ function Inner() {
         <div className="card p-12 text-center text-gray-400">
           <div className="text-4xl mb-3">🎟️</div>
           <p className="font-semibold text-gray-600">No discount codes yet</p>
-          <button onClick={() => setShowAdd(true)} className="mt-4 btn-primary btn-sm px-6 py-2">Create your first code</button>
+          <Button onClick={() => setShowAdd(true)} size="sm" className="mt-4 px-6 py-2">Create your first code</Button>
         </div>
       ) : (
         <div className="space-y-3">

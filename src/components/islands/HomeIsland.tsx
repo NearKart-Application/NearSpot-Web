@@ -5,6 +5,7 @@ import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
 import { ProductCardGrid, type ProductData } from '../ui/ProductCard';
 import Img from '../ui/Img';
+import { Button } from '@/components/ui/button';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Types (match actual API field names)
@@ -668,9 +669,9 @@ function Inner({ initBanners, initCategories }: { initBanners: Banner[]; initCat
                 <h3 className="font-bold text-navy">No stores found</h3>
                 <p className="text-sm text-gray-400 mt-1">Try increasing the radius or changing category</p>
                 {radius < 10 && (
-                  <button onClick={() => setRadius(r => Math.min(r * 2, 10))} className="mt-4 btn-outline">
+                  <Button variant="outline" onClick={() => setRadius(r => Math.min(r * 2, 10))} className="mt-4">
                     Increase to {Math.min(radius * 2, 10)}km
-                  </button>
+                  </Button>
                 )}
               </div>
             ) : (

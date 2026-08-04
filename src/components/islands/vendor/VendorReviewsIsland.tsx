@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tan
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
+import { Button } from '@/components/ui/button';
 
 interface Review {
   id: string; user_name: string; rating: number; comment: string;
@@ -66,10 +67,10 @@ function ReviewRow({ review, storeId }: { review: Review; storeId: string }) {
                 placeholder="Write a professional reply…" rows={3}
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm resize-none focus:outline-none focus:border-navy/40 focus:ring-2 focus:ring-navy/10" />
               <div className="flex gap-2">
-                <button onClick={() => replyMut.mutate(reply)} disabled={replyMut.isPending || !reply.trim() || !storeId}
-                  className="btn-primary btn-sm px-4 py-1.5">{replyMut.isPending ? 'Saving…' : 'Post Reply'}</button>
-                <button onClick={() => { setEditing(false); setReply(review.vendor_reply ?? ''); }}
-                  className="btn-ghost btn-sm px-4 py-1.5">Cancel</button>
+                <Button onClick={() => replyMut.mutate(reply)} disabled={replyMut.isPending || !reply.trim() || !storeId}
+                  size="sm" className="px-4 py-1.5">{replyMut.isPending ? 'Saving…' : 'Post Reply'}</Button>
+                <Button onClick={() => { setEditing(false); setReply(review.vendor_reply ?? ''); }}
+                  variant="ghost" size="sm" className="px-4 py-1.5">Cancel</Button>
               </div>
             </div>
           )}

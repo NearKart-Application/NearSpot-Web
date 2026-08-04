@@ -1,15 +1,17 @@
 export type UiMode = 'customer' | 'vendor' | 'admin' | 'master_admin';
 
 export interface AuthUser {
-  id: number;
+  id: string;
   phone_number: string;
   full_name: string;
   email: string;
   profile_id: string;
-  ui_mode: UiMode;
+  role?: UiMode;
+  ui_mode?: UiMode;
+  avatar?: string;
   avatar_url?: string;
-  is_vendor: boolean;
-  is_admin: boolean;
+  is_vendor?: boolean;
+  is_admin?: boolean;
 }
 
 export const auth = {

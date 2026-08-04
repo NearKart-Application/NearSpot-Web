@@ -4,6 +4,7 @@ import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import Img from '../../ui/Img';
+import { Button } from '@/components/ui/button';
 
 interface VendorStore {
   id: string; name: string; description: string; category: string; phone: string;
@@ -256,10 +257,10 @@ function Inner() {
       <div className="card p-6 space-y-4">
         <div className="flex items-center justify-between border-b border-gray-100 pb-3">
           <h2 className="font-bold text-navy">Opening Hours</h2>
-          <button onClick={() => saveHoursMut.mutate()} disabled={saveHoursMut.isPending}
-            className="btn-outline btn-sm px-4 py-1.5 text-xs font-bold">
+          <Button onClick={() => saveHoursMut.mutate()} disabled={saveHoursMut.isPending}
+            variant="outline" size="sm" className="px-4 py-1.5 text-xs font-bold">
             {saveHoursMut.isPending ? 'Saving…' : 'Save Hours'}
-          </button>
+          </Button>
         </div>
         {hours.map((h, i) => (
           <div key={i} className="flex items-center gap-3">
@@ -288,10 +289,10 @@ function Inner() {
         ))}
       </div>
 
-      <button onClick={() => updateMut.mutate()} disabled={updateMut.isPending}
-        className="btn-primary w-full py-3.5 rounded-xl font-bold text-sm">
+      <Button onClick={() => updateMut.mutate()} disabled={updateMut.isPending}
+        className="w-full py-3.5 rounded-xl font-bold text-sm">
         {updateMut.isPending ? 'Saving…' : 'Save Store Info'}
-      </button>
+      </Button>
     </div>
   );
 }

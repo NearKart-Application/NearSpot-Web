@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tan
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
 import Img from '../ui/Img';
+import { Button } from '@/components/ui/button';
 
 interface SizeOption  { size: string; stock: number; variant_id?: string; }
 interface ProductDetail {
@@ -330,7 +331,7 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
             <input value={discountCode} onChange={e => setDiscount(e.target.value)}
               placeholder="Enter code…"
               className="input flex-1 text-sm py-2" />
-            <button onClick={async () => {
+            <Button onClick={async () => {
               if (!discountCode.trim()) return;
               try {
                 const r = await api.post(`/stores/${product.store.id}/apply-discount/`, { code: discountCode, order_amount: finalPrice });
@@ -338,7 +339,7 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
               } catch (e: any) {
                 setDiscountApplied(`✗ ${e?.response?.data?.message ?? 'Invalid code'}`);
               }
-            }} className="btn-primary px-4 text-sm">Apply</button>
+            }} className="px-4 text-sm">Apply</Button>
           </div>
           {discountApplied && (
             <p className={`text-xs mt-1.5 font-semibold ${discountApplied.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>{discountApplied}</p>

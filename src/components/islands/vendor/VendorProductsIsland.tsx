@@ -4,6 +4,7 @@ import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import Img from '../../ui/Img';
 import { VendorAuthGuard } from './VendorAuthGuard';
+import { Button } from '@/components/ui/button';
 
 interface Product {
   id: string; name: string; category: string; product_code: string;
@@ -72,7 +73,7 @@ function Inner() {
           {status === 401 && (
             <p className="text-sm text-red-500 mb-4">Your session expired. Please <a href="/auth/login" className="underline font-bold">log in again</a>.</p>
           )}
-          <button onClick={() => refetch()} className="btn-primary px-6 py-2.5 rounded-xl text-sm font-bold">Retry</button>
+          <Button onClick={() => refetch()} className="px-6 py-2.5 rounded-xl text-sm font-bold">Retry</Button>
         </div>
       </div>
     );

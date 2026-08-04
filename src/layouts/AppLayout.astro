@@ -18,13 +18,20 @@ const { title, fullWidth = false, noFooter = false, noPad = false } = Astro.prop
       <slot />
     </main>
     {!noFooter && (
-      <footer class="bg-white border-t border-gray-100 py-6 mt-auto hidden md:block">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-sm text-gray-500">
-          <span>&copy; {new Date().getFullYear()} NearSpot. All rights reserved.</span>
-          <div class="flex gap-4">
-            <a href="/about"   class="hover:text-navy transition-colors">About</a>
-            <a href="/privacy" class="hover:text-navy transition-colors">Privacy</a>
-            <a href="/terms"   class="hover:text-navy transition-colors">Terms</a>
+      <footer class="bg-white border-t border-gray-100 py-5 mt-auto hidden md:block">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-3">
+          <div class="flex items-center gap-2">
+            <div class="w-6 h-6 bg-navy rounded-lg flex items-center justify-center">
+              <span class="text-gold font-black text-[11px]">N</span>
+            </div>
+            <span class="text-sm font-semibold text-navy">NearSpot</span>
+            <span class="text-gray-300 text-sm">·</span>
+            <span class="text-xs text-gray-400">&copy; {new Date().getFullYear()} All rights reserved.</span>
+          </div>
+          <div class="flex gap-5">
+            <a href="/about"   class="text-xs text-gray-400 hover:text-navy transition-colors font-medium">About</a>
+            <a href="/privacy" class="text-xs text-gray-400 hover:text-navy transition-colors font-medium">Privacy</a>
+            <a href="/terms"   class="text-xs text-gray-400 hover:text-navy transition-colors font-medium">Terms</a>
           </div>
         </div>
       </footer>

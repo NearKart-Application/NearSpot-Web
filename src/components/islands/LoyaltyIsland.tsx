@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
+import { Button } from '@/components/ui/button';
 
 interface LoyaltyBalance {
   balance: number;
@@ -130,11 +131,11 @@ function Inner() {
         <div className="flex gap-2">
           <input value={referralInput} onChange={e => setReferralInput(e.target.value.toUpperCase())}
             className="input flex-1 font-mono tracking-widest" placeholder="NS-XX-XXXX" maxLength={12} />
-          <button onClick={() => referralInput && applyMut.mutate(referralInput)}
+          <Button onClick={() => referralInput && applyMut.mutate(referralInput)}
             disabled={applyMut.isPending || !referralInput}
-            className="btn-primary px-4">
+            className="px-4">
             {applyMut.isPending ? '…' : 'Apply'}
-          </button>
+          </Button>
         </div>
         {applyMut.isSuccess && (
           <p className="text-xs text-green-600 font-semibold mt-2">✓ Referral applied! Points added.</p>

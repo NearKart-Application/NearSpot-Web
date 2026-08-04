@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tan
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
 import Img from '../ui/Img';
+import { Button } from '@/components/ui/button';
 
 interface StoreDetail {
   id: string; name: string; avatar?: string; cover_image?: string;
@@ -196,7 +197,7 @@ function Inner({ storeId, initialStore }: { storeId: string; initialStore: Store
         <div className="text-5xl mb-4">⚠️</div>
         <h2 className="text-lg font-bold text-navy mb-2">Could not load store</h2>
         <p className="text-sm text-gray-500 mb-4">The store may not exist or there was a network error.</p>
-        <button onClick={() => history.back()} className="btn-primary px-6 py-2.5 rounded-xl text-sm font-bold">Go Back</button>
+        <Button onClick={() => history.back()} className="px-6">Go Back</Button>
       </div>
     </div>
   );

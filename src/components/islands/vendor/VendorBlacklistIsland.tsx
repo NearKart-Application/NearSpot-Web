@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tan
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
+import { Button } from '@/components/ui/button';
 
 interface BlockedCustomer {
   id: string; customer_name: string; customer_phone: string;
@@ -96,12 +97,12 @@ function Inner() {
               Unblock {unblockTarget.customer_name || unblockTarget.customer_phone}? They will be able to interact with your store again.
             </p>
             <div className="flex gap-2">
-              <button onClick={() => unblockMut.mutate(unblockTarget.id)} disabled={unblockMut.isPending}
-                className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-bold">
+              <Button onClick={() => unblockMut.mutate(unblockTarget.id)} disabled={unblockMut.isPending}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold">
                 {unblockMut.isPending ? 'Unblocking…' : 'Unblock'}
-              </button>
-              <button onClick={() => setUnblockTarget(null)}
-                className="flex-1 btn-outline py-2.5 rounded-xl text-sm font-bold">Cancel</button>
+              </Button>
+              <Button onClick={() => setUnblockTarget(null)}
+                variant="outline" className="flex-1 py-2.5 rounded-xl text-sm font-bold">Cancel</Button>
             </div>
           </div>
         </div>

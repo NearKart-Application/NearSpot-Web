@@ -1,4 +1,19 @@
+import { useEffect, useRef, type ComponentType } from 'react';
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { motion } from 'framer-motion';
+import {
+  Store,
+  CheckCircle,
+  ShieldCheck,
+  Users,
+  Package,
+  Video,
+  Eye,
+  DollarSign,
+  Globe,
+  ChevronRight,
+} from 'lucide-react';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { AdminShell } from './AdminShell';
@@ -12,25 +27,94 @@ interface DashStats {
   pending_website_requests: number;
 }
 
-function StatCard({ icon, label, value }: { icon: string; label: string; value: string | number }) {
+// ── Animated number counter ──────────────────────────────────────────────────
+function AnimatedNumber({ value }: { value: string | number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+
+  // For non-numeric or currency strings, render as-is
+  const raw = typeof value === 'number' ? value : value;
+  const isNumeric =
+    typeof raw === 'number' ||
+    (typeof raw === 'string' && !raw.startsWith('₹') && !isNaN(Number(raw)));
+
+  const numericTarget = isNumeric ? Number(raw) : 0;
+
+  useEffect(() => {
+    if (!isNumeric || !ref.current) return;
+    const el = ref.current;
+    const start = performance.now();
+    const duration = 800;
+
+    function tick(now: number) {
+      const elapsed = Math.min(now - start, duration);
+      const progress = elapsed / duration;
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(eased * numericTarget);
+      el.textContent = current.toLocaleString();
+      if (elapsed < duration) requestAnimationFrame(tick);
+    }
+
+    requestAnimationFrame(tick);
+  }, [numericTarget, isNumeric]);
+
+  if (!isNumeric) {
+    return <span>{value}</span>;
+  }
+
+  return <span ref={ref}>0</span>;
+}
+
+// ── Stagger animation variants ───────────────────────────────────────────────
+const containerVariants = {
+  hidden: {},
+  show: {
+    transition: {
+      staggerChildren: 0.07,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.96 },
+  show:   { opacity: 1, y: 0,  scale: 1,    transition: { duration: 0.35, ease: 'easeOut' as const } },
+};
+
+// ── StatCard ─────────────────────────────────────────────────────────────────
+interface StatCardProps {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  value: string | number;
+  gradient: string;
+}
+
+function StatCard({ icon: Icon, label, value, gradient }: StatCardProps) {
   return (
-    <div className="card p-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">{label}</p>
-          <p className="text-2xl font-bold mt-1" style={{ color: '#1C2E4A' }}>{value}</p>
+    <motion.div variants={itemVariants}>
+      <div
+        className={`rounded-2xl p-5 shadow-lg overflow-hidden relative bg-gradient-to-br ${gradient}`}
+      >
+        {/* Decoration circle */}
+        <div className="absolute w-20 h-20 rounded-full bg-white/10 -right-4 -top-4 pointer-events-none" />
+
+        {/* Icon */}
+        <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-3">
+          <Icon className="w-5 h-5 text-white" />
         </div>
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0"
-          style={{ backgroundColor: 'rgba(28,46,74,0.08)' }}
-        >
-          {icon}
-        </div>
+
+        {/* Value */}
+        <p className="text-3xl font-black text-white leading-none">
+          <AnimatedNumber value={value} />
+        </p>
+
+        {/* Label */}
+        <p className="text-sm text-white/75 mt-0.5">{label}</p>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
+// ── Inner dashboard ───────────────────────────────────────────────────────────
 function Inner() {
   const { data, isLoading, error, refetch } = useQuery<DashStats>({
     queryKey: ['admin-stats'],
@@ -41,7 +125,7 @@ function Inner() {
     return (
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
         {[...Array(9)].map((_, i) => (
-          <div key={i} className="h-24 bg-gray-200 rounded-2xl" />
+          <div key={i} className="h-28 bg-gray-200 rounded-2xl" />
         ))}
       </div>
     );
@@ -51,54 +135,119 @@ function Inner() {
     return (
       <div className="card p-8 text-center">
         <p className="text-4xl mb-3">⚠️</p>
-        <p className="font-semibold" style={{ color: '#1C2E4A' }}>Failed to load stats</p>
+        <p className="font-semibold" style={{ color: '#0F172A' }}>Failed to load stats</p>
         <p className="text-sm text-gray-500 mt-1">
           {(error as any)?.response?.data?.detail ?? 'Check your connection and try again'}
         </p>
-        <button onClick={() => refetch()} className="btn-primary mt-4">Retry</button>
+        <Button onClick={() => refetch()} className="mt-4">Retry</Button>
       </div>
     );
   }
 
+  const quickLinks = [
+    { label: 'Stores',           href: '/admin/stores' },
+    { label: 'Users',            href: '/admin/users' },
+    { label: 'Products',         href: '/admin/products' },
+    { label: 'Banners',          href: '/admin/banners' },
+    { label: 'Website Requests', href: '/admin/website-requests' },
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Page header */}
       <div>
-        <h2 className="section-title">Overview</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          <StatCard icon="🏪" label="Total Stores"             value={data.stores.total} />
-          <StatCard icon="✅" label="Active Stores"            value={data.stores.active} />
-          <StatCard icon="🔍" label="Verified Stores"          value={data.stores.verified} />
-          <StatCard icon="👥" label="Total Users"              value={data.users.total} />
-          <StatCard icon="📦" label="Active Products"          value={data.products.active} />
-          <StatCard icon="🎬" label="Ready Videos"             value={data.videos.ready} />
-          <StatCard icon="👁" label="Total Views"              value={(data.videos.total_views ?? 0).toLocaleString()} />
-          <StatCard icon="💰" label="Subscription Revenue"     value={`₹${parseFloat(data.revenue.subscription_revenue || '0').toLocaleString()}`} />
-          <StatCard icon="🌐" label="Pending Website Requests" value={data.pending_website_requests} />
-        </div>
+        <h1 className="text-2xl font-black text-gray-900">Platform Overview</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Live snapshot of your NearSpot platform</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {[
-          { label: 'Stores',           href: '/admin/stores' },
-          { label: 'Users',            href: '/admin/users' },
-          { label: 'Products',         href: '/admin/products' },
-          { label: 'Banners',          href: '/admin/banners' },
-          { label: 'Website Requests', href: '/admin/website-requests' },
-        ].map((link) => (
-          <a
-            key={link.href}
-            href={link.href}
-            className="card p-4 text-center text-sm font-medium hover:shadow-card-hover transition-shadow"
-            style={{ color: '#1C2E4A' }}
-          >
-            {link.label}
-          </a>
-        ))}
+      {/* Stats grid */}
+      <motion.div
+        className="grid grid-cols-2 lg:grid-cols-3 gap-4"
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+      >
+        <StatCard
+          icon={Store}
+          label="Total Stores"
+          value={data.stores.total}
+          gradient="from-blue-500 to-blue-600"
+        />
+        <StatCard
+          icon={CheckCircle}
+          label="Active Stores"
+          value={data.stores.active}
+          gradient="from-emerald-500 to-emerald-600"
+        />
+        <StatCard
+          icon={ShieldCheck}
+          label="Verified Stores"
+          value={data.stores.verified}
+          gradient="from-violet-500 to-violet-600"
+        />
+        <StatCard
+          icon={Users}
+          label="Total Users"
+          value={data.users.total}
+          gradient="from-pink-500 to-rose-500"
+        />
+        <StatCard
+          icon={Package}
+          label="Active Products"
+          value={data.products.active}
+          gradient="from-orange-500 to-amber-500"
+        />
+        <StatCard
+          icon={Video}
+          label="Ready Videos"
+          value={data.videos.ready}
+          gradient="from-teal-500 to-cyan-500"
+        />
+        <StatCard
+          icon={Eye}
+          label="Total Views"
+          value={(data.videos.total_views ?? 0).toLocaleString()}
+          gradient="from-indigo-500 to-blue-500"
+        />
+        <StatCard
+          icon={DollarSign}
+          label="Subscription Revenue"
+          value={`₹${parseFloat(data.revenue.subscription_revenue || '0').toLocaleString()}`}
+          gradient="from-amber-500 to-yellow-400"
+        />
+        <StatCard
+          icon={Globe}
+          label="Pending Website Requests"
+          value={data.pending_website_requests}
+          gradient="from-red-500 to-rose-500"
+        />
+      </motion.div>
+
+      {/* Quick links */}
+      <div>
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          Quick Access
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {quickLinks.map((link) => (
+            <motion.a
+              key={link.href}
+              href={link.href}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="card p-4 flex items-center justify-between gap-2 text-sm font-medium text-gray-700 hover:shadow-md transition-shadow"
+            >
+              <span>{link.label}</span>
+              <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+            </motion.a>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
+// ── Default export ────────────────────────────────────────────────────────────
 export default function AdminDashboardIsland() {
   return (
     <QueryClientProvider client={queryClient}>

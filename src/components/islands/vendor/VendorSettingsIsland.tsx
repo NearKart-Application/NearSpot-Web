@@ -4,6 +4,7 @@ import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { auth } from '../../../lib/auth';
 import { VendorAuthGuard } from './VendorAuthGuard';
+import { Button } from '@/components/ui/button';
 
 interface SettingsItem {
   icon: string; title: string; subtitle: string;
@@ -47,9 +48,9 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
           className="block w-full py-2.5 rounded-xl bg-navy text-white text-sm font-bold hover:bg-navy/90 transition-colors mb-2">
           Contact Support
         </a>
-        <button onClick={onClose} className="w-full py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-600">
+        <Button onClick={onClose} variant="outline" className="w-full py-2.5 rounded-xl text-sm font-bold">
           Close
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -75,9 +76,9 @@ function QrCodeModal({ storeId, storeName, onClose }: { storeId: string; storeNa
         <p className="text-xs text-gray-400 mb-4">Customers scan this to view your store.</p>
         <img src={qrUrl} alt="Store QR" className="w-48 h-48 mx-auto rounded-xl border border-gray-100 mb-4" />
         <p className="text-xs font-mono text-gray-500 mb-3 bg-gray-50 rounded-lg px-3 py-2 break-all">{storeUrl}</p>
-        <button onClick={copy} className="btn-outline px-6 py-2 rounded-xl text-sm font-bold">
+        <Button onClick={copy} variant="outline" className="px-6 py-2 rounded-xl text-sm font-bold">
           {copied ? '✅ Copied!' : '📋 Copy Store Link'}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -102,7 +103,7 @@ function ReferralModal({ onClose }: { onClose: () => void }) {
             Contact support@nearspot.in to get your vendor referral code.
           </div>
         </div>
-        <button onClick={onClose} className="btn-outline w-full py-2.5 rounded-xl text-sm font-bold mt-4">OK</button>
+        <Button onClick={onClose} variant="outline" className="w-full py-2.5 rounded-xl text-sm font-bold mt-4">OK</Button>
       </div>
     </div>
   );
@@ -124,7 +125,7 @@ function AboutModal({ onClose }: { onClose: () => void }) {
           <p className="text-xs text-gray-500">Hyperlocal shopping — discover stores near you.</p>
           <p className="text-xs text-gray-400 mt-3">© 2024 NearSpot. All rights reserved.</p>
         </div>
-        <button onClick={onClose} className="btn-outline w-full py-2.5 rounded-xl text-sm font-bold">OK</button>
+        <Button onClick={onClose} variant="outline" className="w-full py-2.5 rounded-xl text-sm font-bold">OK</Button>
       </div>
     </div>
   );
@@ -229,8 +230,8 @@ function Inner() {
             <h3 className="font-bold text-navy mb-2">Sign Out?</h3>
             <p className="text-sm text-gray-600 mb-4">Are you sure you want to sign out of your account?</p>
             <div className="flex gap-2">
-              <button onClick={logout} className="flex-1 btn-danger py-2.5 rounded-xl text-sm font-bold">Sign Out</button>
-              <button onClick={() => setShowLogout(false)} className="flex-1 btn-outline py-2.5 rounded-xl text-sm font-bold">Cancel</button>
+              <Button onClick={logout} variant="destructive" className="flex-1 py-2.5 rounded-xl text-sm font-bold">Sign Out</Button>
+              <Button onClick={() => setShowLogout(false)} variant="outline" className="flex-1 py-2.5 rounded-xl text-sm font-bold">Cancel</Button>
             </div>
           </div>
         </div>

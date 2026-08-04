@@ -3,7 +3,30 @@
 @tailwind utilities;
 
 @layer base {
-  :root { --sidebar-w: 260px; }
+  :root {
+    --sidebar-w: 260px;
+    /* shadcn CSS variables — NearSpot Navy + Gold theme */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 222 47% 11%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 38 92% 50%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 222 47% 11%;
+    --radius: 0.75rem;
+  }
   html { @apply antialiased scroll-smooth; }
   body { @apply bg-surface text-gray-800 font-sans; }
   * { @apply box-border; }

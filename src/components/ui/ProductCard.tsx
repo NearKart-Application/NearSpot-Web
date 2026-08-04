@@ -58,7 +58,7 @@ export function ProductCardGrid({
   const dist   = distLabel(product.distance_km);
 
   return (
-    <div className="group relative bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+    <div className="group relative bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
       {/* Image container */}
       <a href={`/products/${product.id}`} className="block relative aspect-square bg-gray-50 overflow-hidden">
         <Img src={img} alt={product.name} loading="lazy" fallback="product"
@@ -66,7 +66,7 @@ export function ProductCardGrid({
 
         {/* Discount badge */}
         {disc >= 5 && (
-          <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm">
+          <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm z-10">
             {disc}% off
           </div>
         )}
@@ -80,13 +80,13 @@ export function ProductCardGrid({
 
         {/* Out of stock overlay */}
         {oos && (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 bg-navy/60 backdrop-blur-sm flex items-center justify-center">
             <span className="bg-gray-900/70 text-white text-xs font-bold px-3 py-1.5 rounded-xl">Out of stock</span>
           </div>
         )}
 
         {/* Hover action strip — slides up from bottom */}
-        <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-200 flex bg-navy/95 backdrop-blur-sm">
+        <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 flex bg-navy/95 backdrop-blur-sm">
           <a href={`/products/${product.id}`}
             className="flex-1 py-2.5 text-center text-white text-xs font-bold hover:bg-white/10 transition-colors">
             {oos ? '🔔 Notify Me' : '📌 Reserve'}
@@ -127,7 +127,7 @@ export function ProductCardGrid({
           <p className="text-[10px] text-gray-400 truncate font-medium">{storeName}</p>
         )}
         <a href={`/products/${product.id}`}>
-          <h3 className="text-[13px] font-bold text-navy line-clamp-2 leading-snug mt-0.5">
+          <h3 className="text-[13px] font-bold text-navy line-clamp-2 leading-snug mt-0.5 group-hover:text-navy-400 transition-colors">
             {product.name}
           </h3>
         </a>
@@ -173,7 +173,7 @@ export function ProductCardGrid({
             </span>
           )}
           {product.stock_count != null && product.stock_count > 0 && product.stock_count <= 5 && (
-            <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-md">
+            <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full border border-orange-200">
               Only {product.stock_count} left!
             </span>
           )}
@@ -203,7 +203,7 @@ export function ProductCardList({
   const dist  = distLabel(product.distance_km);
 
   return (
-    <div className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex gap-4 p-3.5 overflow-hidden">
+    <div className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex gap-4 p-3.5 overflow-hidden">
       {/* Image */}
       <a href={`/products/${product.id}`}
         className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl bg-gray-50 overflow-hidden shrink-0">
@@ -284,7 +284,7 @@ export function ProductCardList({
               </button>
             )}
             <a href={`/products/${product.id}`}
-              className="px-4 py-2 bg-navy text-white text-xs font-bold rounded-xl hover:bg-navy/90 transition-colors">
+              className="px-4 py-2 bg-navy text-white text-xs font-bold rounded-xl hover:bg-navy-600 transition-colors shadow-sm">
               {oos ? 'Notify' : 'Reserve'}
             </a>
           </div>

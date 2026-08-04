@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tan
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
+import { Button } from '@/components/ui/button';
 
 interface Channel { id: string; name: string; description?: string; subscriber_count: number; post_count: number; created_at: string; }
 interface Post { id: string; content: string; image_url?: string; created_at: string; view_count?: number; }
@@ -37,10 +38,10 @@ function CreateChannelModal({ onClose, onSuccess }: { onClose: () => void; onSuc
         <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="What will you broadcast?"
           className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm mb-3 focus:outline-none focus:border-navy/40" />
         {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
-        <button onClick={() => createMut.mutate()} disabled={createMut.isPending || !name.trim()}
-          className="w-full btn-primary py-3 rounded-xl font-bold">
+        <Button onClick={() => createMut.mutate()} disabled={createMut.isPending || !name.trim()}
+          className="w-full py-3 rounded-xl font-bold">
           {createMut.isPending ? 'Creating…' : 'Create Channel'}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -72,10 +73,10 @@ function RenameChannelModal({ channel, onClose, onSuccess }: { channel: Channel;
         <input value={desc} onChange={e => setDesc(e.target.value)}
           className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm mb-3 focus:outline-none focus:border-navy/40" />
         {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
-        <button onClick={() => renameMut.mutate()} disabled={renameMut.isPending || !name.trim()}
-          className="w-full btn-primary py-3 rounded-xl font-bold">
+        <Button onClick={() => renameMut.mutate()} disabled={renameMut.isPending || !name.trim()}
+          className="w-full py-3 rounded-xl font-bold">
           {renameMut.isPending ? 'Saving…' : 'Save Changes'}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -104,10 +105,10 @@ function CreatePostModal({ channelId, onClose, onSuccess }: { channelId: string;
           className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm resize-none mb-1 focus:outline-none focus:border-navy/40 focus:ring-2 focus:ring-navy/10" />
         <p className="text-xs text-gray-400 mb-3 text-right">{content.length}/1000</p>
         {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
-        <button onClick={() => postMut.mutate()} disabled={postMut.isPending || !content.trim()}
-          className="w-full btn-primary py-3 rounded-xl font-bold">
+        <Button onClick={() => postMut.mutate()} disabled={postMut.isPending || !content.trim()}
+          className="w-full py-3 rounded-xl font-bold">
           {postMut.isPending ? 'Sending…' : '📢 Send Broadcast'}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -144,9 +145,9 @@ function ChannelView({ channel }: { channel: Channel }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowRename(true)} className="btn-outline btn-sm px-3 py-1.5 text-xs">Rename</button>
-          <button onClick={() => setShowDeleteConfirm(true)} className="btn-danger btn-sm px-3 py-1.5 text-xs">Delete</button>
-          <button onClick={() => setShowPost(true)} className="btn-primary btn-sm px-4 py-1.5 text-sm">+ Post</button>
+          <Button onClick={() => setShowRename(true)} variant="outline" size="sm" className="px-3 py-1.5 text-xs">Rename</Button>
+          <Button onClick={() => setShowDeleteConfirm(true)} variant="destructive" size="sm" className="px-3 py-1.5 text-xs">Delete</Button>
+          <Button onClick={() => setShowPost(true)} size="sm" className="px-4 py-1.5 text-sm">+ Post</Button>
         </div>
       </div>
 
@@ -189,11 +190,11 @@ function ChannelView({ channel }: { channel: Channel }) {
               "{channel.name}" has {channel.subscriber_count} subscriber(s) and {channel.post_count} post(s). This cannot be undone.
             </p>
             <div className="flex gap-2">
-              <button onClick={() => deleteMut.mutate()} disabled={deleteMut.isPending}
-                className="flex-1 btn-danger py-2.5 rounded-xl text-sm font-bold">
+              <Button onClick={() => deleteMut.mutate()} disabled={deleteMut.isPending}
+                variant="destructive" className="flex-1 py-2.5 rounded-xl text-sm font-bold">
                 {deleteMut.isPending ? 'Deleting…' : 'Delete Channel'}
-              </button>
-              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 btn-outline py-2.5 rounded-xl text-sm font-bold">Cancel</button>
+              </Button>
+              <Button onClick={() => setShowDeleteConfirm(false)} variant="outline" className="flex-1 py-2.5 rounded-xl text-sm font-bold">Cancel</Button>
             </div>
           </div>
         </div>
@@ -222,7 +223,7 @@ function Inner() {
           <h1 className="text-xl font-bold text-navy">Broadcasts</h1>
           <p className="text-sm text-gray-400">{channels.length} channel{channels.length !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="btn-primary btn-sm px-4 py-2 text-sm">+ New Channel</button>
+        <Button onClick={() => setShowCreate(true)} size="sm" className="px-4 py-2 text-sm">+ New Channel</Button>
       </div>
 
       {isLoading ? (
@@ -234,7 +235,7 @@ function Inner() {
           <div className="text-4xl mb-3">📢</div>
           <p className="font-semibold text-gray-600">No broadcast channels yet</p>
           <p className="text-sm mt-1">Create a channel to start sending updates to your followers</p>
-          <button onClick={() => setShowCreate(true)} className="mt-4 btn-primary btn-sm px-6 py-2">Create Channel</button>
+          <Button onClick={() => setShowCreate(true)} size="sm" className="mt-4 px-6 py-2">Create Channel</Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
