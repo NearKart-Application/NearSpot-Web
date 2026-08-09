@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
+import { auth } from '../../lib/auth';
 import Img from '../ui/Img';
 import { Button } from '@/components/ui/button';
+
+const sectionVariants = { hidden: { opacity: 0, y: 18, scale: 0.98 }, show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.38, ease: 'easeOut' as const } } };
+const pageContainer = { hidden: {}, show: { transition: { staggerChildren: 0.09 } } };
 
 interface User {
   id: string; profile_id?: string; phone_number: string; role: string;
@@ -115,15 +120,20 @@ function Inner() {
 
   if (!user) return null;
 
+  // Use localStorage ui_mode (set at login time) as authoritative session role.
+  // The /auth/me/ API may return a different 'role' if the account has multiple roles.
+  const localUser   = auth.user();
+  const sessionRole = localUser?.ui_mode ?? (localUser as any)?.role ?? user.role ?? 'customer';
+
   const initials = (user.full_name ?? user.phone_number).slice(0, 2).toUpperCase();
   const joined   = user.created_at
     ? new Date(user.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
     : '';
 
   return (
-    <div className="space-y-4 max-w-2xl mx-auto">
+    <motion.div className="space-y-4 max-w-2xl mx-auto" variants={pageContainer} initial="hidden" animate="show">
       {/* Avatar card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <motion.div variants={sectionVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="h-20 bg-gradient-to-r from-navy to-navy/70" />
         <div className="px-5 pb-5">
           <div className="flex items-end justify-between -mt-10 mb-3">
@@ -183,48 +193,51 @@ function Inner() {
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
 
-      {/* Menu sections — role-aware */}
-      {user.role === 'vendor' ? (
+      {/* Menu sections — role-aware (uses session role from localStorage, not API) */}
+      {sessionRole === 'vendor' ? (
         <>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
+          <motion.div variants={sectionVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
             <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-4 pt-3 pb-1">Store</p>
             <MenuItem iconKey="map"           label="Dashboard"        sub="Sales and performance"    href="/vendor/dashboard" />
             <MenuItem iconKey="reservations"  label="Reservations"     sub="Manage product holds"     href="/vendor/reservations" />
             <MenuItem iconKey="notifications" label="Notifications"    sub="Alerts and updates"       href="/vendor/notifications" />
             <MenuItem iconKey="messages"      label="Settings"         sub="Store settings & QR code" href="/vendor/settings" />
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
+          </motion.div>
+          <motion.div variants={sectionVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
             <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-4 pt-3 pb-1">Finance</p>
             <MenuItem iconKey="wallet"   label="Wallet"   sub="Store wallet balance"  href="/vendor/wallet" />
             <MenuItem iconKey="referral" label="Plans"    sub="Subscription plans"    href="/vendor/plans" />
-          </div>
+          </motion.div>
         </>
       ) : (
         <>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
+          <motion.div variants={sectionVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
             <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-4 pt-3 pb-1">Orders & Activity</p>
-            <MenuItem iconKey="reservations"  label="My Reservations" sub="Track your product holds"  href="/customer/reservations" />
-            <MenuItem iconKey="wishlist"      label="Wishlist"         sub="Saved products"            href="/customer/wishlist" />
-            <MenuItem iconKey="notifications" label="Notifications"    sub="Alerts and updates"        href="/customer/notifications" />
-            <MenuItem iconKey="messages"      label="Messages"         sub="Chat with stores"          href="/customer/chat" />
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
+            <MenuItem iconKey="reservations"  label="My Reservations"   sub="Track your product holds"    href="/customer/reservations" />
+            <MenuItem iconKey="reservations"  label="Purchase History"  sub="All past reservations"       href="/customer/purchase-history" />
+            <MenuItem iconKey="wishlist"      label="Wishlist"          sub="Saved products"              href="/customer/wishlist" />
+            <MenuItem iconKey="notifications" label="Notifications"     sub="Alerts and updates"          href="/customer/notifications" />
+            <MenuItem iconKey="messages"      label="Messages"          sub="Chat with stores"            href="/customer/chat" />
+          </motion.div>
+          <motion.div variants={sectionVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
             <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-4 pt-3 pb-1">Rewards</p>
-            <MenuItem iconKey="loyalty"  label="Loyalty Points" sub="Earn & redeem points"      href="/customer/loyalty" />
-            <MenuItem iconKey="referral" label="Refer & Earn"   sub="Invite friends for rewards" href="/customer/referral" />
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
+            <MenuItem iconKey="loyalty"  label="Loyalty Points"   sub="Earn & redeem points"       href="/customer/loyalty" />
+            <MenuItem iconKey="loyalty"  label="Loyalty History"  sub="Full points transaction log" href="/customer/loyalty-history" />
+            <MenuItem iconKey="referral" label="Refer & Earn"     sub="Invite friends for rewards"  href="/customer/referral" />
+          </motion.div>
+          <motion.div variants={sectionVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
             <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-4 pt-3 pb-1">Account</p>
-            <MenuItem iconKey="wallet" label="Wallet"     sub="Your NearSpot wallet" href="/customer/wallet" />
+            <MenuItem iconKey="wallet" label="Wallet"          sub="Your NearSpot wallet"    href="/customer/wallet" />
+            <MenuItem iconKey="wallet" label="Wallet Requests" sub="Withdrawal requests"      href="/customer/wallet-request" />
             <MenuItem iconKey="map"    label="Nearby Map" sub="Find stores on map"   href="/map" />
             <MenuItem iconKey="groups" label="Groups"     sub="Your store groups"    href="/customer/groups" />
-          </div>
+          </motion.div>
         </>
       )}
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
+      <motion.div variants={sectionVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
         <button onClick={() => logoutMut.mutate()}
           disabled={logoutMut.isPending}
           className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-red-50 transition-colors text-left">
@@ -239,8 +252,8 @@ function Inner() {
             </p>
           </div>
         </button>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

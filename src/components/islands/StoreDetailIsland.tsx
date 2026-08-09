@@ -272,7 +272,7 @@ function Inner({ storeId, initialStore }: { storeId: string; initialStore: Store
               )}
             </div>
           </div>
-          <span className={`shrink-0 text-xs font-black px-2.5 py-1 rounded-full mb-1 ${store.is_open ? 'bg-green-400/90 text-green-900' : 'bg-gray-500/70 text-white'}`}>
+          <span className={`shrink-0 text-xs font-black px-2.5 py-1 rounded-full mb-1 shadow-sm ${store.is_open ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
             {store.is_open ? 'OPEN' : 'CLOSED'}
           </span>
         </div>
@@ -411,10 +411,16 @@ function Inner({ storeId, initialStore }: { storeId: string; initialStore: Store
           <div className="space-y-3">
             {(showAllReviews ? reviews : reviews.slice(0, 3)).map(r => <ReviewCard key={r.id} review={r} />)}
             {reviews.length > 3 && !showAllReviews && (
-              <button onClick={() => setShowAllReviews(true)}
-                className="w-full py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-semibold hover:border-navy hover:text-navy transition-colors">
-                Show all {reviews.length} reviews
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => setShowAllReviews(true)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-semibold hover:border-navy hover:text-navy transition-colors">
+                  Show all {reviews.length} reviews
+                </button>
+                <a href={`/customer/store-reviews?store=${storeId}`}
+                  className="flex-shrink-0 py-2.5 px-4 rounded-xl bg-navy/5 text-navy text-sm font-semibold hover:bg-navy/10 transition-colors">
+                  Full page ↗
+                </a>
+              </div>
             )}
           </div>
         )}
@@ -449,7 +455,7 @@ function Inner({ storeId, initialStore }: { storeId: string; initialStore: Store
                   <Img src={s.avatar} alt={s.name} fallback="store"
                     className="w-full h-full object-cover" />
                   <div className="absolute top-1.5 right-1.5">
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${s.is_open ? 'bg-green-400/90 text-green-900' : 'bg-gray-500/70 text-white'}`}>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${s.is_open ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
                       {s.is_open ? 'OPEN' : 'CLOSED'}
                     </span>
                   </div>
