@@ -218,6 +218,7 @@ function Inner() {
             <MenuItem iconKey="reservations"  label="My Reservations"   sub="Track your product holds"    href="/customer/reservations" />
             <MenuItem iconKey="reservations"  label="Purchase History"  sub="All past reservations"       href="/customer/purchase-history" />
             <MenuItem iconKey="wishlist"      label="Wishlist"          sub="Saved products"              href="/customer/wishlist" />
+            <MenuItem iconKey="wishlist"      label="Stock Watchlist"   sub="Get notified when items restock" href="/customer/watchlist" />
             <MenuItem iconKey="notifications" label="Notifications"     sub="Alerts and updates"          href="/customer/notifications" />
             <MenuItem iconKey="messages"      label="Messages"          sub="Chat with stores"            href="/customer/chat" />
           </motion.div>
