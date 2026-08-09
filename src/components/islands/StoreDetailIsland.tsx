@@ -386,6 +386,12 @@ function Inner({ storeId, initialStore }: { storeId: string; initialStore: Store
           <div className="flex items-center gap-2">
             <div className="w-0.5 h-4 bg-gold rounded-full" />
             <h2 className="text-sm font-bold text-navy">Reviews {store.review_count > 0 ? `(${store.review_count})` : ''}</h2>
+            <a
+              href={`/customer/store-reviews?store=${storeId}`}
+              className="text-[10px] font-bold text-navy/60 hover:text-navy underline underline-offset-2 transition-colors"
+            >
+              See all ↗
+            </a>
           </div>
           {typeof window !== 'undefined' && !!localStorage.getItem('ns_access') && !reviewDone && (
             <button onClick={() => setShowReviewModal(true)}

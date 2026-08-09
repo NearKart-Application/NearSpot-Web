@@ -140,8 +140,8 @@ function Inner() {
   const [cancelTarget, setCancelTarget] = useState<Reservation | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery<ListResponse>({
-    queryKey: ['purchase-history', statusFilter],
-    queryFn: () => api.get('/reservations/list/', { params: statusFilter !== 'all' ? { status: statusFilter } : {} }).then(r => r.data),
+    queryKey: ['purchase-history'],
+    queryFn: () => api.get('/reservations/list/').then(r => r.data),
     enabled: isLoggedIn,
   });
 
@@ -154,8 +154,11 @@ function Inner() {
     },
   });
 
-  const reservations = data?.results ?? [];
-  const total = data?.count ?? 0;
+  const allReservations = data?.results ?? [];
+  const reservations = statusFilter === 'all'
+    ? allReservations
+    : allReservations.filter(r => r.status === statusFilter);
+  const total = allReservations.length;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
@@ -216,7 +219,10 @@ function Inner() {
 
       {!isLoading && reservations.length > 0 && (
         <>
-          <p className="text-xs text-gray-400 mb-3">{total} total reservation{total !== 1 ? 's' : ''}</p>
+          <p className="text-xs text-gray-400 mb-3">
+            {reservations.length}{statusFilter !== 'all' ? ` ${STATUS_MAP[statusFilter]?.label ?? statusFilter}` : ''} reservation{reservations.length !== 1 ? 's' : ''}
+            {statusFilter !== 'all' && ` of ${total} total`}
+          </p>
           <motion.div className="space-y-3" variants={list} initial="hidden" animate="show">
             {reservations.map(r => (
               <ReservationCard key={r.id} res={r} onCancel={() => setCancelTarget(r)} />
