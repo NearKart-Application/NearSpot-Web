@@ -4,7 +4,9 @@ const isDev = import.meta.env.DEV;
 ---
 <AuthLayout title="Admin Login">
 
-  <!-- Step 1: Email + Password -->
+  <!-- ═══════════════════════════════════════════════════════════
+       STEP 1 — Email + Password
+  ═══════════════════════════════════════════════════════════ -->
   <div id="step-password">
     <div class="flex items-center gap-2 mb-6">
       <span class="inline-flex items-center justify-center w-6 h-6 rounded-md text-[10px] font-black text-white"
@@ -23,7 +25,9 @@ const isDev = import.meta.env.DEV;
                class="input w-full" required autofocus />
       </div>
       <div>
-        <label class="label" for="password">Password</label>
+        <label class="label" for="password">
+          <span>Password</span>
+        </label>
         <div class="relative">
           <input id="password" name="password" type="password"
                  placeholder="••••••••"
@@ -31,6 +35,12 @@ const isDev = import.meta.env.DEV;
           <button type="button" id="toggle-pw"
                   class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-navy transition-colors text-sm select-none">
             👁️
+          </button>
+        </div>
+        <div class="flex justify-end mt-1.5">
+          <button type="button" id="goto-forgot"
+                  class="text-xs text-navy font-semibold hover:underline">
+            Forgot password?
           </button>
         </div>
       </div>
@@ -70,7 +80,9 @@ const isDev = import.meta.env.DEV;
     )}
   </div>
 
-  <!-- Step 2: OTP 2FA -->
+  <!-- ═══════════════════════════════════════════════════════════
+       STEP 2 — OTP 2FA (after successful password)
+  ═══════════════════════════════════════════════════════════ -->
   <div id="step-otp" class="hidden">
     <div class="text-center mb-6">
       <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3"
@@ -81,10 +93,10 @@ const isDev = import.meta.env.DEV;
       </p>
     </div>
 
-    <div class="flex gap-2.5 justify-center mb-4" id="otp-boxes">
+    <div class="flex gap-2.5 justify-center mb-4">
       {[0,1,2,3,4,5].map(i => (
         <input type="text" inputmode="numeric" maxlength="1"
-               class="w-12 h-14 text-center text-xl font-bold border-2 border-gray-200 rounded-2xl focus:border-navy focus:ring-0 transition outline-none bg-gray-50 focus:bg-white"
+               class="otp-login w-12 h-14 text-center text-xl font-bold border-2 border-gray-200 rounded-2xl focus:border-navy focus:ring-0 transition outline-none bg-gray-50 focus:bg-white"
                data-idx={i} />
       ))}
     </div>
@@ -102,198 +114,548 @@ const isDev = import.meta.env.DEV;
         Resend in <span id="resend-timer">30</span>s
       </button>
     </div>
-
-    <button id="back-btn"
+    <button id="back-to-pw"
             class="mt-5 w-full text-center text-sm text-gray-400 hover:text-navy transition-colors">
       ← Back to login
     </button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       STEP 3 — Forgot: Enter registered email
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="step-forgot" class="hidden">
+    <button id="back-forgot-to-pw"
+            class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-navy transition-colors mb-6">
+      ← Back to login
+    </button>
+
+    <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl mb-4"
+         style="background: rgba(245,158,11,0.1)">🔑</div>
+    <h2 class="text-2xl font-black text-navy mb-1">Reset Password</h2>
+    <p class="text-gray-500 text-sm mb-7">
+      Enter your admin email. We'll send an OTP to the phone linked to that account.
+    </p>
+
+    <form id="forgot-form" class="space-y-4">
+      <div>
+        <label class="label" for="forgot-email">Admin Email</label>
+        <input id="forgot-email" name="forgot-email" type="email" inputmode="email"
+               placeholder="admin@nearspot.in"
+               class="input w-full" required />
+      </div>
+
+      <div id="forgot-error" class="hidden text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-4 py-3"></div>
+
+      <button type="submit" id="forgot-btn" class="btn-primary w-full py-3.5 text-base">
+        <span id="forgot-btn-text">Send OTP →</span>
+        <span id="forgot-spinner" class="hidden spinner w-4 h-4"></span>
+      </button>
+    </form>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       STEP 4 — Forgot: Verify OTP
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="step-forgot-otp" class="hidden">
+    <div class="text-center mb-6">
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3"
+           style="background: rgba(245,158,11,0.1)">📱</div>
+      <h2 class="text-2xl font-black text-navy mb-1">Enter OTP</h2>
+      <p class="text-gray-500 text-sm">
+        6-digit code sent to <strong id="reset-otp-target" class="text-navy font-semibold"></strong>
+      </p>
+    </div>
+
+    <div class="flex gap-2.5 justify-center mb-4">
+      {[0,1,2,3,4,5].map(i => (
+        <input type="text" inputmode="numeric" maxlength="1"
+               class="otp-reset w-12 h-14 text-center text-xl font-bold border-2 border-gray-200 rounded-2xl focus:border-gold focus:ring-0 transition outline-none bg-gray-50 focus:bg-white"
+               data-reset-idx={i} />
+      ))}
+    </div>
+
+    <div id="reset-otp-error" class="hidden text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-4"></div>
+
+    <button id="reset-otp-verify-btn" class="btn-primary w-full py-3.5 text-base" disabled>
+      <span id="reset-otp-btn-text">Verify OTP</span>
+      <span id="reset-otp-spinner" class="hidden spinner w-4 h-4"></span>
+    </button>
+
+    <div class="text-center mt-5 text-sm text-gray-500">
+      Didn't receive it?
+      <button id="reset-resend-btn" class="text-navy font-semibold hover:underline ml-1" disabled>
+        Resend in <span id="reset-resend-timer">30</span>s
+      </button>
+    </div>
+    <button id="back-forgot-otp-to-email"
+            class="mt-5 w-full text-center text-sm text-gray-400 hover:text-navy transition-colors">
+      ← Change email
+    </button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       STEP 5 — Forgot: Set new password
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="step-new-pw" class="hidden">
+    <div class="text-center mb-6">
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3"
+           style="background: rgba(15,23,42,0.06)">🔒</div>
+      <h2 class="text-2xl font-black text-navy mb-1">Set New Password</h2>
+      <p class="text-gray-500 text-sm">Choose a strong password for your admin account</p>
+    </div>
+
+    <form id="new-pw-form" class="space-y-4">
+      <div>
+        <label class="label" for="new-password">New Password</label>
+        <div class="relative">
+          <input id="new-password" name="new-password" type="password"
+                 placeholder="Min. 8 characters"
+                 class="input w-full pr-11" required />
+          <button type="button" id="toggle-new-pw"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-navy transition-colors text-sm select-none">
+            👁️
+          </button>
+        </div>
+        <!-- Password strength bar -->
+        <div class="mt-2 space-y-1.5">
+          <div class="flex gap-1">
+            <div id="str-bar-1" class="h-1 flex-1 rounded-full bg-gray-200 transition-all duration-300"></div>
+            <div id="str-bar-2" class="h-1 flex-1 rounded-full bg-gray-200 transition-all duration-300"></div>
+            <div id="str-bar-3" class="h-1 flex-1 rounded-full bg-gray-200 transition-all duration-300"></div>
+            <div id="str-bar-4" class="h-1 flex-1 rounded-full bg-gray-200 transition-all duration-300"></div>
+          </div>
+          <p id="str-label" class="text-xs text-gray-400"></p>
+        </div>
+      </div>
+
+      <div>
+        <label class="label" for="confirm-password">Confirm Password</label>
+        <div class="relative">
+          <input id="confirm-password" name="confirm-password" type="password"
+                 placeholder="Re-enter password"
+                 class="input w-full pr-11" required />
+          <button type="button" id="toggle-confirm-pw"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-navy transition-colors text-sm select-none">
+            👁️
+          </button>
+        </div>
+        <p id="confirm-mismatch" class="hidden text-xs text-red-500 mt-1.5">Passwords do not match</p>
+      </div>
+
+      <div id="new-pw-error" class="hidden text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-4 py-3"></div>
+
+      <button type="submit" id="new-pw-btn" class="btn-primary w-full py-3.5 text-base" disabled>
+        <span id="new-pw-btn-text">Set Password →</span>
+        <span id="new-pw-spinner" class="hidden spinner w-4 h-4"></span>
+      </button>
+    </form>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       STEP 6 — Success
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="step-success" class="hidden text-center py-4">
+    <div class="w-16 h-16 rounded-full flex items-center justify-center text-3xl mx-auto mb-4"
+         style="background: rgba(34,197,94,0.1)">✅</div>
+    <h2 class="text-2xl font-black text-navy mb-2">Password Updated!</h2>
+    <p class="text-gray-500 text-sm mb-6">Your admin password has been reset successfully.</p>
+    <div class="text-xs text-gray-400 flex items-center justify-center gap-1.5">
+      <span class="inline-block w-3 h-3 border-2 border-navy border-t-transparent rounded-full animate-spin"></span>
+      Redirecting to login…
+    </div>
   </div>
 
 </AuthLayout>
 
 <script>
   // ── State ─────────────────────────────────────────────────────────────────────
-  let sessionToken = ''; // temporary token returned by backend after password step
+  let loginSession  = ''; // session_token from password step (for 2FA)
+  let resetSession  = ''; // session_token from forgot step (for password reset)
+  let verifiedOtp   = ''; // the OTP entered in step 4 (passed to step 5)
 
-  // ── Elements ──────────────────────────────────────────────────────────────────
-  const stepPw  = document.getElementById('step-password')!;
-  const stepOtp = document.getElementById('step-otp')!;
+  // ── Step refs ─────────────────────────────────────────────────────────────────
+  const steps = {
+    password:    document.getElementById('step-password')!,
+    otp:         document.getElementById('step-otp')!,
+    forgot:      document.getElementById('step-forgot')!,
+    forgotOtp:   document.getElementById('step-forgot-otp')!,
+    newPw:       document.getElementById('step-new-pw')!,
+    success:     document.getElementById('step-success')!,
+  };
 
-  const pwForm    = document.getElementById('password-form') as HTMLFormElement;
-  const emailInp  = document.getElementById('email') as HTMLInputElement;
-  const pwInp     = document.getElementById('password') as HTMLInputElement;
-  const pwError   = document.getElementById('pw-error')!;
-  const pwBtn     = document.getElementById('pw-btn') as HTMLButtonElement;
-  const pwBtnText = document.getElementById('pw-btn-text')!;
-  const pwSpinner = document.getElementById('pw-spinner')!;
-  const togglePw  = document.getElementById('toggle-pw')!;
+  function showOnly(key: keyof typeof steps) {
+    Object.values(steps).forEach(el => el.classList.add('hidden'));
+    steps[key].classList.remove('hidden');
+  }
 
-  const otpInputs    = Array.from(document.querySelectorAll<HTMLInputElement>('[data-idx]'));
-  const otpTargetEl  = document.getElementById('otp-target')!;
-  const otpError     = document.getElementById('otp-error')!;
-  const otpVerifyBtn = document.getElementById('otp-verify-btn') as HTMLButtonElement;
-  const otpBtnText   = document.getElementById('otp-btn-text')!;
-  const otpBtnSpin   = document.getElementById('otp-btn-spinner')!;
-  const resendBtn    = document.getElementById('resend-btn') as HTMLButtonElement;
-  const backBtn      = document.getElementById('back-btn')!;
+  // ── Countdown helper (reusable) ───────────────────────────────────────────────
+  function startCountdown(btnEl: HTMLButtonElement, timerId: string, onDone: () => void) {
+    let t = 30;
+    btnEl.disabled = true;
+    btnEl.innerHTML = `Resend in <span id="${timerId}">${t}</span>s`;
+    const iv = setInterval(() => {
+      t--;
+      const el = document.getElementById(timerId);
+      if (el) el.textContent = String(t);
+      if (t <= 0) { clearInterval(iv); onDone(); }
+    }, 1000);
+    return iv;
+  }
 
-  // ── Password show/hide ─────────────────────────────────────────────────────────
-  togglePw.addEventListener('click', () => {
-    const isPw = pwInp.type === 'password';
-    pwInp.type = isPw ? 'text' : 'password';
-    togglePw.textContent = isPw ? '🙈' : '👁️';
+  // ── OTP box helper (reusable) ─────────────────────────────────────────────────
+  function wireOtpBoxes(selector: string, verifyBtn: HTMLButtonElement) {
+    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(selector));
+    inputs.forEach((inp, i) => {
+      inp.addEventListener('input', () => {
+        inp.value = inp.value.replace(/\D/g, '');
+        if (inp.value) inputs[i + 1]?.focus();
+        verifyBtn.disabled = inputs.map(x => x.value).join('').length !== 6;
+      });
+      inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !inp.value) inputs[i - 1]?.focus();
+      });
+      inp.addEventListener('paste', (e) => {
+        const paste = e.clipboardData?.getData('text').replace(/\D/g, '').slice(0, 6) ?? '';
+        paste.split('').forEach((ch, j) => { if (inputs[j]) inputs[j].value = ch; });
+        inputs[Math.min(paste.length, 5)]?.focus();
+        verifyBtn.disabled = inputs.map(x => x.value).join('').length !== 6;
+        e.preventDefault();
+      });
+    });
+    return {
+      getCode: () => inputs.map(x => x.value).join(''),
+      clear:   () => { inputs.forEach(x => x.value = ''); verifyBtn.disabled = true; inputs[0]?.focus(); },
+      focus:   () => inputs[0]?.focus(),
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STEP 1 — Email + Password
+  // ═══════════════════════════════════════════════════════════
+  const emailInp   = document.getElementById('email')    as HTMLInputElement;
+  const pwInp      = document.getElementById('password') as HTMLInputElement;
+  const pwError    = document.getElementById('pw-error')!;
+  const pwBtn      = document.getElementById('pw-btn')   as HTMLButtonElement;
+  const pwBtnText  = document.getElementById('pw-btn-text')!;
+  const pwSpinner  = document.getElementById('pw-spinner')!;
+
+  document.getElementById('toggle-pw')!.addEventListener('click', () => {
+    pwInp.type = pwInp.type === 'password' ? 'text' : 'password';
+    (document.getElementById('toggle-pw') as HTMLElement).textContent = pwInp.type === 'password' ? '👁️' : '🙈';
   });
 
-  // ── Step 1: Submit email + password ──────────────────────────────────────────
-  pwForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email    = emailInp.value.trim();
-    const password = pwInp.value;
+  document.getElementById('goto-forgot')!.addEventListener('click', () => {
+    showOnly('forgot');
+    (document.getElementById('forgot-email') as HTMLInputElement).focus();
+  });
 
-    setPwLoading(true);
+  document.getElementById('password-form')!.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    pwBtn.disabled = true;
+    pwBtnText.textContent = 'Verifying…';
+    pwSpinner.classList.remove('hidden');
     pwError.classList.add('hidden');
 
     try {
-      // Backend: POST /auth/admin/login/ → { session_token, otp_sent_to }
       const res  = await fetch('/api/v1/auth/admin/login/', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ email, password }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailInp.value.trim(), password: pwInp.value }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail ?? data.message ?? (res.status === 404 ? 'Admin login not yet enabled — use OTP login below' : 'Invalid credentials'));
 
-      sessionToken = data.session_token;
-      otpTargetEl.textContent = data.otp_sent_to; // masked phone e.g. "+91 98765 ***21"
-
-      stepPw.classList.add('hidden');
-      stepOtp.classList.remove('hidden');
-      otpInputs[0]?.focus();
-      startResendTimer();
+      loginSession = data.session_token;
+      document.getElementById('otp-target')!.textContent = data.otp_sent_to;
+      showOnly('otp');
+      loginOtp.focus();
+      startCountdown(
+        document.getElementById('resend-btn') as HTMLButtonElement,
+        'resend-timer',
+        () => {
+          const btn = document.getElementById('resend-btn') as HTMLButtonElement;
+          btn.disabled = false; btn.textContent = 'Resend OTP';
+        }
+      );
     } catch (err: any) {
-      showPwError(err.message ?? 'Something went wrong');
+      pwError.textContent = err.message ?? 'Something went wrong';
+      pwError.classList.remove('hidden');
     } finally {
-      setPwLoading(false);
+      pwBtn.disabled = false;
+      pwBtnText.textContent = 'Continue →';
+      pwSpinner.classList.add('hidden');
     }
   });
 
-  // ── OTP box navigation ────────────────────────────────────────────────────────
-  otpInputs.forEach((inp, i) => {
-    inp.addEventListener('input', () => {
-      inp.value = inp.value.replace(/\D/g, '');
-      if (inp.value) otpInputs[i + 1]?.focus();
-      checkOtpComplete();
-    });
-    inp.addEventListener('keydown', (e) => {
-      if (e.key === 'Backspace' && !inp.value) otpInputs[i - 1]?.focus();
-    });
-    inp.addEventListener('paste', (e) => {
-      const paste = e.clipboardData?.getData('text').replace(/\D/g, '').slice(0, 6) ?? '';
-      paste.split('').forEach((ch, j) => { if (otpInputs[j]) otpInputs[j].value = ch; });
-      otpInputs[Math.min(paste.length, 5)]?.focus();
-      checkOtpComplete();
-      e.preventDefault();
-    });
-  });
-
-  function getOtp() { return otpInputs.map(i => i.value).join(''); }
-  function checkOtpComplete() { otpVerifyBtn.disabled = getOtp().length !== 6; }
-
-  // ── Step 2: Verify OTP ────────────────────────────────────────────────────────
-  otpVerifyBtn.addEventListener('click', async () => {
-    setOtpLoading(true);
-    otpError.classList.add('hidden');
-    try {
-      // Backend: POST /auth/admin/verify-otp/ → { access, refresh, user }
-      const res  = await fetch('/api/v1/auth/admin/verify-otp/', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ session_token: sessionToken, otp: getOtp() }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail ?? data.message ?? 'Invalid OTP');
-
-      // Save tokens (same shape as OTP login)
-      localStorage.setItem('ns_access',  data.access);
-      localStorage.setItem('ns_refresh', data.refresh);
-      const raw     = data.user ?? {};
-      const uiMode  = raw.ui_mode ?? raw.role ?? '';
-      localStorage.setItem('ns_user', JSON.stringify({
-        ...raw, ui_mode: uiMode,
-        is_admin: uiMode === 'admin' || uiMode === 'master_admin',
-      }));
-
-      // Record admin login timestamp for inactivity tracking
-      localStorage.setItem('ns_admin_last_active', String(Date.now()));
-
-      window.location.href = '/admin/dashboard';
-    } catch (err: any) {
-      otpError.textContent = err.message;
-      otpError.classList.remove('hidden');
-      otpInputs.forEach(i => i.value = '');
-      otpInputs[0]?.focus();
-    } finally {
-      setOtpLoading(false);
-    }
-  });
-
-  // ── Resend OTP ────────────────────────────────────────────────────────────────
-  let countdown: ReturnType<typeof setInterval>;
-  function startResendTimer() {
-    let t = 30;
-    resendBtn.disabled = true;
-    resendBtn.innerHTML = `Resend in <span id="resend-timer">${t}</span>s`;
-    clearInterval(countdown);
-    countdown = setInterval(() => {
-      t--;
-      const el = document.getElementById('resend-timer');
-      if (el) el.textContent = String(t);
-      if (t <= 0) { clearInterval(countdown); resendBtn.disabled = false; resendBtn.textContent = 'Resend OTP'; }
-    }, 1000);
-  }
-
-  resendBtn.addEventListener('click', async () => {
-    // Backend: POST /auth/admin/resend-otp/ → resends OTP for given session_token
-    try {
-      await fetch('/api/v1/auth/admin/resend-otp/', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ session_token: sessionToken }),
-      });
-    } catch { /* silent */ }
-    startResendTimer();
-  });
-
-  // ── Back ──────────────────────────────────────────────────────────────────────
-  backBtn.addEventListener('click', () => {
-    stepOtp.classList.add('hidden');
-    stepPw.classList.remove('hidden');
-    sessionToken = '';
-    otpInputs.forEach(i => i.value = '');
-    clearInterval(countdown);
-    emailInp.focus();
-  });
-
-  // ── Dev fill ──────────────────────────────────────────────────────────────────
   document.getElementById('dev-fill')?.addEventListener('click', (e) => {
     const btn = e.currentTarget as HTMLButtonElement;
     emailInp.value = btn.dataset.email ?? '';
     pwInp.value    = btn.dataset.password ?? '';
   });
 
-  // ── Helpers ───────────────────────────────────────────────────────────────────
-  function setPwLoading(v: boolean) {
-    pwBtn.disabled = v;
-    pwBtnText.textContent = v ? 'Verifying…' : 'Continue →';
-    pwSpinner.classList.toggle('hidden', !v);
+  // ═══════════════════════════════════════════════════════════
+  // STEP 2 — OTP 2FA
+  // ═══════════════════════════════════════════════════════════
+  const otpVerifyBtn = document.getElementById('otp-verify-btn') as HTMLButtonElement;
+  const otpBtnText   = document.getElementById('otp-btn-text')!;
+  const otpBtnSpin   = document.getElementById('otp-btn-spinner')!;
+  const otpError     = document.getElementById('otp-error')!;
+  const loginOtp     = wireOtpBoxes('.otp-login', otpVerifyBtn);
+
+  otpVerifyBtn.addEventListener('click', async () => {
+    otpVerifyBtn.disabled = true;
+    otpBtnText.textContent = 'Verifying…';
+    otpBtnSpin.classList.remove('hidden');
+    otpError.classList.add('hidden');
+    try {
+      const res  = await fetch('/api/v1/auth/admin/verify-otp/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_token: loginSession, otp: loginOtp.getCode() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail ?? data.message ?? 'Invalid OTP');
+
+      localStorage.setItem('ns_access',  data.access);
+      localStorage.setItem('ns_refresh', data.refresh);
+      const raw    = data.user ?? {};
+      const mode   = raw.ui_mode ?? raw.role ?? '';
+      localStorage.setItem('ns_user', JSON.stringify({
+        ...raw, ui_mode: mode,
+        is_admin: mode === 'admin' || mode === 'master_admin',
+      }));
+      window.location.href = '/admin/dashboard';
+    } catch (err: any) {
+      otpError.textContent = err.message;
+      otpError.classList.remove('hidden');
+      loginOtp.clear();
+    } finally {
+      otpVerifyBtn.disabled = false;
+      otpBtnText.textContent = 'Verify & Sign In';
+      otpBtnSpin.classList.add('hidden');
+    }
+  });
+
+  document.getElementById('resend-btn')!.addEventListener('click', async () => {
+    try {
+      await fetch('/api/v1/auth/admin/resend-otp/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_token: loginSession }),
+      });
+    } catch { /* silent */ }
+    startCountdown(
+      document.getElementById('resend-btn') as HTMLButtonElement,
+      'resend-timer',
+      () => { const b = document.getElementById('resend-btn') as HTMLButtonElement; b.disabled = false; b.textContent = 'Resend OTP'; }
+    );
+  });
+
+  document.getElementById('back-to-pw')!.addEventListener('click', () => {
+    loginSession = '';
+    loginOtp.clear();
+    showOnly('password');
+    emailInp.focus();
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // STEP 3 — Forgot: Enter email
+  // ═══════════════════════════════════════════════════════════
+  const forgotEmailInp = document.getElementById('forgot-email') as HTMLInputElement;
+  const forgotError    = document.getElementById('forgot-error')!;
+  const forgotBtn      = document.getElementById('forgot-btn')   as HTMLButtonElement;
+  const forgotBtnText  = document.getElementById('forgot-btn-text')!;
+  const forgotSpinner  = document.getElementById('forgot-spinner')!;
+
+  document.getElementById('back-forgot-to-pw')!.addEventListener('click', () => {
+    showOnly('password');
+    emailInp.focus();
+  });
+
+  document.getElementById('forgot-form')!.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    forgotBtn.disabled = true;
+    forgotBtnText.textContent = 'Sending…';
+    forgotSpinner.classList.remove('hidden');
+    forgotError.classList.add('hidden');
+
+    try {
+      const res  = await fetch('/api/v1/auth/admin/forgot-password/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmailInp.value.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail ?? data.message ?? (res.status === 404 ? 'No admin account found with this email' : 'Something went wrong'));
+
+      resetSession = data.session_token;
+      document.getElementById('reset-otp-target')!.textContent = data.otp_sent_to;
+      showOnly('forgotOtp');
+      resetOtp.focus();
+      startCountdown(
+        document.getElementById('reset-resend-btn') as HTMLButtonElement,
+        'reset-resend-timer',
+        () => { const b = document.getElementById('reset-resend-btn') as HTMLButtonElement; b.disabled = false; b.textContent = 'Resend OTP'; }
+      );
+    } catch (err: any) {
+      forgotError.textContent = err.message ?? 'Something went wrong';
+      forgotError.classList.remove('hidden');
+    } finally {
+      forgotBtn.disabled = false;
+      forgotBtnText.textContent = 'Send OTP →';
+      forgotSpinner.classList.add('hidden');
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // STEP 4 — Forgot: Verify OTP
+  // ═══════════════════════════════════════════════════════════
+  const resetOtpVerifyBtn = document.getElementById('reset-otp-verify-btn') as HTMLButtonElement;
+  const resetOtpBtnText   = document.getElementById('reset-otp-btn-text')!;
+  const resetOtpSpinner   = document.getElementById('reset-otp-spinner')!;
+  const resetOtpError     = document.getElementById('reset-otp-error')!;
+  const resetOtp          = wireOtpBoxes('.otp-reset', resetOtpVerifyBtn);
+
+  resetOtpVerifyBtn.addEventListener('click', async () => {
+    resetOtpVerifyBtn.disabled = true;
+    resetOtpBtnText.textContent = 'Verifying…';
+    resetOtpSpinner.classList.remove('hidden');
+    resetOtpError.classList.add('hidden');
+    try {
+      // Verify OTP — backend returns { verified: true } without issuing tokens yet
+      const res  = await fetch('/api/v1/auth/admin/forgot-password/verify-otp/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_token: resetSession, otp: resetOtp.getCode() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail ?? data.message ?? 'Invalid OTP');
+
+      verifiedOtp = resetOtp.getCode();
+      showOnly('newPw');
+      (document.getElementById('new-password') as HTMLInputElement).focus();
+    } catch (err: any) {
+      resetOtpError.textContent = err.message;
+      resetOtpError.classList.remove('hidden');
+      resetOtp.clear();
+    } finally {
+      resetOtpVerifyBtn.disabled = false;
+      resetOtpBtnText.textContent = 'Verify OTP';
+      resetOtpSpinner.classList.add('hidden');
+    }
+  });
+
+  document.getElementById('reset-resend-btn')!.addEventListener('click', async () => {
+    try {
+      await fetch('/api/v1/auth/admin/resend-otp/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_token: resetSession }),
+      });
+    } catch { /* silent */ }
+    startCountdown(
+      document.getElementById('reset-resend-btn') as HTMLButtonElement,
+      'reset-resend-timer',
+      () => { const b = document.getElementById('reset-resend-btn') as HTMLButtonElement; b.disabled = false; b.textContent = 'Resend OTP'; }
+    );
+  });
+
+  document.getElementById('back-forgot-otp-to-email')!.addEventListener('click', () => {
+    resetSession = '';
+    resetOtp.clear();
+    showOnly('forgot');
+    forgotEmailInp.focus();
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // STEP 5 — Set new password
+  // ═══════════════════════════════════════════════════════════
+  const newPwInp      = document.getElementById('new-password')    as HTMLInputElement;
+  const confirmPwInp  = document.getElementById('confirm-password') as HTMLInputElement;
+  const newPwError    = document.getElementById('new-pw-error')!;
+  const newPwBtn      = document.getElementById('new-pw-btn')      as HTMLButtonElement;
+  const newPwBtnText  = document.getElementById('new-pw-btn-text')!;
+  const newPwSpinner  = document.getElementById('new-pw-spinner')!;
+  const confirmMsg    = document.getElementById('confirm-mismatch')!;
+
+  // Show/hide toggles
+  document.getElementById('toggle-new-pw')!.addEventListener('click', () => {
+    newPwInp.type = newPwInp.type === 'password' ? 'text' : 'password';
+    (document.getElementById('toggle-new-pw') as HTMLElement).textContent = newPwInp.type === 'password' ? '👁️' : '🙈';
+  });
+  document.getElementById('toggle-confirm-pw')!.addEventListener('click', () => {
+    confirmPwInp.type = confirmPwInp.type === 'password' ? 'text' : 'password';
+    (document.getElementById('toggle-confirm-pw') as HTMLElement).textContent = confirmPwInp.type === 'password' ? '👁️' : '🙈';
+  });
+
+  // Password strength checker
+  const bars  = [1,2,3,4].map(n => document.getElementById(`str-bar-${n}`)!);
+  const label = document.getElementById('str-label')!;
+  const COLORS = ['', '#ef4444', '#f97316', '#eab308', '#22c55e'];
+  const LABELS = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+
+  function checkStrength(pw: string): number {
+    let score = 0;
+    if (pw.length >= 8)             score++;
+    if (/[A-Z]/.test(pw))           score++;
+    if (/[0-9]/.test(pw))           score++;
+    if (/[^A-Za-z0-9]/.test(pw))    score++;
+    return score;
   }
-  function setOtpLoading(v: boolean) {
-    otpVerifyBtn.disabled = v;
-    otpBtnText.textContent = v ? 'Verifying…' : 'Verify & Sign In';
-    otpBtnSpin.classList.toggle('hidden', !v);
+
+  function updateStrength() {
+    const score = newPwInp.value ? checkStrength(newPwInp.value) : 0;
+    bars.forEach((b, i) => {
+      b.style.background = i < score ? COLORS[score] : '#e5e7eb';
+    });
+    label.textContent = newPwInp.value ? LABELS[score] : '';
+    label.style.color = COLORS[score];
+    updateSubmitState();
   }
-  function showPwError(msg: string) {
-    pwError.textContent = msg;
-    pwError.classList.remove('hidden');
+
+  function updateSubmitState() {
+    const pw      = newPwInp.value;
+    const confirm = confirmPwInp.value;
+    const mismatch = confirm.length > 0 && pw !== confirm;
+    confirmMsg.classList.toggle('hidden', !mismatch);
+    newPwBtn.disabled = pw.length < 8 || pw !== confirm || confirm.length === 0;
   }
+
+  newPwInp.addEventListener('input', updateStrength);
+  confirmPwInp.addEventListener('input', updateSubmitState);
+
+  document.getElementById('new-pw-form')!.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (newPwInp.value !== confirmPwInp.value) return;
+    if (checkStrength(newPwInp.value) < 2) {
+      newPwError.textContent = 'Password is too weak — add uppercase letters, numbers, or symbols';
+      newPwError.classList.remove('hidden');
+      return;
+    }
+
+    newPwBtn.disabled = true;
+    newPwBtnText.textContent = 'Saving…';
+    newPwSpinner.classList.remove('hidden');
+    newPwError.classList.add('hidden');
+
+    try {
+      const res  = await fetch('/api/v1/auth/admin/reset-password/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_token: resetSession,
+          otp:           verifiedOtp,
+          new_password:  newPwInp.value,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail ?? data.message ?? 'Failed to reset password');
+
+      showOnly('success');
+      setTimeout(() => {
+        showOnly('password');
+        emailInp.focus();
+      }, 2500);
+    } catch (err: any) {
+      newPwError.textContent = err.message ?? 'Something went wrong';
+      newPwError.classList.remove('hidden');
+    } finally {
+      newPwBtn.disabled = false;
+      newPwBtnText.textContent = 'Set Password →';
+      newPwSpinner.classList.add('hidden');
+    }
+  });
 </script>

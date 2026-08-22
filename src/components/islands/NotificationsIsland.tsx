@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
 import { queryClient } from '../../lib/queryClient';
+import { CustomerAuthGuard } from './CustomerAuthGuard';
 import api from '../../lib/api';
 import { Button } from '@/components/ui/button';
+
+const listContainer = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
+const listItem = { hidden: { opacity: 0, x: -12 }, show: { opacity: 1, x: 0, transition: { duration: 0.28, ease: 'easeOut' as const } } };
 
 interface Notification {
   id: string;
@@ -292,11 +297,14 @@ function Inner() {
               )}
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+            <motion.div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm"
+              variants={listContainer} initial="hidden" animate="show">
               {shown.map(n => (
-                <NotifCard key={n.id} notif={n} onRead={() => markReadMut.mutate(n.id)} />
+                <motion.div key={n.id} variants={listItem}>
+                  <NotifCard notif={n} onRead={() => markReadMut.mutate(n.id)} />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </>
       )}
@@ -307,7 +315,9 @@ function Inner() {
 export default function NotificationsIsland() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Inner />
+      <CustomerAuthGuard>
+        <Inner />
+      </CustomerAuthGuard>
     </QueryClientProvider>
   );
 }

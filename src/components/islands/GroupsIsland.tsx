@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { CustomerAuthGuard } from './CustomerAuthGuard';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
 import { auth } from '../../lib/auth';
@@ -320,7 +321,9 @@ function Inner() {
 export default function GroupsIsland() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Inner />
+      <CustomerAuthGuard>
+        <Inner />
+      </CustomerAuthGuard>
     </QueryClientProvider>
   );
 }

@@ -23,6 +23,7 @@ interface Store {
   is_open: boolean; rating?: number; avg_rating?: number; review_count?: number;
   distance_km?: number; top_offer_label?: string; active_offer_labels?: string[];
   follower_count?: number; store_type?: string; is_verified?: boolean;
+  open_status_label?: string;
 }
 
 type Tab      = 'products' | 'stores' | 'services';
@@ -65,8 +66,8 @@ function StoreCard({ store, view }: { store: Store; view: ViewMode }) {
             {store.is_verified && <span className="shrink-0 text-blue-500 text-[10px] font-black">✓</span>}
           </h3>
           <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-            store.is_open ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-          }`}>{store.is_open ? 'Open' : 'Closed'}</span>
+            store.is_open ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'
+          }`}>{store.is_open ? 'OPEN' : 'CLOSED'}</span>
         </div>
         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
           <p className="text-xs text-gray-400 capitalize">{store.category}{store.location ? ` · ${store.location}` : ''}</p>
@@ -91,6 +92,9 @@ function StoreCard({ store, view }: { store: Store; view: ViewMode }) {
         {offers.length > 0 && (
           <p className="text-[11px] text-purple-600 font-semibold mt-1 truncate">🎉 {offers[0]}</p>
         )}
+        {!store.is_open && store.open_status_label && (
+          <p className="text-[11px] text-gray-400 mt-0.5">🕐 {store.open_status_label}</p>
+        )}
       </div>
     </a>
   );
@@ -101,8 +105,9 @@ function StoreCard({ store, view }: { store: Store; view: ViewMode }) {
       <div className="relative h-32 bg-gray-100 overflow-hidden">
         <Img src={store.cover_image} alt={store.name} fallback="store" loading="lazy"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-        <span className={`absolute top-2 right-2 text-[10px] font-black px-2 py-0.5 rounded-full shadow ${
-          store.is_open ? 'bg-green-500 text-white' : 'bg-gray-600/80 text-white'
+        {!store.is_open && <div className="absolute inset-0 bg-black/25 z-[1]" />}
+        <span className={`absolute top-2 right-2 z-[2] text-[10px] font-black px-2 py-0.5 rounded-full shadow ${
+          store.is_open ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
         }`}>{store.is_open ? 'OPEN' : 'CLOSED'}</span>
         {offers.length > 0 && (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2.5 pb-1.5 pt-4">
@@ -137,6 +142,9 @@ function StoreCard({ store, view }: { store: Store; view: ViewMode }) {
           {rating > 0 && <span className="font-bold text-gray-700">★ {rating.toFixed(1)}</span>}
           {dTxt && <><span className="text-gray-200">·</span><span>{dTxt}</span></>}
         </div>
+        {!store.is_open && store.open_status_label && (
+          <p className="text-[10px] text-gray-400 mt-0.5">🕐 {store.open_status_label}</p>
+        )}
       </div>
     </a>
   );

@@ -11,7 +11,7 @@ interface ProductDetail {
   category: string; subcategory?: string;
   price: number; sale_price?: number;
   images: string[];
-  store: { id: string; name: string; avatar?: string; rating: number; review_count: number; is_verified?: boolean; };
+  store: { id: string; name: string; avatar?: string; rating: number; review_count: number; is_verified?: boolean; is_open?: boolean; open_status_label?: string; };
   distance_km?: number;
   sizes: SizeOption[]; colors: string[];
   stock_count: number;
@@ -74,6 +74,19 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
   });
   const loyaltyBalance: number = loyalty?.balance ?? 0;
 
+  // Fetch real-time store status — the product API's nested store object
+  // does not reliably include is_open, so we fetch it separately.
+  const { data: storeStatus } = useQuery({
+    queryKey: ['store-status', product?.store.id],
+    queryFn:  () => api.get(`/stores/${product!.store.id}/`).then(r => r.data),
+    enabled:  !!product?.store.id,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  // true while loading (don't block) — false only when API confirms closed
+  const storeIsOpen      = storeStatus != null ? (storeStatus.is_open ?? true) : true;
+  const storeOpenLabel   = storeStatus?.open_status_label ?? product?.store.open_status_label ?? '';
+
   if (prodLoading || !product) return (
     <div className="min-h-screen bg-white animate-pulse">
       <div className="h-80 bg-gray-200" />
@@ -109,6 +122,14 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
     const token = localStorage.getItem('ns_access');
     if (!token) { window.location.href = '/auth/login'; return; }
     if (!product) return;
+    if (!storeIsOpen) {
+      setReserveError(
+        storeOpenLabel
+          ? `Store is closed — ${storeOpenLabel}`
+          : 'Store is currently closed. Reservations are not available right now.'
+      );
+      return;
+    }
     if (product.sizes.length > 0 && !selSize) {
       setReserveError('Please select a size first');
       return;
@@ -288,8 +309,8 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
           </div>
         </div>
 
-        {/* Hold duration */}
-        {inStock && (
+        {/* Hold duration — only shown when store is open */}
+        {inStock && storeIsOpen && (
           <div className={`rounded-2xl p-4 border ${product.stock_count <= 5 ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-100'}`}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-navy">Reserve for pickup</h3>
@@ -320,6 +341,21 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
                   {h}h
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Store closed banner */}
+        {!storeIsOpen && (
+          <div className="rounded-2xl p-4 border border-red-100 bg-red-50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center text-lg shrink-0">🔒</div>
+              <div>
+                <p className="text-sm font-bold text-red-700">Store is currently closed</p>
+                <p className="text-xs text-red-500 mt-0.5">
+                  {storeOpenLabel ? `🕐 ${storeOpenLabel}` : 'Reservations are not available right now'}
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -437,7 +473,14 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
            title="Chat with store">
           💬
         </a>
-        {inStock ? (
+        {!storeIsOpen ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-2.5 rounded-xl bg-red-50 border border-red-200">
+            <p className="text-sm font-bold text-red-600">Store Closed</p>
+            {storeOpenLabel && (
+              <p className="text-[11px] text-red-400">🕐 {storeOpenLabel}</p>
+            )}
+          </div>
+        ) : inStock ? (
           <button onClick={handleReserve} disabled={reserving || !!reserved}
             className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors disabled:opacity-60 ${reserved ? 'bg-green-600 text-white' : product.stock_count <= 5 && !reserved ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-navy text-white hover:bg-navy/90'}`}>
             {reserving ? 'Reserving…' : reserved ? '✓ Reserved' : product.stock_count <= 5 ? `Reserve Now · ₹${(finalPrice * qty).toLocaleString()}` : `Reserve · ₹${(finalPrice * qty).toLocaleString()}`}

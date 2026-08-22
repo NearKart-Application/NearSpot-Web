@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import { CustomerAuthGuard } from './CustomerAuthGuard';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
+
+const listContainer = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
+const listItem = { hidden: { opacity: 0, x: -14 }, show: { opacity: 1, x: 0, transition: { duration: 0.28, ease: 'easeOut' as const } } };
 
 interface Conversation {
   id: string;
@@ -201,9 +206,10 @@ function ConversationList({ onOpen }: { onOpen: (conv: Conversation) => void }) 
   );
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-100">
+    <motion.div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-100"
+      variants={listContainer} initial="hidden" animate="show">
       {convs.map(conv => (
-        <button key={conv.id} onClick={() => onOpen(conv)}
+        <motion.button key={conv.id} variants={listItem} onClick={() => onOpen(conv)}
           className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors text-left">
           <div className="w-12 h-12 rounded-full bg-gradient-to-br from-navy to-navy/60 flex items-center justify-center text-white font-bold text-sm shrink-0">
             {conv.store_name.slice(0, 2).toUpperCase()}
@@ -222,9 +228,9 @@ function ConversationList({ onOpen }: { onOpen: (conv: Conversation) => void }) 
               <span className="text-[10px] text-white font-bold">{conv.my_unread_count}</span>
             </div>
           )}
-        </button>
+        </motion.button>
       ))}
-    </div>
+    </motion.div>
   );
 }
 
@@ -330,7 +336,9 @@ function Inner() {
 export default function ChatIsland() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Inner />
+      <CustomerAuthGuard>
+        <Inner />
+      </CustomerAuthGuard>
     </QueryClientProvider>
   );
 }

@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { queryClient } from '../../lib/queryClient';
+import { CustomerAuthGuard } from './CustomerAuthGuard';
 import api from '../../lib/api';
 import Img from '../ui/Img';
+
+const gridContainer = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
+const gridItem = { hidden: { opacity: 0, y: 20, scale: 0.96 }, show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.32, ease: 'easeOut' as const } } };
 
 interface WishlistProduct {
   id: string; name: string; category?: string; store_name?: string;
@@ -160,7 +165,7 @@ function Inner() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
+      <motion.div className="flex items-center justify-between mb-5" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: 'easeOut' as const }}>
         <div>
           <h1 className="text-xl font-black text-navy">My Wishlist</h1>
           <p className="text-sm text-gray-400">{products.length} saved item{products.length !== 1 ? 's' : ''}</p>
@@ -170,12 +175,15 @@ function Inner() {
             + Add more →
           </a>
         )}
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+      </motion.div>
+      <motion.div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+        variants={gridContainer} initial="hidden" animate="show">
         {products.filter(p => !removing.has(p.id)).map(p => (
-          <ProductCard key={p.id} product={p} onRemove={() => removeMut.mutate(p.id)} onNotify={() => watchMut.mutate(p.id)} />
+          <motion.div key={p.id} variants={gridItem}>
+            <ProductCard product={p} onRemove={() => removeMut.mutate(p.id)} onNotify={() => watchMut.mutate(p.id)} />
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -183,7 +191,9 @@ function Inner() {
 export default function WishlistIsland() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Inner />
+      <CustomerAuthGuard>
+        <Inner />
+      </CustomerAuthGuard>
     </QueryClientProvider>
   );
 }

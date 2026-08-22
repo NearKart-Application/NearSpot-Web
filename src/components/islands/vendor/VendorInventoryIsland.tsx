@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { QueryClientProvider, useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
@@ -12,17 +12,32 @@ interface StockAlert {
   primary_image?: string;
   low_variants: { id: string; name: string; stock_quantity: number }[];
 }
+interface Product {
+  id: string; name: string; product_code: string;
+  primary_image?: string; status: string;
+  total_stock?: number; variants_count?: number;
+}
+
+const PAGE_SIZE = 15;
+
+const STOCK_REASONS = [
+  { value: 'restock',              label: '📦 Restock',         hint: 'Goods received' },
+  { value: 'damage',               label: '🔴 Damage',          hint: 'Write-off' },
+  { value: 'return_from_customer', label: '↩️ Customer Return', hint: 'Returned goods' },
+  { value: 'manual',               label: '✏️ Manual',          hint: 'Direct edit' },
+];
 
 function EditStockModal({ variant, productId, onClose, onSuccess }: {
   variant: Variant; productId: string; onClose: () => void; onSuccess: () => void;
 }) {
-  const [qty, setQty] = useState(String(variant.stock_quantity));
-  const [note, setNote] = useState('');
-  const [error, setError] = useState('');
+  const [qty, setQty]       = useState(String(variant.stock_quantity));
+  const [reason, setReason] = useState('manual');
+  const [note, setNote]     = useState('');
+  const [error, setError]   = useState('');
 
   const updateMut = useMutation({
     mutationFn: () => api.patch(`/products/${productId}/variants/${variant.id}/`, {
-      stock_quantity: parseInt(qty), note,
+      stock_quantity: parseInt(qty), reason, note: note.trim() || undefined,
     }),
     onSuccess: () => onSuccess(),
     onError: (e: any) => setError(e?.response?.data?.detail ?? 'Failed to update'),
@@ -37,12 +52,28 @@ function EditStockModal({ variant, productId, onClose, onSuccess }: {
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">✕</button>
         </div>
         <p className="text-sm text-gray-500 mb-4">Current: <span className="font-bold text-navy">{variant.stock_quantity}</span> units</p>
+
+        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 block">Reason</label>
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          {STOCK_REASONS.map(r => (
+            <button key={r.value} onClick={() => setReason(r.value)}
+              className={`py-2 px-3 rounded-xl border text-xs font-bold text-left transition-all ${
+                reason === r.value ? 'bg-navy text-white border-navy' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}>
+              <div>{r.label}</div>
+              <div className={`text-[10px] font-normal ${reason === r.value ? 'text-white/70' : 'text-gray-400'}`}>{r.hint}</div>
+            </button>
+          ))}
+        </div>
+
         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">New Quantity</label>
         <input type="number" min="0" value={qty} onChange={e => setQty(e.target.value)}
           className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm mb-3 focus:outline-none focus:border-navy/40 focus:ring-2 focus:ring-navy/10" />
+
         <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Note (optional)</label>
-        <input value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. restock, damage, sale"
+        <input value={note} onChange={e => setNote(e.target.value)} placeholder="Any extra detail"
           className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm mb-3 focus:outline-none focus:border-navy/40" />
+
         {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
         <Button onClick={() => updateMut.mutate()} disabled={updateMut.isPending || !qty}
           className="w-full py-3 rounded-xl font-bold">
@@ -63,42 +94,56 @@ function AlertCard({ alert }: { alert: StockAlert }) {
   });
 
   const variants: Variant[] = variantsData?.results ?? (Array.isArray(variantsData) ? variantsData : []);
+  const isOut = alert.status === 'out_of_stock';
 
   return (
-    <div className="card p-5">
-      <div className="flex items-start gap-4 mb-3">
-        <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden shrink-0">
+    <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${isOut ? 'border-red-100' : 'border-orange-100'}`}>
+      {/* Single-line header */}
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div className="w-10 h-10 rounded-xl bg-gray-100 overflow-hidden shrink-0">
           <Img src={alert.primary_image} alt={alert.name} fallback="product" className="w-full h-full object-cover" />
         </div>
-        <div className="flex-1">
-          <h3 className="font-bold text-navy">{alert.name}</h3>
-          <p className="text-xs text-gray-400 font-mono">{alert.product_code}</p>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full mt-1 inline-block ${
-            alert.status === 'out_of_stock' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-700'
-          }`}>
-            {alert.status === 'out_of_stock' ? '⚠️ Out of Stock' : '⚠️ Low Stock'}
-          </span>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-navy text-sm truncate">{alert.name}</p>
+          <p className="text-[11px] text-gray-400 font-mono">{alert.product_code}</p>
         </div>
+        <span className={`shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full ${
+          isOut ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-700'
+        }`}>
+          {isOut ? 'Out of Stock' : 'Low Stock'}
+        </span>
       </div>
 
-      {/* Variants */}
+      {/* Variant chips — horizontal scrollable row, each chip = click to edit */}
       {variants.length > 0 && (
-        <div className="space-y-2">
-          {variants.map(v => (
-            <div key={v.id} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2.5">
-              <div>
-                <p className="text-sm font-semibold text-gray-700">{v.name}</p>
-                <p className="text-xs text-gray-400">SKU: {v.sku || '—'}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={`text-sm font-bold ${v.stock_quantity === 0 ? 'text-red-500' : v.stock_quantity <= 5 ? 'text-orange-500' : 'text-gray-700'}`}>
-                  {v.stock_quantity} units
-                </span>
-                <button onClick={() => setEditingVariant(v)}
-                  className="text-xs font-bold text-navy hover:underline">Edit</button>
-              </div>
-            </div>
-          ))}
+        <div className={`px-4 pb-3 pt-0.5 border-t ${isOut ? 'border-red-50' : 'border-orange-50'}`}>
+          <p className="text-[10px] text-gray-400 mb-1.5 mt-2">Tap to update stock</p>
+          <div className="flex gap-1.5 overflow-x-auto pb-1 flex-wrap" style={{ scrollbarWidth: 'none' }}>
+            {variants.map(v => {
+              const isEmpty = v.stock_quantity === 0;
+              const isLow = !isEmpty && v.stock_quantity <= 5;
+              return (
+                <button
+                  key={v.id}
+                  onClick={() => setEditingVariant(v)}
+                  className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition-all active:scale-95 ${
+                    isEmpty
+                      ? 'bg-red-50 border-red-200 hover:bg-red-100'
+                      : isLow
+                      ? 'bg-orange-50 border-orange-200 hover:bg-orange-100'
+                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  <span className="font-semibold text-gray-600">{v.name}</span>
+                  <span className={`font-black ${isEmpty ? 'text-red-600' : isLow ? 'text-orange-600' : 'text-gray-700'}`}>
+                    {v.stock_quantity}
+                  </span>
+                  <span className="text-gray-300">·</span>
+                  <span className="text-[10px] text-gray-400">edit</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -117,33 +162,494 @@ function AlertCard({ alert }: { alert: StockAlert }) {
   );
 }
 
-function Inner() {
+function StockBadge({ status, stock }: { status: string; stock?: number }) {
+  if (stock === 0 || status === 'out_of_stock') {
+    return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600">Out of Stock</span>;
+  }
+  if (typeof stock === 'number' && stock <= 5) {
+    return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">Low Stock</span>;
+  }
+  if (status === 'active') {
+    return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Active</span>;
+  }
+  return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 capitalize">{status}</span>;
+}
+
+function AllProductsTab() {
+  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => { setSearch(searchInput); setPage(1); }, 350);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
   const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['vendor-products-paged', page, search],
+    queryFn: () => api.get('/products/vendor/', {
+      params: { page, page_size: PAGE_SIZE, ...(search ? { search } : {}) },
+    }).then(r => r.data),
+    placeholderData: keepPreviousData,
+  });
+
+  const products: Product[] = data?.results ?? (Array.isArray(data) ? data : []);
+  const totalCount: number = data?.count ?? products.length;
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1)
+    .filter(n => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
+    .reduce<(number | '…')[]>((acc, n, i, arr) => {
+      if (i > 0 && typeof arr[i - 1] === 'number' && (n as number) - (arr[i - 1] as number) > 1) acc.push('…');
+      acc.push(n);
+      return acc;
+    }, []);
+
+  return (
+    <div className="space-y-4">
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+        <input
+          type="text"
+          placeholder="Search products…"
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
+          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-navy/40 focus:ring-2 focus:ring-navy/10 bg-gray-50 focus:bg-white transition-colors"
+        />
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {[...Array(8)].map((_, i) => <div key={i} className="h-[60px] card animate-pulse" />)}
+        </div>
+      ) : isError ? (
+        <IslandError error={error} refetch={refetch} />
+      ) : products.length === 0 ? (
+        <div className="card p-12 text-center text-gray-400">
+          <p className="font-semibold text-gray-600">
+            {search ? `No products matching "${search}"` : 'No products yet'}
+          </p>
+          {!search && <p className="text-sm mt-1">Add your first product to get started</p>}
+        </div>
+      ) : (
+        <>
+          <div className="card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-[11px] text-gray-400 uppercase tracking-wide">
+                  <th className="text-left px-4 py-3">Product</th>
+                  <th className="text-center px-4 py-3 hidden md:table-cell">Code</th>
+                  <th className="text-center px-4 py-3">Status</th>
+                  <th className="text-center px-4 py-3 hidden sm:table-cell">Stock</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {products.map(p => (
+                  <tr key={p.id} className="hover:bg-gray-50/80 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+                          <Img src={p.primary_image} alt={p.name} fallback="product" className="w-full h-full object-cover" />
+                        </div>
+                        <span className="font-semibold text-navy text-sm max-w-[160px] truncate block">{p.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-center hidden md:table-cell">
+                      <span className="font-mono text-xs text-gray-400">{p.product_code || '—'}</span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <StockBadge status={p.status} stock={p.total_stock} />
+                    </td>
+                    <td className="px-4 py-3 text-center hidden sm:table-cell">
+                      <span className="text-sm font-bold text-gray-700">{p.total_stock ?? '—'}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <a href={`/vendor/products/${p.id}`}
+                        className="text-xs font-bold text-navy hover:underline whitespace-nowrap">View →</a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-400">
+                {totalCount} products · page {page} of {totalPages}
+              </p>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                >
+                  ← Prev
+                </button>
+                {pageNumbers.map((n, i) =>
+                  n === '…' ? (
+                    <span key={`el-${i}`} className="px-1 text-xs text-gray-400">…</span>
+                  ) : (
+                    <button
+                      key={n}
+                      onClick={() => setPage(n as number)}
+                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${
+                        page === n ? 'bg-navy text-white' : 'border border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  )
+                )}
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+const REASON_LABELS: Record<string, { label: string; color: string }> = {
+  manual:               { label: 'Manual',          color: 'bg-blue-100 text-blue-700' },
+  reservation:          { label: 'Reservation',     color: 'bg-purple-100 text-purple-700' },
+  restoration:          { label: 'Restored',        color: 'bg-green-100 text-green-700' },
+  restock:              { label: 'Restock',         color: 'bg-teal-100 text-teal-700' },
+  invoice:              { label: 'Invoice',         color: 'bg-orange-100 text-orange-700' },
+  damage:               { label: 'Damage',          color: 'bg-red-100 text-red-700' },
+  return_from_customer: { label: 'Customer Return', color: 'bg-cyan-100 text-cyan-700' },
+  audit_adjustment:     { label: 'Audit Adj.',      color: 'bg-gray-100 text-gray-600' },
+};
+
+interface StockLog {
+  id: string; product_id: string; product_name: string;
+  variant_id: string; variant_name: string; sku: string;
+  old_qty: number; new_qty: number; delta: number;
+  reason: string; note: string; changed_by: string; created_at: string;
+}
+
+const LOG_PAGE_SIZE = 25;
+
+function StockHistoryTab() {
+  const [page, setPage] = useState(1);
+  const [reason, setReason] = useState('');
+
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['vendor-stock-logs', page, reason],
+    queryFn: () => api.get('/products/vendor/stock-logs/', {
+      params: { page, page_size: LOG_PAGE_SIZE, ...(reason ? { reason } : {}) },
+    }).then(r => r.data),
+    placeholderData: keepPreviousData,
+  });
+
+  const logs: StockLog[] = data?.results ?? [];
+  const totalCount: number = data?.count ?? 0;
+  const totalPages = Math.ceil(totalCount / LOG_PAGE_SIZE);
+
+  function fmt(iso: string) {
+    const d = new Date(iso);
+    return d.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Filter row */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Filter by</span>
+        {['', 'manual', 'reservation', 'restoration', 'restock', 'invoice', 'damage', 'return_from_customer', 'audit_adjustment'].map(r => (
+          <button
+            key={r || 'all'}
+            onClick={() => { setReason(r); setPage(1); }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+              reason === r
+                ? 'bg-navy text-white border-navy'
+                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            {r ? (REASON_LABELS[r]?.label ?? r) : 'All'}
+          </button>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">{[...Array(6)].map((_, i) => <div key={i} className="h-14 card animate-pulse" />)}</div>
+      ) : isError ? (
+        <IslandError error={error} refetch={refetch} />
+      ) : logs.length === 0 ? (
+        <div className="card p-12 text-center text-gray-400">
+          <div className="text-4xl mb-3">📋</div>
+          <p className="font-semibold text-gray-600">No stock changes yet</p>
+          <p className="text-sm mt-1">Every stock update will be recorded here automatically</p>
+        </div>
+      ) : (
+        <>
+          <div className="card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-[11px] text-gray-400 uppercase tracking-wide">
+                  <th className="text-left px-4 py-3">Product / Variant</th>
+                  <th className="text-center px-4 py-3">Change</th>
+                  <th className="text-center px-4 py-3 hidden sm:table-cell">Reason</th>
+                  <th className="text-left px-4 py-3 hidden md:table-cell">Note</th>
+                  <th className="text-left px-4 py-3 hidden lg:table-cell">By</th>
+                  <th className="text-right px-4 py-3">When</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {logs.map(log => {
+                  const isUp = log.delta > 0;
+                  const isDown = log.delta < 0;
+                  const reasonInfo = REASON_LABELS[log.reason] ?? { label: log.reason, color: 'bg-gray-100 text-gray-600' };
+                  return (
+                    <tr key={log.id} className="hover:bg-gray-50/70 transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-navy text-sm truncate max-w-[140px]">{log.product_name}</p>
+                        <p className="text-xs text-gray-400">{log.variant_name}</p>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <span className="text-xs text-gray-400">{log.old_qty}</span>
+                          <span className="text-gray-300">→</span>
+                          <span className="text-xs font-bold text-gray-700">{log.new_qty}</span>
+                          <span className={`text-xs font-black ml-1 ${isUp ? 'text-green-600' : isDown ? 'text-red-500' : 'text-gray-400'}`}>
+                            {isUp ? `+${log.delta}` : log.delta}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center hidden sm:table-cell">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${reasonInfo.color}`}>
+                          {reasonInfo.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <span className="text-xs text-gray-500 truncate max-w-[120px] block">{log.note || '—'}</span>
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        <span className="text-xs text-gray-400 font-mono">{log.changed_by}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="text-xs text-gray-400 whitespace-nowrap">{fmt(log.created_at)}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-400">{totalCount} entries · page {page} of {totalPages}</p>
+              <div className="flex gap-2">
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 disabled:opacity-40 hover:bg-gray-50 transition-colors">
+                  ← Prev
+                </button>
+                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 disabled:opacity-40 hover:bg-gray-50 transition-colors">
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+const MOVEMENT_REASONS = [
+  { value: 'restock',              label: '📦 Restock',         desc: 'Units received — added to stock',    delta: +1 },
+  { value: 'damage',               label: '🔴 Damage',          desc: 'Units written off — subtracted',     delta: -1 },
+  { value: 'return_from_customer', label: '↩️ Customer Return', desc: 'Units returned — added to stock',    delta: +1 },
+  { value: 'manual',               label: '✏️ Manual Adj.',     desc: 'Set an exact new total quantity',    delta:  0 },
+] as const;
+
+function LogMovementModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const qc = useQueryClient();
+  const [productId, setProductId]   = useState('');
+  const [variantId, setVariantId]   = useState('');
+  const [reason, setReason]         = useState<string>('restock');
+  const [qty, setQty]               = useState('');
+  const [note, setNote]             = useState('');
+  const [error, setError]           = useState('');
+
+  const { data: productsData } = useQuery({
+    queryKey: ['vendor-products-log-picker'],
+    queryFn: () => api.get('/products/vendor/', { params: { page_size: 200 } }).then(r => r.data),
+  });
+  const products: any[] = productsData?.results ?? [];
+
+  const { data: variantsData } = useQuery({
+    queryKey: ['product-variants-log', productId],
+    queryFn: () => api.get(`/products/${productId}/variants/`).then(r => r.data),
+    enabled: !!productId,
+  });
+  const variants: any[] = variantsData?.results ?? (Array.isArray(variantsData) ? variantsData : []);
+  const selectedVariant = variants.find(v => v.id === variantId);
+
+  const reasonMeta = MOVEMENT_REASONS.find(r => r.value === reason)!;
+  const isManual   = reason === 'manual';
+  const unitsNum   = parseInt(qty) || 0;
+  const previewQty = isManual
+    ? unitsNum
+    : reasonMeta.delta === -1
+      ? Math.max(0, (selectedVariant?.stock_quantity ?? 0) - unitsNum)
+      : (selectedVariant?.stock_quantity ?? 0) + unitsNum;
+
+  const qtyLabel = {
+    restock:              'Units received (will be added to stock)',
+    damage:               'Units damaged (will be subtracted)',
+    return_from_customer: 'Units returned (will be added to stock)',
+    manual:               'New total quantity (absolute)',
+  }[reason] ?? 'Quantity';
+
+  const mut = useMutation({
+    mutationFn: () =>
+      api.patch(`/products/${productId}/variants/${variantId}/`, {
+        stock_quantity: previewQty,
+        reason,
+        note: note.trim() || undefined,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vendor-stock-logs'] });
+      qc.invalidateQueries({ queryKey: ['vendor-stock-alerts'] });
+      onSuccess();
+    },
+    onError: (e: any) => setError(e?.response?.data?.detail ?? 'Failed to log movement'),
+  });
+
+  const canSubmit = !!productId && !!variantId && unitsNum > 0 && !mut.isPending;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl overflow-y-auto max-h-[90vh]">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-bold text-navy text-lg">Log Stock Movement</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">✕</button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Reason */}
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 block">Reason *</label>
+            <div className="grid grid-cols-2 gap-2">
+              {MOVEMENT_REASONS.map(r => (
+                <button key={r.value} onClick={() => setReason(r.value)}
+                  className={`py-2.5 px-3 rounded-xl border text-sm font-bold text-left transition-all ${
+                    reason === r.value ? 'bg-navy text-white border-navy' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                  }`}>
+                  <div>{r.label}</div>
+                  <div className={`text-[10px] font-normal mt-0.5 ${reason === r.value ? 'text-white/70' : 'text-gray-400'}`}>{r.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Product */}
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Product *</label>
+            <select value={productId} onChange={e => { setProductId(e.target.value); setVariantId(''); setQty(''); }}
+              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40">
+              <option value="">— Select product —</option>
+              {products.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+
+          {/* Variant */}
+          {productId && (
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Variant *</label>
+              <select value={variantId} onChange={e => { setVariantId(e.target.value); setQty(''); }}
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40">
+                <option value="">— Select variant —</option>
+                {variants.map((v: any) => (
+                  <option key={v.id} value={v.id}>{v.name}  (current: {v.stock_quantity})</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Qty */}
+          {variantId && (
+            <>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">{qtyLabel} *</label>
+                <input type="number" min="0" value={qty} onChange={e => setQty(e.target.value)}
+                  placeholder={isManual ? String(selectedVariant?.stock_quantity ?? '0') : '0'}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+                {!isManual && unitsNum > 0 && selectedVariant && (
+                  <p className={`text-xs mt-1 font-semibold ${previewQty === 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                    New total: {previewQty} units
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Note</label>
+                <input value={note} onChange={e => setNote(e.target.value)} placeholder="Optional note"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+              </div>
+            </>
+          )}
+        </div>
+
+        {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
+
+        <div className="flex gap-3 mt-5">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50">
+            Cancel
+          </button>
+          <Button onClick={() => mut.mutate()} disabled={!canSubmit}
+            className="flex-1 py-2.5 rounded-xl font-bold text-sm disabled:opacity-50">
+            {mut.isPending ? 'Saving…' : 'Log Movement'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Inner() {
+  const [tab, setTab] = useState<'alerts' | 'all' | 'history'>('alerts');
+  const [showLogMovement, setShowLogMovement] = useState(false);
+
+  const { data: alertsData, isLoading: alertsLoading, isError, error, refetch } = useQuery({
     queryKey: ['vendor-stock-alerts'],
     queryFn: () => api.get('/products/vendor/stock-alerts/').then(r => r.data),
   });
 
-  const { data: allProducts } = useQuery({
-    queryKey: ['vendor-products-inventory'],
-    queryFn: () => api.get('/products/vendor/').then(r => r.data),
+  const { data: summaryData } = useQuery({
+    queryKey: ['vendor-products-summary'],
+    queryFn: () => api.get('/products/vendor/', { params: { page: 1, page_size: 1 } }).then(r => r.data),
   });
 
-  const alerts: StockAlert[] = data?.results ?? (Array.isArray(data) ? data : []);
-  const products = (allProducts?.results ?? (Array.isArray(allProducts) ? allProducts : [])) as any[];
+  const alerts: StockAlert[] = alertsData?.results ?? (Array.isArray(alertsData) ? alertsData : []);
+  const totalProducts: number = summaryData?.count ?? 0;
+  const lowStockCount = alerts.filter(a => a.status !== 'out_of_stock').length;
+  const outOfStockCount = alerts.filter(a => a.status === 'out_of_stock').length;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-navy">Inventory</h1>
-        <p className="text-sm text-gray-400">{alerts.length} product{alerts.length !== 1 ? 's' : ''} need attention</p>
+        <p className="text-sm text-gray-400">Manage stock levels across your products</p>
       </div>
 
-      {/* Summary row */}
+      {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Total Products', value: products.length, icon: '📦' },
-          { label: 'Low Stock', value: alerts.filter(a => a.status !== 'out_of_stock').length, icon: '⚠️' },
-          { label: 'Out of Stock', value: alerts.filter(a => a.status === 'out_of_stock').length, icon: '🚫' },
+          { label: 'Total Products', value: totalProducts, icon: '📦' },
+          { label: 'Low Stock', value: lowStockCount, icon: '⚠️' },
+          { label: 'Out of Stock', value: outOfStockCount, icon: '🚫' },
         ].map(s => (
           <div key={s.label} className="card p-4 text-center">
             <div className="text-2xl mb-1">{s.icon}</div>
@@ -153,14 +659,34 @@ function Inner() {
         ))}
       </div>
 
-      {/* Alerts */}
-      <div>
-        <h2 className="font-bold text-navy mb-4">Stock Alerts</h2>
-        {isLoading ? (
+      {/* Tab switcher */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+        {([
+          { key: 'alerts' as const, label: alerts.length > 0 ? `Stock Alerts (${alerts.length})` : 'Stock Alerts' },
+          { key: 'all' as const, label: totalProducts > 0 ? `All Products (${totalProducts})` : 'All Products' },
+          { key: 'history' as const, label: 'Change Log' },
+        ]).map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+              tab === t.key
+                ? 'bg-white text-navy shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Alerts tab */}
+      {tab === 'alerts' && (
+        alertsLoading ? (
           <div className="space-y-4">{[...Array(3)].map((_, i) => <div key={i} className="card h-32 animate-pulse" />)}</div>
         ) : isError ? (
-        <IslandError error={error} refetch={refetch} />
-      ) : alerts.length === 0 ? (
+          <IslandError error={error} refetch={refetch} />
+        ) : alerts.length === 0 ? (
           <div className="card p-12 text-center text-gray-400">
             <div className="text-4xl mb-3">✅</div>
             <p className="font-semibold text-gray-600">All products are well-stocked!</p>
@@ -170,13 +696,30 @@ function Inner() {
           <div className="space-y-4">
             {alerts.map(a => <AlertCard key={a.id} alert={a} />)}
           </div>
-        )}
-      </div>
+        )
+      )}
 
-      {/* All products link */}
-      <div className="text-center">
-        <a href="/vendor/products" className="btn-outline px-6 py-2.5 text-sm">View All Products →</a>
-      </div>
+      {/* All products tab */}
+      {tab === 'all' && <AllProductsTab />}
+
+      {/* Change log tab */}
+      {tab === 'history' && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <Button onClick={() => setShowLogMovement(true)} className="px-5 py-2.5 rounded-xl font-bold text-sm">
+              + Log Movement
+            </Button>
+          </div>
+          <StockHistoryTab />
+        </div>
+      )}
+
+      {showLogMovement && (
+        <LogMovementModal
+          onClose={() => setShowLogMovement(false)}
+          onSuccess={() => setShowLogMovement(false)}
+        />
+      )}
     </div>
   );
 }

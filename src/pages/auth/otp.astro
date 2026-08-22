@@ -105,6 +105,8 @@ import AuthLayout from '../../layouts/AuthLayout.astro';
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail ?? data.message ?? 'Invalid OTP');
 
+      // Write tokens first — ns_user is written LAST so the storage event in other tabs
+      // fires only once the full session (token + user) is already in place.
       localStorage.setItem('ns_access',  data.access);
       localStorage.setItem('ns_refresh', data.refresh);
 
@@ -114,11 +116,12 @@ import AuthLayout from '../../layouts/AuthLayout.astro';
       const normalizedUser = {
         ...rawUser,
         ui_mode:    resolvedMode,
+        role:       resolvedMode,          // keep role in sync so both fields agree
         is_vendor:  resolvedMode === 'vendor',
         is_admin:   resolvedMode === 'admin' || resolvedMode === 'master_admin',
         avatar_url: rawUser.avatar_url ?? rawUser.avatar ?? '',
       };
-      localStorage.setItem('ns_user', JSON.stringify(normalizedUser));
+      localStorage.setItem('ns_user', JSON.stringify(normalizedUser)); // triggers storage event in other tabs
 
       // Backend returns ui_mode (customer/vendor) and is_new flag
       const uiMode = data.user?.ui_mode ?? data.user?.role;

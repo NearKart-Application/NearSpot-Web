@@ -6,9 +6,10 @@ import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
 
 interface Supplier { id: string; name: string; }
-interface POItem { product_id?: string; sku: string; qty: number; unit_cost: number; }
+interface POItem { product_id?: string; sku: string; product_name?: string; variant_name?: string; qty: number; unit_cost: number; received_qty?: number; }
 interface PurchaseOrder {
   id: string;
+  po_number?: string;
   supplier?: string;
   supplier_name?: string;
   status: 'draft' | 'sent' | 'received' | 'cancelled';
@@ -307,7 +308,7 @@ function Inner() {
               <tbody className="divide-y divide-gray-50">
                 {filtered.map(po => (
                   <tr key={po.id} className="hover:bg-gray-50/60 transition-colors">
-                    <td className="px-5 py-3.5 font-mono text-xs font-bold text-navy">{po.id.slice(0, 8).toUpperCase()}</td>
+                    <td className="px-5 py-3.5 font-mono text-xs font-bold text-navy">{po.po_number ?? po.id.slice(0, 8).toUpperCase()}</td>
                     <td className="px-4 py-3.5 text-gray-700">
                       {po.supplier_name ?? (po.supplier ? supplierMap[po.supplier] : '—') ?? '—'}
                     </td>

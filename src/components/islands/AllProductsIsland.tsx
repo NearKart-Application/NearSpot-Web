@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
 import Img from '../ui/Img';
+
+const gridContainer = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
+const gridItem = { hidden: { opacity: 0, y: 20, scale: 0.96 }, show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.3, ease: 'easeOut' as const } } };
 
 interface Product {
   id: string; name: string; category?: string;
@@ -222,9 +226,14 @@ function Inner() {
       ) : (
         <>
           <p className="text-xs text-gray-400 mb-3 font-medium">{products.length} product{products.length !== 1 ? 's' : ''} found</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {products.map(p => <ProductCard key={p.id} product={p} />)}
-          </div>
+          <motion.div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
+            variants={gridContainer} initial="hidden" animate="show">
+            {products.map(p => (
+              <motion.div key={p.id} variants={gridItem}>
+                <ProductCard product={p} />
+              </motion.div>
+            ))}
+          </motion.div>
         </>
       )}
     </div>

@@ -11,7 +11,7 @@ const { title, fullWidth = false, noFooter = false, noPad = false } = Astro.prop
     <Navbar />
     <LocationPickerIsland client:load />
     <main class:list={[
-      'flex-1 pt-16',
+      'flex-1 pt-16 animate-slide-up',
       !noPad && 'pb-20 md:pb-0',
       !fullWidth && !noPad && 'max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 pb-20 md:pb-6',
     ]}>

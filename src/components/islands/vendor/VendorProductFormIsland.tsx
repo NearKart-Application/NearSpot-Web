@@ -11,11 +11,14 @@ interface ProductFormData {
   description: string;
   base_price: string;
   sale_price: string;
+  cost_price: string;
   stock: string;
   product_code: string;
   status: string;
   is_visible: boolean;
   colors: string;
+  hsn_code: string;
+  gst_rate: string;
 }
 
 const CATEGORIES = [
@@ -30,8 +33,9 @@ function Inner({ productId }: { productId?: string }) {
 
   const [form, setForm] = useState<ProductFormData>({
     name: '', category: 'fashion', description: '',
-    base_price: '', sale_price: '', stock: '', product_code: '',
+    base_price: '', sale_price: '', cost_price: '', stock: '', product_code: '',
     status: 'draft', is_visible: true, colors: '',
+    hsn_code: '', gst_rate: '',
   });
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -50,11 +54,14 @@ function Inner({ productId }: { productId?: string }) {
       description: existing.description ?? '',
       base_price: String(existing.base_price ?? existing.price ?? ''),
       sale_price: String(existing.sale_price ?? ''),
+      cost_price: String(existing.cost_price ?? ''),
       stock: String(existing.stock_count ?? existing.stock_total ?? ''),
       product_code: existing.product_code ?? '',
       status: existing.status ?? 'draft',
       is_visible: existing.is_visible ?? true,
       colors: (existing.colors ?? []).join(', '),
+      hsn_code: existing.hsn_code ?? '',
+      gst_rate: existing.gst_rate ? String(existing.gst_rate) : '',
     });
   }, [existing?.id]);
 
@@ -66,11 +73,14 @@ function Inner({ productId }: { productId?: string }) {
         description: form.description.trim(),
         base_price: parseFloat(form.base_price) || 0,
         ...(form.sale_price ? { sale_price: parseFloat(form.sale_price) } : {}),
+        ...(form.cost_price ? { cost_price: parseFloat(form.cost_price) } : {}),
         stock: parseInt(form.stock) || 0,
         product_code: form.product_code.trim(),
         status: form.status,
         is_visible: form.is_visible,
         colors: form.colors.split(',').map(c => c.trim()).filter(Boolean),
+        ...(form.hsn_code.trim() ? { hsn_code: form.hsn_code.trim() } : {}),
+        ...(form.gst_rate ? { gst_rate: parseFloat(form.gst_rate) } : {}),
       };
       return isEdit
         ? api.patch(`/products/${productId}/`, payload)
@@ -171,6 +181,28 @@ function Inner({ productId }: { productId?: string }) {
         <div>
           <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Colors</label>
           <input value={form.colors} onChange={set('colors')} placeholder="Red, Blue, Black (comma-separated)"
+            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+        </div>
+
+        {/* GST / Tax fields — P0 legal compliance */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">HSN Code</label>
+            <input value={form.hsn_code} onChange={set('hsn_code')} placeholder="e.g. 61091000"
+              maxLength={8}
+              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">GST Rate (%)</label>
+            <input type="number" min="0" max="28" step="0.5" value={form.gst_rate} onChange={set('gst_rate')} placeholder="0 / 5 / 12 / 18 / 28"
+              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+          </div>
+        </div>
+
+        {/* Cost Price — P2 margin analytics */}
+        <div>
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Cost Price ₹ <span className="font-normal normal-case text-gray-400">(not visible to customers)</span></label>
+          <input type="number" min="0" step="0.01" value={form.cost_price} onChange={set('cost_price')} placeholder="Your purchase cost"
             className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
         </div>
 

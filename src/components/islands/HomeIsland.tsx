@@ -18,7 +18,7 @@ interface Store {
   rating?: number; avg_rating?: number; review_count?: number;
   distance_km?: number; follower_count?: number;
   active_offer_labels?: string[]; top_offer_label?: string; has_offer?: boolean;
-  store_type?: string;
+  store_type?: string; open_status_label?: string;
 }
 interface Product {
   id: string; name: string;
@@ -108,12 +108,14 @@ function StoreCard({ store }: { store: Store }) {
       <div className="relative h-40 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
         <Img src={store.cover_image} alt={store.name} fallback="store" loading="lazy"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        {/* Dim overlay for closed stores */}
+        {!store.is_open && <div className="absolute inset-0 bg-black/25 z-[1]" />}
         {/* Open/Closed pill */}
-        <div className="absolute top-2.5 right-2.5">
+        <div className="absolute top-2.5 right-2.5 z-[2]">
           {store.is_open ? (
-            <span className="bg-emerald-500 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-sm">OPEN</span>
+            <span className="bg-emerald-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">OPEN</span>
           ) : (
-            <span className="bg-gray-700/80 backdrop-blur-sm text-white text-[10px] font-black px-2.5 py-0.5 rounded-full">CLOSED</span>
+            <span className="bg-red-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">CLOSED</span>
           )}
         </div>
         {/* Top offer badge */}
@@ -165,6 +167,9 @@ function StoreCard({ store }: { store: Store }) {
         </div>
         {store.holiday_mode && (
           <div className="mt-1.5 text-[11px] font-semibold text-orange-600 bg-orange-50 rounded-lg px-2 py-0.5 w-fit">🌴 On Holiday</div>
+        )}
+        {!store.is_open && !store.holiday_mode && store.open_status_label && (
+          <p className="text-[11px] text-gray-400 mt-1">🕐 {store.open_status_label}</p>
         )}
       </div>
     </motion.a>

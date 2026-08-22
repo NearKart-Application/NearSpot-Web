@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { queryClient } from '../../lib/queryClient';
+import { CustomerAuthGuard } from './CustomerAuthGuard';
 import api from '../../lib/api';
+
+const listContainer = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
+const listItem = { hidden: { opacity: 0, y: 18, scale: 0.97 }, show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.32, ease: 'easeOut' as const } } };
 
 interface Loyalty {
   balance: number;
@@ -78,7 +83,8 @@ function Inner() {
     <div className="max-w-lg mx-auto px-4 pb-24 pt-2">
 
       {/* Balance card */}
-      <div className="relative rounded-3xl overflow-hidden shadow-xl mb-6"
+      <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: 'easeOut' as const }}
+        className="relative rounded-3xl overflow-hidden shadow-xl mb-6"
         style={{ background: 'linear-gradient(135deg, #1C2E4A 0%, #2d4a73 60%, #1a3a5c 100%)' }}>
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, #F7B731 0%, transparent 50%)' }} />
@@ -117,7 +123,7 @@ function Inner() {
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-3 mb-6">
@@ -167,12 +173,12 @@ function Inner() {
             </a>
           </div>
         ) : (
-          <div className="space-y-3">
+          <motion.div className="space-y-3" variants={listContainer} initial="hidden" animate="show">
             {purchases.map(p => {
               const storeName = p.store_name ?? p.store?.name ?? 'Unknown Store';
               const amount = parseFloat(p.total_amount ?? p.amount ?? '0');
               return (
-                <div key={p.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3.5 flex items-center gap-4">
+                <motion.div key={p.id} variants={listItem} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3.5 flex items-center gap-4">
                   <div className="w-10 h-10 bg-navy/5 rounded-xl flex items-center justify-center text-lg shrink-0">🛍️</div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-navy truncate">{p.product_name ?? 'Purchase'}</p>
@@ -188,10 +194,10 @@ function Inner() {
                       }`}>{p.status}</span>
                     )}
                   </div>
-                </div>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         )
       ) : (
         loyaltyHistQ.isLoading ? (
@@ -205,9 +211,9 @@ function Inner() {
             <p className="text-gray-400 text-sm">Earn points by shopping and referring friends</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <motion.div className="space-y-2" variants={listContainer} initial="hidden" animate="show">
             {historyItems.map((h: any, i: number) => (
-              <div key={h.id ?? i} className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3">
+              <motion.div key={h.id ?? i} variants={listItem} className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0 ${
                   h.type === 'earned' || h.points > 0 ? 'bg-green-50' : 'bg-red-50'
                 }`}>
@@ -220,9 +226,9 @@ function Inner() {
                 <p className={`text-sm font-black shrink-0 ${h.points > 0 ? 'text-green-600' : 'text-red-500'}`}>
                   {h.points > 0 ? '+' : ''}{h.points} pts
                 </p>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )
       )}
     </div>
@@ -232,7 +238,9 @@ function Inner() {
 export default function WalletIsland() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Inner />
+      <CustomerAuthGuard>
+        <Inner />
+      </CustomerAuthGuard>
     </QueryClientProvider>
   );
 }

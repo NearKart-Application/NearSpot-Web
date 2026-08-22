@@ -1,4 +1,5 @@
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { CustomerAuthGuard } from './CustomerAuthGuard';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
 
@@ -112,7 +113,9 @@ function Inner() {
 export default function CustomerWatchlistIsland() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Inner />
+      <CustomerAuthGuard>
+        <Inner />
+      </CustomerAuthGuard>
     </QueryClientProvider>
   );
 }

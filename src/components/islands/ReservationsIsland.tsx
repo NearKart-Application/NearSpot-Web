@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { queryClient } from '../../lib/queryClient';
+import { CustomerAuthGuard } from './CustomerAuthGuard';
 import api from '../../lib/api';
 import Img from '../ui/Img';
+
+const listContainer = { hidden: {}, show: { transition: { staggerChildren: 0.07 } } };
+const listItem = { hidden: { opacity: 0, y: 20, scale: 0.97 }, show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: 'easeOut' as const } } };
 
 interface Reservation {
   id: string;
@@ -291,10 +296,10 @@ function Inner() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-5">
+      <motion.div className="mb-5" initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: 'easeOut' as const }}>
         <h1 className="text-xl font-black text-navy">My Reservations</h1>
         <p className="text-sm text-gray-400">{all.length} total reservation{all.length !== 1 ? 's' : ''}</p>
-      </div>
+      </motion.div>
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 mb-5">
@@ -338,16 +343,17 @@ function Inner() {
           {tab === 'active' && <a href="/" className="mt-5 btn-primary px-8">Browse Stores</a>}
         </div>
       ) : (
-        <div className="space-y-4">
+        <motion.div className="space-y-4" variants={listContainer} initial="hidden" animate="show">
           {shown.map(r => (
-            <ReservationCard
-              key={r.id}
-              res={r}
-              onCancel={() => setCancelTarget(r)}
-              onChat={() => startChatMut.mutate(r.store.id)}
-            />
+            <motion.div key={r.id} variants={listItem}>
+              <ReservationCard
+                res={r}
+                onCancel={() => setCancelTarget(r)}
+                onChat={() => startChatMut.mutate(r.store.id)}
+              />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       {/* Cancel confirmation modal */}
@@ -366,7 +372,9 @@ function Inner() {
 export default function ReservationsIsland() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Inner />
+      <CustomerAuthGuard>
+        <Inner />
+      </CustomerAuthGuard>
     </QueryClientProvider>
   );
 }

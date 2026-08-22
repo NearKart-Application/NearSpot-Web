@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 interface AuditItem {
   variant_id?: string;
   sku: string;
+  product_name?: string;
+  variant_name?: string;
   system_qty: number;
   counted_qty: number;
   discrepancy: number;
@@ -148,7 +150,7 @@ function AuditDetail({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left pb-2 text-xs font-bold text-gray-400 uppercase tracking-wide pr-4">SKU</th>
+                  <th className="text-left pb-2 text-xs font-bold text-gray-400 uppercase tracking-wide pr-4">Product / SKU</th>
                   <th className="text-right pb-2 text-xs font-bold text-gray-400 uppercase tracking-wide pr-4">System Qty</th>
                   <th className="text-right pb-2 text-xs font-bold text-gray-400 uppercase tracking-wide pr-4">Counted Qty</th>
                   <th className="text-right pb-2 text-xs font-bold text-gray-400 uppercase tracking-wide">Discrepancy</th>
@@ -160,7 +162,14 @@ function AuditDetail({
                   <tr key={idx}>
                     <td className="py-2 pr-4">
                       {isLocked ? (
-                        <span className="font-mono text-xs">{item.sku || '—'}</span>
+                        <div>
+                          {(item.product_name || item.variant_name) && (
+                            <span className="text-xs font-medium text-gray-700 block">
+                              {[item.product_name, item.variant_name].filter(Boolean).join(' · ')}
+                            </span>
+                          )}
+                          <span className="font-mono text-xs text-gray-400">{item.sku || '—'}</span>
+                        </div>
                       ) : (
                         <input
                           value={item.sku}

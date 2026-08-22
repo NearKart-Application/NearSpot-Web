@@ -9,6 +9,7 @@ interface Transaction {
 interface WalletData {
   balance: number | string; currency: string; transactions?: Transaction[];
 }
+interface PagedTransactions { count: number; results: Transaction[]; }
 
 function fmtDate(s: string) {
   return new Date(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -20,12 +21,12 @@ function Inner() {
     queryFn: () => api.get('/billing/wallet/').then(r => r.data),
   });
 
-  const { data: txData, isLoading: txLoading } = useQuery<Transaction[]>({
+  const { data: txData, isLoading: txLoading } = useQuery<PagedTransactions>({
     queryKey: ['vendor-transactions'],
     queryFn: () => api.get('/billing/transactions/').then(r => r.data),
   });
 
-  const transactions: Transaction[] = Array.isArray(txData) ? txData : (txData as any)?.results ?? [];
+  const transactions: Transaction[] = txData?.results ?? [];
   const balance = parseFloat(String(wallet?.balance ?? '0'));
 
   const typeIcon: Record<string, string> = {

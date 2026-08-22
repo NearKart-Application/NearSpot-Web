@@ -15,6 +15,10 @@ import {
   Link2,
   LogOut,
   ChevronRight,
+  History,
+  LogIn,
+  Activity,
+  MousePointerClick,
 } from 'lucide-react';
 import { auth } from '../../../lib/auth';
 
@@ -31,6 +35,10 @@ const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
   shield:       Shield,
   'credit-card': CreditCard,
   link:         Link2,
+  history:      History,
+  login:        LogIn,
+  activity:     Activity,
+  click:        MousePointerClick,
 };
 
 const NAV_ALL = [
@@ -44,6 +52,10 @@ const NAV_ALL = [
   { label: 'Coupons',           href: '/admin/coupons',           icon: 'ticket' },
   { label: 'Website Requests',  href: '/admin/website-requests',  icon: 'globe' },
   { label: 'Activity Log',      href: '/admin/activity-log',      icon: 'clipboard' },
+  { label: 'Stock Change Log',  href: '/admin/stock-logs',         icon: 'history' },
+  { label: 'Login Logs',        href: '/admin/login-logs',         icon: 'login' },
+  { label: 'Vendor Actions',    href: '/admin/vendor-action-logs',  icon: 'activity' },
+  { label: 'Customer Activity', href: '/admin/customer-activity',   icon: 'click' },
 ];
 
 const NAV_MASTER = [

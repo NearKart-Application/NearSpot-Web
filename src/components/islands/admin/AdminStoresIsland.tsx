@@ -239,6 +239,12 @@ function Inner() {
                     >
                       {store.is_active ? 'Deactivate' : 'Activate'}
                     </Button>
+                    <a
+                      href={`/admin/stock-logs?store_id=${store.id}&store_name=${encodeURIComponent(store.name)}`}
+                      className="inline-flex items-center px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 hover:border-navy/30 hover:text-navy transition-colors"
+                    >
+                      Stock Log
+                    </a>
                   </div>
 
                   {isMaster && (

@@ -15,6 +15,10 @@ interface Supplier {
   product_categories: string;
   notes: string;
   is_active: boolean;
+  email?: string;
+  gstin?: string;
+  payment_terms?: string;
+  lead_time_days?: number | null;
 }
 
 const EMPTY_FORM = {
@@ -26,6 +30,10 @@ const EMPTY_FORM = {
   product_categories: '',
   notes: '',
   is_active: true,
+  email: '',
+  gstin: '',
+  payment_terms: '',
+  lead_time_days: '',
 };
 
 function SupplierModal({
@@ -48,16 +56,25 @@ function SupplierModal({
           product_categories: initial.product_categories ?? '',
           notes: initial.notes ?? '',
           is_active: initial.is_active,
+          email: initial.email ?? '',
+          gstin: initial.gstin ?? '',
+          payment_terms: initial.payment_terms ?? '',
+          lead_time_days: initial.lead_time_days != null ? String(initial.lead_time_days) : '',
         }
       : EMPTY_FORM,
   );
   const [error, setError] = useState('');
 
   const mut = useMutation({
-    mutationFn: () =>
-      initial
-        ? api.patch(`/inventory/suppliers/${initial.id}/`, form)
-        : api.post('/inventory/suppliers/', form),
+    mutationFn: () => {
+      const payload = {
+        ...form,
+        lead_time_days: form.lead_time_days ? parseInt(form.lead_time_days as string) : null,
+      };
+      return initial
+        ? api.patch(`/inventory/suppliers/${initial.id}/`, payload)
+        : api.post('/inventory/suppliers/', payload);
+    },
     onSuccess: () => onSuccess(),
     onError: (e: any) =>
       setError(e?.response?.data?.detail ?? JSON.stringify(e?.response?.data) ?? 'Failed to save supplier'),
@@ -139,6 +156,48 @@ function SupplierModal({
             />
           </div>
           <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Email</label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={e => set('email', e.target.value)}
+              placeholder="supplier@example.com"
+              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">GSTIN</label>
+            <input
+              value={form.gstin}
+              onChange={e => set('gstin', e.target.value.toUpperCase())}
+              placeholder="15-character GST number"
+              maxLength={15}
+              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-mono focus:outline-none focus:border-navy/40"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Payment Terms</label>
+              <input
+                value={form.payment_terms}
+                onChange={e => set('payment_terms', e.target.value)}
+                placeholder="e.g. Net 30, COD"
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Lead Time (days)</label>
+              <input
+                type="number"
+                min="0"
+                value={form.lead_time_days}
+                onChange={e => set('lead_time_days', e.target.value)}
+                placeholder="e.g. 7"
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40"
+              />
+            </div>
+          </div>
+          <div>
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Notes</label>
             <textarea
               value={form.notes}
@@ -196,8 +255,21 @@ function SupplierCard({ supplier, onEdit, onDelete }: { supplier: Supplier; onEd
             <p className="text-sm text-gray-500 mb-1">👤 {supplier.contact_name}</p>
           )}
           <p className="text-sm text-gray-600">📞 {supplier.phone}</p>
+          {supplier.email && (
+            <p className="text-sm text-gray-500">✉️ {supplier.email}</p>
+          )}
           {supplier.whatsapp && (
             <p className="text-sm text-gray-500">💬 {supplier.whatsapp}</p>
+          )}
+          {supplier.gstin && (
+            <p className="text-xs text-gray-500 font-mono mt-1">GSTIN: {supplier.gstin}</p>
+          )}
+          {(supplier.payment_terms || supplier.lead_time_days != null) && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              {supplier.payment_terms && `${supplier.payment_terms}`}
+              {supplier.payment_terms && supplier.lead_time_days != null && ' · '}
+              {supplier.lead_time_days != null && `${supplier.lead_time_days}d lead`}
+            </p>
           )}
           {cats.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">

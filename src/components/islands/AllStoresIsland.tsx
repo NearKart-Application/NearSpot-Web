@@ -1,15 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
 import Img from '../ui/Img';
+
+const gridContainer = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
+const gridItem = { hidden: { opacity: 0, y: 20, scale: 0.96 }, show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.3, ease: 'easeOut' as const } } };
 
 interface Store {
   id: string; name: string; category: string; locality?: string;
   avatar?: string; cover_image?: string; is_open: boolean;
   rating?: number; avg_rating?: number; review_count?: number;
   distance_km?: number; is_verified?: boolean; holiday_mode?: boolean;
-  active_offer_labels?: string[]; top_offer_label?: string;
+  active_offer_labels?: string[]; top_offer_label?: string; open_status_label?: string;
 }
 
 const CATEGORIES = [
@@ -41,9 +45,10 @@ function StoreCard({ store }: { store: Store }) {
       <div className="relative h-36 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
         <Img src={store.cover_image} alt={store.name} fallback="store" loading="lazy"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-        <div className="absolute top-2.5 right-2.5">
-          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shadow ${
-            store.is_open ? 'bg-green-500 text-white' : 'bg-gray-600/80 text-white'
+        {!store.is_open && <div className="absolute inset-0 bg-black/25 z-[1]" />}
+        <div className="absolute top-2.5 right-2.5 z-[2]">
+          <span className={`text-[10px] font-black px-2.5 py-1 rounded-full shadow ${
+            store.is_open ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
           }`}>{store.is_open ? 'OPEN' : 'CLOSED'}</span>
         </div>
         {offers.length > 0 && (
@@ -79,6 +84,9 @@ function StoreCard({ store }: { store: Store }) {
         </div>
         {store.holiday_mode && (
           <div className="mt-1.5 text-[11px] font-semibold text-orange-600 bg-orange-50 rounded-lg px-2 py-0.5 w-fit">🌴 On Holiday</div>
+        )}
+        {!store.is_open && !store.holiday_mode && store.open_status_label && (
+          <p className="text-[11px] text-gray-400 mt-1">🕐 {store.open_status_label}</p>
         )}
       </div>
     </a>
@@ -194,9 +202,14 @@ function Inner() {
       ) : (
         <>
           <p className="text-xs text-gray-400 mb-3 font-medium">{stores.length} store{stores.length !== 1 ? 's' : ''} found</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {stores.map(s => <StoreCard key={s.id} store={s} />)}
-          </div>
+          <motion.div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+            variants={gridContainer} initial="hidden" animate="show">
+            {stores.map(s => (
+              <motion.div key={s.id} variants={gridItem}>
+                <StoreCard store={s} />
+              </motion.div>
+            ))}
+          </motion.div>
         </>
       )}
     </div>

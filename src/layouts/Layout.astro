@@ -30,6 +30,37 @@ const pageTitle = title === 'NearSpot' ? 'NearSpot' : `${title} | NearSpot`;
   </head>
   <body>
     <slot />
+    <script>
+      // Cross-tab session sync: when ns_user changes in another tab, react immediately.
+      // The 'storage' event only fires in tabs that did NOT make the change — that's exactly what we need.
+      window.addEventListener('storage', (e: StorageEvent) => {
+        // Ignore events from auth pages — they manage their own redirects
+        if (window.location.pathname.startsWith('/auth')) return;
+        if (e.key !== 'ns_user') return;
+
+        const prev = e.oldValue ? (JSON.parse(e.oldValue) as { ui_mode?: string }) : null;
+        const next = e.newValue ? (JSON.parse(e.newValue) as { ui_mode?: string }) : null;
+
+        if (!next || !localStorage.getItem('ns_access')) {
+          // Logged out in another tab — go to login
+          window.location.href = '/auth/login';
+          return;
+        }
+
+        const prevRole = prev?.ui_mode ?? '';
+        const nextRole = next?.ui_mode ?? 'customer';
+
+        if (prevRole !== nextRole) {
+          // A different role just logged in — redirect this tab to that role's home
+          const dest: Record<string, string> = {
+            vendor: '/vendor/dashboard',
+            admin: '/admin/dashboard',
+            master_admin: '/admin/dashboard',
+          };
+          window.location.href = dest[nextRole] ?? '/';
+        }
+      });
+    </script>
   </body>
 </html>
 

@@ -1,8 +1,15 @@
 import { useState } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import { CustomerAuthGuard } from './CustomerAuthGuard';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
 import { Button } from '@/components/ui/button';
+
+const card = { hidden: { opacity: 0, y: 18, scale: 0.98 }, show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.38, ease: 'easeOut' as const } } };
+const page = { hidden: {}, show: { transition: { staggerChildren: 0.1 } } };
+const rowContainer = { hidden: {}, show: { transition: { staggerChildren: 0.04 } } };
+const row = { hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0, transition: { duration: 0.25, ease: 'easeOut' as const } } };
 
 interface LoyaltyBalance {
   balance: number;
@@ -67,8 +74,8 @@ function Inner() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
-      <h1 className="text-xl font-black text-navy">Loyalty & Rewards</h1>
+    <motion.div className="max-w-2xl mx-auto space-y-5" variants={page} initial="hidden" animate="show">
+      <motion.h1 variants={card} className="text-xl font-black text-navy">Loyalty & Rewards</motion.h1>
 
       {/* Balance card */}
       {balLoading ? (
@@ -77,7 +84,7 @@ function Inner() {
           <div className="h-4 bg-white/20 rounded-full w-1/2" />
         </div>
       ) : balance ? (
-        <div className="bg-gradient-to-br from-navy to-navy/80 rounded-2xl p-6 text-white">
+        <motion.div variants={card} className="bg-gradient-to-br from-navy to-navy/80 rounded-2xl p-6 text-white">
           <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">Available Points</p>
           <div className="flex items-baseline gap-2">
             <span className="text-5xl font-black text-gold">{balance.balance.toLocaleString('en-IN')}</span>
@@ -96,12 +103,12 @@ function Inner() {
               <p className="text-white font-bold text-lg">{balance.total_redeemed.toLocaleString()}</p>
             </div>
           </div>
-        </div>
+        </motion.div>
       ) : null}
 
       {/* Referral card */}
       {balance?.referral_code && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <motion.div variants={card} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-2xl">🎁</span>
             <div>
@@ -121,11 +128,11 @@ function Inner() {
               {copied ? '✓ Copied!' : 'Copy'}
             </button>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Apply referral */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <motion.div variants={card} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <h3 className="font-bold text-navy text-sm mb-1">Have a referral code?</h3>
         <p className="text-xs text-gray-400 mb-3">Enter a friend's code to earn bonus points</p>
         <div className="flex gap-2">
@@ -143,10 +150,10 @@ function Inner() {
         {applyMut.isError && (
           <p className="text-xs text-red-500 mt-2">Invalid or already used code.</p>
         )}
-      </div>
+      </motion.div>
 
       {/* History */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <motion.div variants={card} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 pt-4 pb-3 border-b border-gray-100">
           <h3 className="font-bold text-navy text-sm">Points History</h3>
         </div>
@@ -165,9 +172,9 @@ function Inner() {
             <p className="text-xs text-gray-300 mt-1">Earn points by making reservations!</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <motion.div className="divide-y divide-gray-100" variants={rowContainer} initial="hidden" animate="show">
             {history.map(h => (
-              <div key={h.id} className="flex items-center justify-between px-5 py-3">
+              <motion.div key={h.id} variants={row} className="flex items-center justify-between px-5 py-3">
                 <div>
                   <p className="text-sm font-semibold text-navy">{h.description ?? h.note ?? h.type ?? 'Points earned'}</p>
                   <p className="text-xs text-gray-400">
@@ -177,19 +184,21 @@ function Inner() {
                 <span className={`text-sm font-black ${h.points >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                   {h.points >= 0 ? '+' : ''}{h.points}
                 </span>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
 export default function LoyaltyIsland() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Inner />
+      <CustomerAuthGuard>
+        <Inner />
+      </CustomerAuthGuard>
     </QueryClientProvider>
   );
 }

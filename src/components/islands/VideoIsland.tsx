@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
 
@@ -311,7 +312,8 @@ function Inner() {
   return (
     <div className="relative h-[calc(100vh-4rem)]">
       {/* Tab switch */}
-      <div className="absolute top-4 left-0 right-0 z-10 flex justify-center">
+      <motion.div className="absolute top-4 left-0 right-0 z-10 flex justify-center"
+        initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: 'easeOut' as const }}>
         <div className="flex bg-black/30 backdrop-blur rounded-full p-1 gap-1">
           {(['trending', 'following'] as FeedTab[]).map(t => (
             <button key={t} onClick={() => { setTab(t); containerRef.current?.scrollTo({ top: 0 }); }}
@@ -322,7 +324,7 @@ function Inner() {
             </button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {trendLoading ? (
         <div className="flex items-center justify-center h-full bg-black">

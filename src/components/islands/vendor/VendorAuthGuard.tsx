@@ -27,16 +27,21 @@ export function useVendorAuth() {
 
   useEffect(() => {
     const token = localStorage.getItem('ns_access');
-    const user = auth.user();
-    const isVendor =
-      user?.ui_mode === 'vendor' ||
-      (user as any)?.role === 'vendor' ||
-      user?.is_vendor === true;
-    if (!token || !user || !isVendor) {
+    const user  = auth.user();
+    if (!token || !user) { setStatus('unauthenticated'); return; }
+
+    const role = user.ui_mode ?? (user as any).role ?? '';
+    if (role === 'admin' || role === 'master_admin') {
+      window.location.href = '/admin/dashboard';
       setStatus('unauthenticated');
-    } else {
-      setStatus('ok');
+      return;
     }
+    if (role === 'customer' || (role !== 'vendor' && !user.is_vendor)) {
+      window.location.href = '/';
+      setStatus('unauthenticated');
+      return;
+    }
+    setStatus('ok');
   }, []);
 
   return status;
@@ -85,11 +90,8 @@ export function VendorAuthGuard({ children }: { children: React.ReactNode }) {
 
   if (status === 'unauthenticated') {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <div className="text-5xl mb-4">🔒</div>
-        <h2 className="text-xl font-bold text-navy mb-2">Please log in</h2>
-        <p className="text-gray-400 text-sm mb-6">You need to be logged in as a vendor to access this page.</p>
-        <a href="/auth/login" className="btn-primary px-8 py-3 rounded-xl font-bold">Log In</a>
+      <div className="flex items-center justify-center py-24">
+        <div className="w-8 h-8 border-2 border-navy border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
