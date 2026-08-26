@@ -4,17 +4,21 @@ import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { AdminShell } from './AdminShell';
 
+interface AdminReservationCustomer { id: string; full_name: string; phone_number: string; }
+interface AdminReservationStore    { id: string; name: string; locality: string; phone: string; }
+interface AdminReservationProduct  { id: string; name: string; base_price: string; }
+
 interface AdminReservation {
   id: string;
-  customer_name: string;
-  customer_phone: string;
-  store_name: string;
-  product_name: string;
+  customer: AdminReservationCustomer;
+  store: AdminReservationStore;
+  product: AdminReservationProduct;
+  variant_name: string | null;
   quantity: number;
   status: string;
-  total_price: string;
-  reserved_at: string;
+  discount_amount: string;
   expires_at: string;
+  created_at: string;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -94,7 +98,7 @@ function Inner() {
                   <th className="text-left px-4 py-3">Store</th>
                   <th className="text-left px-4 py-3">Product</th>
                   <th className="text-left px-4 py-3">Qty</th>
-                  <th className="text-left px-4 py-3">Amount</th>
+                  <th className="text-left px-4 py-3">Discount</th>
                   <th className="text-left px-4 py-3">Status</th>
                   <th className="text-left px-4 py-3">Reserved At</th>
                 </tr>
@@ -120,20 +124,24 @@ function Inner() {
                 {rows.map(r => (
                   <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-medium" style={{ color: '#1C2E4A' }}>
-                      <div>{r.customer_name}</div>
-                      <div className="text-xs text-gray-400">{r.customer_phone}</div>
+                      <div>{r.customer.full_name}</div>
+                      <div className="text-xs text-gray-400">{r.customer.phone_number}</div>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{r.store_name}</td>
-                    <td className="px-4 py-3 text-gray-600 max-w-[160px] truncate">{r.product_name}</td>
+                    <td className="px-4 py-3 text-gray-600">{r.store.name}</td>
+                    <td className="px-4 py-3 text-gray-600 max-w-[160px] truncate">
+                      {r.product.name}{r.variant_name ? ` · ${r.variant_name}` : ''}
+                    </td>
                     <td className="px-4 py-3 text-gray-600">{r.quantity}</td>
-                    <td className="px-4 py-3 font-semibold" style={{ color: '#1C2E4A' }}>₹{r.total_price}</td>
+                    <td className="px-4 py-3 font-semibold" style={{ color: '#1C2E4A' }}>
+                      {parseFloat(r.discount_amount) > 0 ? `-₹${r.discount_amount}` : '—'}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLES[r.status] ?? 'bg-gray-100 text-gray-500'}`}>
                         {r.status}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-400 text-xs">
-                      {new Date(r.reserved_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      {new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
                     </td>
                   </tr>
                 ))}
