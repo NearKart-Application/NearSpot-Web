@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 
 interface Reservation {
   id: string;
-  customer_name?: string; customer_phone?: string;
+  customer: { id: string; full_name: string; phone_number: string };
   product: { id: string; name: string; primary_image?: string; base_price: string };
   variant_name?: string; quantity: number;
   status: string; expires_at: string; created_at: string;
@@ -141,9 +141,9 @@ function ReservationCard({ res, onUpdate }: { res: Reservation; onUpdate: () => 
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
-            {res.customer_name && <span>👤 {res.customer_name}</span>}
-            {res.customer_phone && (
-              <a href={`tel:${res.customer_phone}`} className="text-navy hover:underline">📞 {res.customer_phone}</a>
+            {res.customer?.full_name && <span>👤 {res.customer.full_name}</span>}
+            {res.customer?.phone_number && (
+              <a href={`tel:${res.customer.phone_number}`} className="text-navy hover:underline">📞 {res.customer.phone_number}</a>
             )}
             <span>📅 {fmtDate(res.created_at)}</span>
             {['pending', 'confirmed'].includes(res.status) && (
@@ -192,7 +192,7 @@ function ReservationCard({ res, onUpdate }: { res: Reservation; onUpdate: () => 
 
       {/* Confirm dialog */}
       {dialog && (
-        <ActionDialog action={dialog} customerName={res.customer_name ?? ''}
+        <ActionDialog action={dialog} customerName={res.customer?.full_name ?? ''}
           onClose={() => setDialog(null)}
           onConfirm={note => updateStatus.mutate({ status: statusToSend[dialog], vendor_note: note || undefined })}
         />
