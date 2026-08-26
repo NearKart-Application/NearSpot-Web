@@ -19,10 +19,9 @@ interface LoyaltyBalance {
 
 interface HistoryItem {
   id: string;
-  type?: string;
+  transaction_type?: string;
   points: number;
   description?: string;
-  note?: string;
   created_at: string;
 }
 
@@ -165,7 +164,7 @@ function Inner() {
         <motion.div className="space-y-2" variants={list} initial="hidden" animate="show">
           {history.map(h => {
             const isPositive = h.points > 0;
-            const typeKey = h.type?.toLowerCase() ?? (isPositive ? 'earned' : 'redeemed');
+            const typeKey = h.transaction_type?.toLowerCase() ?? (isPositive ? 'earned' : 'redeemed');
             const icon = TYPE_ICONS[typeKey] ?? (isPositive ? '⭐' : '🎁');
             return (
               <motion.div
@@ -178,7 +177,7 @@ function Inner() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-navy truncate">
-                    {h.description ?? h.note ?? (isPositive ? 'Points Earned' : 'Points Redeemed')}
+                    {h.description ?? (isPositive ? 'Points Earned' : 'Points Redeemed')}
                   </p>
                   <p className="text-xs text-gray-400 mt-0.5">{fmt(h.created_at)}</p>
                 </div>
