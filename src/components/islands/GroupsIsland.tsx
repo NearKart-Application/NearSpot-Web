@@ -52,9 +52,11 @@ function GroupThread({ group, userId, onBack }: {
   const [msg, setMsg] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const msgsQ = useQuery<{ results: Message[] }>({
+  const msgsQ = useQuery<Message[]>({
     queryKey: ['group-messages', group.id],
-    queryFn: () => api.get(`/groups/${group.id}/messages/`).then(r => r.data),
+    queryFn: () => api.get(`/groups/${group.id}/messages/`).then(r =>
+      Array.isArray(r.data) ? r.data : (r.data?.results ?? [])
+    ),
     refetchInterval: 5_000,
   });
 
@@ -75,7 +77,7 @@ function GroupThread({ group, userId, onBack }: {
     },
   });
 
-  const messages = msgsQ.data?.results ?? [];
+  const messages = msgsQ.data ?? [];
   const memberCount = group.members_count ?? group.members?.length ?? 0;
   const myProfileId = auth.user()?.profile_id;
   const isAdmin =
