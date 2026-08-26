@@ -4,17 +4,12 @@ import api from '../../../lib/api';
 import { AdminShell } from './AdminShell';
 
 interface PlatformStats {
-  total_users: number;
-  total_stores: number;
-  total_products: number;
-  total_reservations: number;
-  active_subscriptions: number;
-  total_revenue: string;
-  new_users_today: number;
-  new_stores_today: number;
-  reservations_today: number;
-  reservations_this_week: number;
-  reservations_this_month: number;
+  users:    { total: number; vendors: number; customers: number; active: number };
+  stores:   { total: number; active: number; verified: number; open: number };
+  videos:   { total: number; ready: number; total_views: number; total_likes: number };
+  products: { active: number };
+  revenue:  { subscription_revenue: string; total_topups: string };
+  pending_website_requests: number;
 }
 
 function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
@@ -67,45 +62,48 @@ function Inner() {
           <p className="text-sm text-gray-400">Platform statistics overview</p>
         </div>
 
-        {/* Growth today */}
+        {/* Users */}
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Today</h2>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Users</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard label="Total Users"     value={(stats.users?.total     ?? 0).toLocaleString()} />
+            <StatCard label="Vendors"         value={(stats.users?.vendors   ?? 0).toLocaleString()} />
+            <StatCard label="Customers"       value={(stats.users?.customers ?? 0).toLocaleString()} />
+            <StatCard label="Active Users"    value={(stats.users?.active    ?? 0).toLocaleString()} />
+          </div>
+        </section>
+
+        {/* Stores */}
+        <section>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Stores</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard label="Total Stores"    value={(stats.stores?.total    ?? 0).toLocaleString()} />
+            <StatCard label="Active"          value={(stats.stores?.active   ?? 0).toLocaleString()} />
+            <StatCard label="Verified"        value={(stats.stores?.verified ?? 0).toLocaleString()} />
+            <StatCard label="Currently Open"  value={(stats.stores?.open     ?? 0).toLocaleString()} />
+          </div>
+        </section>
+
+        {/* Content */}
+        <section>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Content</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard label="Active Products"  value={(stats.products?.active      ?? 0).toLocaleString()} />
+            <StatCard label="Total Videos"     value={(stats.videos?.total        ?? 0).toLocaleString()} />
+            <StatCard label="Total Views"      value={(stats.videos?.total_views  ?? 0).toLocaleString()} />
+            <StatCard label="Total Likes"      value={(stats.videos?.total_likes  ?? 0).toLocaleString()} />
+          </div>
+        </section>
+
+        {/* Revenue */}
+        <section>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Revenue</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <StatCard label="New Users" value={stats.new_users_today ?? 0} />
-            <StatCard label="New Stores" value={stats.new_stores_today ?? 0} />
-            <StatCard label="Reservations" value={stats.reservations_today ?? 0} />
+            <StatCard label="Subscription Revenue" value={`₹${Number(stats.revenue?.subscription_revenue ?? 0).toLocaleString('en-IN')}`} sub="All time" />
+            <StatCard label="Total Top-ups"         value={`₹${Number(stats.revenue?.total_topups ?? 0).toLocaleString('en-IN')}`} sub="All time" />
+            <StatCard label="Pending Requests"      value={stats.pending_website_requests ?? 0} sub="Website signup" />
           </div>
         </section>
-
-        {/* Reservation trends */}
-        <section>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Reservations</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <StatCard label="This Week" value={stats.reservations_this_week ?? 0} />
-            <StatCard label="This Month" value={stats.reservations_this_month ?? 0} />
-            <StatCard label="All Time" value={(stats.total_reservations ?? 0).toLocaleString()} />
-          </div>
-        </section>
-
-        {/* Platform totals */}
-        <section>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Platform Totals</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            <StatCard label="Total Users" value={(stats.total_users ?? 0).toLocaleString()} />
-            <StatCard label="Total Stores" value={(stats.total_stores ?? 0).toLocaleString()} />
-            <StatCard label="Total Products" value={(stats.total_products ?? 0).toLocaleString()} />
-            <StatCard label="Active Subscriptions" value={stats.active_subscriptions ?? 0} />
-          </div>
-        </section>
-
-        {stats.total_revenue && (
-          <section>
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Revenue</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <StatCard label="Total Revenue" value={`₹${Number(stats.total_revenue).toLocaleString('en-IN')}`} sub="All time subscription revenue" />
-            </div>
-          </section>
-        )}
       </div>
     </AdminShell>
   );

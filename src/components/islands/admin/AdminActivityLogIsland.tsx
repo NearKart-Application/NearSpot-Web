@@ -10,7 +10,7 @@ interface LogEntry {
   action: string;
   target_type: string;
   target_id: string | number;
-  target_name: string;
+  target_label: string;
   detail: string;
   created_at: string;
 }
@@ -88,9 +88,9 @@ function Inner() {
                 <span className="badge badge-navy">{entry.action}</span>
                 {entry.target_type && <span className="badge badge-blue">{entry.target_type}</span>}
               </div>
-              {entry.target_name && (
+              {entry.target_label && (
                 <p className="text-xs text-gray-600 mt-0.5">
-                  Target: <span className="font-medium">{entry.target_name}</span>
+                  Target: <span className="font-medium">{entry.target_label}</span>
                   {entry.target_id ? ` (ID: ${entry.target_id})` : ''}
                 </p>
               )}

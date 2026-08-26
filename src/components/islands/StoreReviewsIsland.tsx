@@ -14,7 +14,7 @@ interface Review {
   user_name: string;
   rating: number;
   comment: string;
-  is_verified_purchase?: boolean;
+  is_verified?: boolean;
   vendor_reply?: string;
   created_at: string;
 }
@@ -137,7 +137,7 @@ function ReviewCard({ review }: { review: Review }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-semibold text-navy truncate">{review.user_name}</p>
-            {review.is_verified_purchase && (
+            {review.is_verified && (
               <span className="text-xs text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full flex-shrink-0">✓ Verified</span>
             )}
           </div>
