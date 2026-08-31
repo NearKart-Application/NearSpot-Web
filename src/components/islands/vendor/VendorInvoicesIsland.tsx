@@ -73,7 +73,7 @@ function returnStatus(items: InvoiceItem[]): 'none' | 'partial' | 'full' {
 
 function InvoiceDetail({ invoice, onClose }: { invoice: Invoice; onClose: () => void }) {
   const subtotal = invoice.items.reduce((s, i) => s + parseFloat(String(i.price ?? '0')) * i.qty, 0);
-  const discount = invoice.discount_type === 'percentage'
+  const discount = invoice.discount_type === 'percent'
     ? subtotal * (invoice.discount_value ?? 0) / 100
     : (invoice.discount_value ?? 0);
   const gstAmt = invoice.gst_amount ?? 0;
@@ -129,7 +129,7 @@ function InvoiceDetail({ invoice, onClose }: { invoice: Invoice; onClose: () => 
             </div>
             {discount > 0 && (
               <div className="flex justify-between text-sm text-green-600">
-                <span>Discount {invoice.discount_type === 'percentage' ? `(${invoice.discount_value}%)` : ''}</span>
+                <span>Discount {invoice.discount_type === 'percent' ? `(${invoice.discount_value}%)` : ''}</span>
                 <span className="font-semibold">−{fmtAmt(discount)}</span>
               </div>
             )}
@@ -181,7 +181,7 @@ function CreateInvoiceModal({ onClose, onSuccess }: { onClose: () => void; onSuc
   const [dueDate,     setDueDate]      = useState('');
   const [gstin,       setGstin]        = useState('');
   const [gstRate,     setGstRate]      = useState('');
-  const [discountType,  setDiscountType]  = useState<'' | 'percentage' | 'flat'>('');
+  const [discountType,  setDiscountType]  = useState<'' | 'percent' | 'amount'>('');
   const [discountValue, setDiscountValue] = useState('');
   const [items, setItems] = useState<DraftItem[]>([emptyItem()]);
   const [formError, setFormError] = useState('');
@@ -236,9 +236,9 @@ function CreateInvoiceModal({ onClose, onSuccess }: { onClose: () => void; onSuc
   }
 
   const subtotal = items.reduce((s, it) => s + (parseFloat(it.price) || 0) * (parseInt(it.qty) || 0), 0);
-  const discAmt  = discountType === 'percentage'
+  const discAmt  = discountType === 'percent'
     ? subtotal * (parseFloat(discountValue) || 0) / 100
-    : discountType === 'flat' ? (parseFloat(discountValue) || 0) : 0;
+    : discountType === 'amount' ? (parseFloat(discountValue) || 0) : 0;
   const gstAmt   = (subtotal - discAmt) * (parseFloat(gstRate) || 0) / 100;
   const total    = subtotal - discAmt + gstAmt;
 
@@ -457,14 +457,14 @@ function CreateInvoiceModal({ onClose, onSuccess }: { onClose: () => void; onSuc
                 <select value={discountType} onChange={e => { setDiscountType(e.target.value as any); setDiscountValue(''); }}
                   className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none">
                   <option value="">None</option>
-                  <option value="percentage">Percentage (%)</option>
-                  <option value="flat">Flat (₹)</option>
+                  <option value="percent">Percentage (%)</option>
+                  <option value="amount">Flat (₹)</option>
                 </select>
               </div>
               {discountType && (
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5 block">
-                    {discountType === 'percentage' ? 'Discount %' : 'Discount ₹'}
+                    {discountType === 'percent' ? 'Discount %' : 'Discount ₹'}
                   </label>
                   <input type="number" value={discountValue} onChange={e => setDiscountValue(e.target.value)}
                     placeholder="0"
@@ -497,7 +497,7 @@ function CreateInvoiceModal({ onClose, onSuccess }: { onClose: () => void; onSuc
               </div>
               {discAmt > 0 && (
                 <div className="flex justify-between text-green-600">
-                  <span>Discount {discountType === 'percentage' ? `(${discountValue}%)` : ''}</span>
+                  <span>Discount {discountType === 'percent' ? `(${discountValue}%)` : ''}</span>
                   <span className="font-semibold">−{fmtAmt(discAmt)}</span>
                 </div>
               )}
