@@ -1,10 +1,132 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { CustomerAuthGuard } from './CustomerAuthGuard';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
 import { Button } from '@/components/ui/button';
+
+declare global {
+  interface Window { Razorpay: any }
+}
+
+const TOPUP_AMOUNTS = [100, 200, 500, 1000];
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise(resolve => {
+    if (window.Razorpay) { resolve(true); return; }
+    const s = document.createElement('script');
+    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.onload  = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.head.appendChild(s);
+  });
+}
+
+interface TopupModalProps {
+  onClose: () => void;
+  onSuccess: (pts: number) => void;
+}
+
+function TopupModal({ onClose, onSuccess }: TopupModalProps) {
+  const [amount, setAmount] = useState<number | ''>('');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'verifying' | 'success' | 'error'>('idle');
+  const [errMsg, setErrMsg] = useState('');
+  const [ptsEarned, setPtsEarned] = useState(0);
+
+  const handleTopup = useCallback(async () => {
+    const amt = Number(amount);
+    if (!amt || amt < 10) { setErrMsg('Minimum top-up is ₹10.'); return; }
+    if (amt > 10000)       { setErrMsg('Maximum top-up is ₹10,000.'); return; }
+    setErrMsg(''); setStatus('loading');
+
+    const loaded = await loadRazorpayScript();
+    if (!loaded) { setStatus('error'); setErrMsg('Payment gateway failed to load. Check your connection.'); return; }
+
+    let initData: any;
+    try {
+      const r = await api.post('/wallet/topup/initiate/', { amount: amt });
+      initData = r.data;
+    } catch {
+      setStatus('error'); setErrMsg('Could not initiate payment. Please try again.'); return;
+    }
+
+    const rzp = new window.Razorpay({
+      key:         initData.key,
+      amount:      initData.amount_paise,
+      currency:    initData.currency,
+      order_id:    initData.order_id,
+      name:        'NearSpot',
+      description: `Wallet Top-up ₹${amt}`,
+      theme:       { color: '#e5405e' },
+      handler: async (response: any) => {
+        setStatus('verifying');
+        try {
+          const vr = await api.post('/wallet/topup/verify/', {
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_order_id:   response.razorpay_order_id,
+            razorpay_signature:  response.razorpay_signature,
+            amount:              amt,
+          });
+          const pts = vr.data.points_credited ?? amt * 10;
+          setPtsEarned(pts);
+          setStatus('success');
+          onSuccess(pts);
+        } catch {
+          setStatus('error'); setErrMsg('Payment received but wallet credit failed. Contact support.');
+        }
+      },
+      modal: { ondismiss: () => setStatus('idle') },
+    });
+    rzp.open();
+  }, [amount, onSuccess]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
+        className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl">
+        {status === 'success' ? (
+          <div className="text-center py-4">
+            <div className="text-5xl mb-3">🎉</div>
+            <h3 className="text-lg font-black text-navy">Wallet Topped Up!</h3>
+            <p className="text-sm text-gray-500 mt-1">+{ptsEarned.toLocaleString('en-IN')} points credited</p>
+            <Button className="w-full mt-5" onClick={onClose}>Done</Button>
+          </div>
+        ) : (
+          <>
+            <h3 className="text-base font-black text-navy mb-1">Add Money to Wallet</h3>
+            <p className="text-xs text-gray-400 mb-4">10 points = ₹1. Top up and earn instantly.</p>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {TOPUP_AMOUNTS.map(a => (
+                <button key={a} onClick={() => setAmount(a)}
+                  className={`rounded-xl py-2 text-xs font-bold border transition-all ${amount === a ? 'bg-rose-600 text-white border-rose-600' : 'border-gray-200 text-navy hover:border-rose-300'}`}>
+                  ₹{a}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 mb-4">
+              <span className="text-navy font-bold text-lg">₹</span>
+              <input type="number" value={amount} onChange={e => { setAmount(e.target.value === '' ? '' : Number(e.target.value)); setErrMsg(''); }}
+                placeholder="Or enter amount" min={10} max={10000}
+                className="flex-1 bg-transparent py-3 text-sm outline-none placeholder-gray-300" />
+              {amount !== '' && (
+                <span className="text-xs text-rose-500 font-semibold whitespace-nowrap">+{Number(amount) * 10} pts</span>
+              )}
+            </div>
+            {errMsg && <p className="text-xs text-red-500 mb-3">{errMsg}</p>}
+            <div className="flex gap-2">
+              <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50">Cancel</button>
+              <Button onClick={handleTopup} disabled={status === 'loading' || status === 'verifying' || amount === ''}
+                className="flex-1">
+                {status === 'loading' ? 'Opening…' : status === 'verifying' ? 'Verifying…' : `Pay ₹${amount || 0}`}
+              </Button>
+            </div>
+          </>
+        )}
+      </motion.div>
+    </div>
+  );
+}
 
 const card = { hidden: { opacity: 0, y: 18, scale: 0.98 }, show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.38, ease: 'easeOut' as const } } };
 const page = { hidden: {}, show: { transition: { staggerChildren: 0.1 } } };
@@ -32,6 +154,7 @@ interface HistoryItem {
 function Inner() {
   const [referralInput, setReferralInput] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showTopup, setShowTopup] = useState(false);
   const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('ns_access');
   const qc = useQueryClient();
 
@@ -75,6 +198,18 @@ function Inner() {
 
   return (
     <motion.div className="max-w-2xl mx-auto space-y-5" variants={page} initial="hidden" animate="show">
+      <AnimatePresence>
+        {showTopup && (
+          <TopupModal
+            onClose={() => setShowTopup(false)}
+            onSuccess={() => {
+              qc.invalidateQueries({ queryKey: ['loyalty'] });
+              qc.invalidateQueries({ queryKey: ['loyalty-history'] });
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       <motion.h1 variants={card} className="text-xl font-black text-navy">Loyalty & Rewards</motion.h1>
 
       {/* Balance card */}
@@ -103,6 +238,10 @@ function Inner() {
               <p className="text-white font-bold text-lg">{balance.total_redeemed.toLocaleString()}</p>
             </div>
           </div>
+          <button onClick={() => setShowTopup(true)}
+            className="mt-4 w-full py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-all border border-white/20">
+            + Add Money to Wallet
+          </button>
         </motion.div>
       ) : null}
 
