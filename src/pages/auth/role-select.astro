@@ -161,7 +161,12 @@ import AuthLayout from '../../layouts/AuthLayout.astro';
         localStorage.setItem('ns_business_type', businessType);
       }
 
-      window.location.href = role === 'vendor' ? '/vendor/store-setup' : '/';
+      if (role === 'vendor') {
+        window.location.href = '/vendor/store-setup';
+      } else {
+        const onboardingDone = localStorage.getItem('ns_onboarding_done') === '1';
+        window.location.href = onboardingDone ? '/' : '/auth/welcome';
+      }
     } catch {
       pending = false;
       document.querySelectorAll('.role-card, .btype-card').forEach(b => (b as HTMLButtonElement).disabled = false);

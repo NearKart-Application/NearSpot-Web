@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
@@ -27,6 +27,28 @@ function Inner() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const csvRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ created: number; errors: { row: number; message: string }[] } | null>(null);
+
+  const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportResult(null);
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const r = await api.post('/products/vendor/import-csv/', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setImportResult(r.data);
+      qc.invalidateQueries({ queryKey: ['vendor-products'] });
+    } catch (err: any) {
+      setImportResult({ created: 0, errors: [{ row: 0, message: err?.response?.data?.message ?? 'Import failed.' }] });
+    } finally {
+      setImporting(false);
+      if (csvRef.current) csvRef.current.value = '';
+    }
+  };
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['vendor-products'],
@@ -87,8 +109,26 @@ function Inner() {
           <h1 className="text-xl font-bold text-navy">Products</h1>
           <p className="text-sm text-gray-400">{stats.total} total · {stats.active} active · {stats.outOfStock} out of stock</p>
         </div>
-        <a href="/vendor/products/new" className="btn-primary btn-sm px-4 py-2 text-sm">+ Add Product</a>
+        <div className="flex items-center gap-2">
+          <button onClick={() => csvRef.current?.click()} disabled={importing}
+            className="px-3 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:border-navy hover:text-navy transition-colors disabled:opacity-60">
+            {importing ? '⏳ Importing…' : '📂 Import CSV'}
+          </button>
+          <a href="/vendor/products/new" className="btn-primary btn-sm px-4 py-2 text-sm">+ Add Product</a>
+        </div>
+        <input ref={csvRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleCsvImport} />
       </div>
+      {importResult && (
+        <div className={`rounded-xl px-4 py-3 text-sm ${importResult.created > 0 ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+          {importResult.created > 0 && <p className="font-bold">{importResult.created} product{importResult.created !== 1 ? 's' : ''} imported as draft.</p>}
+          {importResult.errors.length > 0 && (
+            <ul className="text-xs mt-1 space-y-0.5">
+              {importResult.errors.slice(0, 5).map((e, i) => <li key={i}>Row {e.row}: {e.message}</li>)}
+              {importResult.errors.length > 5 && <li>…and {importResult.errors.length - 5} more errors.</li>}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* Stat pills */}
       <div className="grid grid-cols-4 gap-3">

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, useCallback } from 'react';
+import { QueryClientProvider, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
@@ -139,19 +139,26 @@ function Inner() {
     if (sale === '1') setOnSaleOnly(true);
   }, []);
 
-  const { data, isLoading } = useQuery({
+  const PAGE_SIZE = 20;
+
+  const {
+    data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ['all-products', coords, radius, category, onSaleOnly],
-    queryFn:  () => api.get('/products/nearby/', {
+    queryFn: ({ pageParam = 1 }) => api.get('/products/nearby/', {
       params: {
         lat: coords.lat, lng: coords.lng, radius,
         ...(category ? { category } : {}),
         ...(onSaleOnly ? { is_on_sale: true } : {}),
-        page_size: 100,
+        page: pageParam, page_size: PAGE_SIZE,
       },
     }).then(r => r.data),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, pages) =>
+      lastPage.next != null ? pages.length + 1 : undefined,
   });
 
-  const allProducts: Product[] = data?.results ?? (Array.isArray(data) ? data : []);
+  const allProducts: Product[] = (data?.pages ?? []).flatMap(p => p.results ?? (Array.isArray(p) ? p : []));
   const products = query.trim()
     ? allProducts.filter(p =>
         p.name.toLowerCase().includes(query.toLowerCase()) ||
@@ -234,6 +241,14 @@ function Inner() {
               </motion.div>
             ))}
           </motion.div>
+          {hasNextPage && !query.trim() && (
+            <div className="flex justify-center mt-8">
+              <button onClick={() => fetchNextPage()} disabled={isFetchingNextPage}
+                className="px-8 py-3 rounded-2xl bg-navy text-white text-sm font-bold hover:bg-navy/90 transition-colors disabled:opacity-60">
+                {isFetchingNextPage ? 'Loading…' : 'Load more'}
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -1,0 +1,94 @@
+---
+import AuthLayout from '../../layouts/AuthLayout.astro';
+---
+<AuthLayout title="Welcome to NearSpot">
+
+  <div id="slides-container">
+
+    <!-- Slide 1 -->
+    <div class="slide" data-slide="0">
+      <div class="w-16 h-16 bg-navy/10 rounded-2xl flex items-center justify-center text-4xl mx-auto mb-5">📍</div>
+      <h2 class="text-2xl font-black text-navy mb-2 text-center">Welcome to NearSpot!</h2>
+      <p class="text-gray-500 text-sm text-center leading-relaxed">
+        Discover everything your neighbourhood has to offer — stores, deals, and products near you.
+      </p>
+    </div>
+
+    <!-- Slide 2 -->
+    <div class="slide hidden" data-slide="1">
+      <div class="w-16 h-16 bg-gold/10 rounded-2xl flex items-center justify-center text-4xl mx-auto mb-5">🛍️</div>
+      <h2 class="text-2xl font-black text-navy mb-2 text-center">Shop Local, Save More</h2>
+      <p class="text-gray-500 text-sm text-center leading-relaxed">
+        Browse products from stores nearby, reserve items before you visit, and get exclusive local deals.
+      </p>
+    </div>
+
+    <!-- Slide 3 -->
+    <div class="slide hidden" data-slide="2">
+      <div class="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center text-4xl mx-auto mb-5">💬</div>
+      <h2 class="text-2xl font-black text-navy mb-2 text-center">Chat with Stores</h2>
+      <p class="text-gray-500 text-sm text-center leading-relaxed">
+        Ask questions, negotiate prices, and get personalised recommendations — directly from the vendor.
+      </p>
+    </div>
+
+    <!-- Slide 4 -->
+    <div class="slide hidden" data-slide="3">
+      <div class="w-16 h-16 bg-rose-100 rounded-2xl flex items-center justify-center text-4xl mx-auto mb-5">🎁</div>
+      <h2 class="text-2xl font-black text-navy mb-2 text-center">Earn Loyalty Points</h2>
+      <p class="text-gray-500 text-sm text-center leading-relaxed">
+        Every purchase earns points you can redeem at your favourite local stores. The more you shop, the more you save.
+      </p>
+    </div>
+
+  </div>
+
+  <!-- Dot indicators -->
+  <div class="flex justify-center gap-2 mt-8 mb-6">
+    {[0,1,2,3].map(i => (
+      <div class="dot w-2 h-2 rounded-full transition-all duration-300" data-dot={i}
+           style={i === 0 ? "background:#1C2E4A;width:20px" : "background:#e5e7eb"} />
+    ))}
+  </div>
+
+  <button id="next-btn" class="btn-primary w-full py-3.5 text-base">
+    Next
+  </button>
+
+  <button id="skip-btn" class="mt-4 w-full text-center text-sm text-gray-400 hover:text-navy transition-colors">
+    Skip
+  </button>
+
+</AuthLayout>
+
+<script>
+  const slides = document.querySelectorAll<HTMLDivElement>('.slide');
+  const dots   = document.querySelectorAll<HTMLDivElement>('.dot');
+  const nextBtn = document.getElementById('next-btn') as HTMLButtonElement;
+  const skipBtn = document.getElementById('skip-btn') as HTMLButtonElement;
+  let current = 0;
+
+  function goTo(idx: number) {
+    slides[current].classList.add('hidden');
+    dots[current].style.background = '#e5e7eb';
+    dots[current].style.width = '8px';
+    current = idx;
+    slides[current].classList.remove('hidden');
+    dots[current].style.background = '#1C2E4A';
+    dots[current].style.width = '20px';
+    nextBtn.textContent = current === slides.length - 1 ? 'Start Exploring →' : 'Next';
+  }
+
+  nextBtn.addEventListener('click', () => {
+    if (current < slides.length - 1) { goTo(current + 1); }
+    else { finish(); }
+  });
+
+  skipBtn.addEventListener('click', finish);
+
+  function finish() {
+    // Mark onboarding seen so we don't show again on next login
+    try { localStorage.setItem('ns_onboarding_done', '1'); } catch {}
+    window.location.href = '/';
+  }
+</script>

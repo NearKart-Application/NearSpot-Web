@@ -5,12 +5,14 @@ import api from '../../lib/api';
 import Img from '../ui/Img';
 import { Button } from '@/components/ui/button';
 
-interface SizeOption  { size: string; stock: number; variant_id?: string; }
+interface SizeOption    { size: string; stock: number; variant_id?: string; }
+interface ProductImage  { url: string; variant_id?: string | null; }
 interface ProductDetail {
   id: string; name: string; description?: string;
   category: string; subcategory?: string;
   price: number; sale_price?: number;
-  images: string[];
+  images: ProductImage[] | string[];
+  barcode?: string;
   store: { id: string; name: string; avatar?: string; rating: number; review_count: number; is_verified?: boolean; is_open?: boolean; open_status_label?: string; };
   distance_km?: number;
   sizes: SizeOption[]; colors: string[];
@@ -52,6 +54,12 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
   const [notifyDone, setNotifyDone] = useState(false);
   const [reserveError, setReserveError] = useState<string | null>(null);
   const [redeemPts, setRedeemPts]   = useState(false);
+  const [pickupTime, setPickupTime] = useState('');
+  const [cartAdded, setCartAdded]   = useState(false);
+  const [waitlistDone, setWaitlistDone] = useState(false);
+
+  // Reset image index when color changes so we show color-specific images from idx 0
+  useEffect(() => { setImgIdx(0); }, [selColor]);
 
   const { data: product, isLoading: prodLoading } = useQuery<ProductDetail>({
     queryKey: ['product', productId],
@@ -66,6 +74,21 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
     queryFn:  () => api.get(`/products/${productId}/reviews/`).then(r => r.data),
     enabled: !!product,
   });
+
+  const { data: qaData, refetch: refetchQA } = useQuery({
+    queryKey: ['product-qa', productId],
+    queryFn:  () => api.get(`/products/${productId}/qa/`).then(r => r.data),
+    enabled: !!product,
+  });
+
+  const { data: priceHistData } = useQuery({
+    queryKey: ['product-price-history', productId],
+    queryFn:  () => api.get(`/products/${productId}/price-history/`).then(r => r.data),
+    enabled: !!product,
+  });
+
+  const [qaQuestion, setQaQuestion] = useState('');
+  const [qaSubmitting, setQaSubmitting] = useState(false);
 
   const { data: loyalty } = useQuery({
     queryKey: ['loyalty-balance'],
@@ -98,8 +121,28 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
     </div>
   );
   const reviews: any[] = reviewsData?.results ?? (Array.isArray(reviewsData) ? reviewsData : []);
+  const qaEntries: any[] = qaData?.results ?? [];
+  const priceHistory: any[] = priceHistData?.history ?? [];
 
-  const imgs  = product.images?.length ? product.images : [''];
+  // Normalize images: backend returns [{url, variant_id}] or legacy string[]
+  const allImageObjs: ProductImage[] = (product.images ?? []).map(img =>
+    typeof img === 'string' ? { url: img, variant_id: null } : img
+  );
+
+  // Color → variant_id set mapping for image swap
+  const colorVariantIds: Set<string> = new Set(
+    selColor
+      ? product.sizes
+          .filter(s => s.size.includes('/') ? s.size.split('/')[1].trim() === selColor : false)
+          .map(s => s.variant_id ?? '')
+          .filter(Boolean)
+      : []
+  );
+  const filteredImgObjs = selColor && colorVariantIds.size > 0
+    ? allImageObjs.filter(img => img.variant_id && colorVariantIds.has(img.variant_id))
+    : allImageObjs;
+  const displayImgs = (filteredImgObjs.length ? filteredImgObjs : allImageObjs);
+  const imgs = displayImgs.length ? displayImgs.map(i => i.url) : [''];
   const orig  = parseFloat(String(product.price ?? '0'));
   const sale  = product.is_on_sale && product.sale_price != null ? parseFloat(String(product.sale_price)) : null;
   const finalPrice = sale ?? orig;
@@ -145,6 +188,7 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
         ...(selSizeObj?.variant_id ? { variant_id: selSizeObj.variant_id } : {}),
         ...(selColor ? { color: selColor } : {}),
         points_to_redeem: redeemPts ? loyaltyBalance : 0,
+        ...(pickupTime ? { pickup_time: new Date(pickupTime).toISOString() } : {}),
       });
       setReserved(res.data);
     } catch (err: any) {
@@ -157,6 +201,47 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
       await api.post(`/products/${productId}/watch/`);
       setNotifyDone(true);
     } catch { setNotifyDone(true); }
+  }
+
+  async function handleJoinWaitlist() {
+    const token = localStorage.getItem('ns_access');
+    if (!token) { window.location.href = '/auth/login'; return; }
+    try {
+      await api.post('/reservations/waitlist/', { product_id: productId });
+      setWaitlistDone(true);
+    } catch { setWaitlistDone(true); }
+  }
+
+  function addToCart() {
+    const token = localStorage.getItem('ns_access');
+    if (!token) { window.location.href = '/auth/login'; return; }
+    if (!product) return;
+    if (product.sizes.length > 0 && !selSize) {
+      setReserveError('Please select a size before adding to cart');
+      return;
+    }
+    const selSizeObj = selSize ? product.sizes.find(s => s.size === selSize) : null;
+    const cartRaw = localStorage.getItem('nk_cart') ?? '[]';
+    const cart: any[] = JSON.parse(cartRaw);
+    const item = {
+      product_id:  productId,
+      store_id:    product.store.id,
+      store_name:  product.store.name,
+      name:        product.name,
+      image:       imgs[0] ?? '',
+      quantity:    qty,
+      unit_price:  finalPrice,
+      size:        selSize ?? '',
+      variant_id:  selSizeObj?.variant_id ?? '',
+      hours:       holdHours,
+      pickup_time: pickupTime ? new Date(pickupTime).toISOString() : null,
+    };
+    const existing = cart.findIndex(c => c.product_id === productId && c.variant_id === item.variant_id);
+    if (existing >= 0) cart[existing] = item; else cart.push(item);
+    localStorage.setItem('nk_cart', JSON.stringify(cart));
+    setCartAdded(true);
+    setTimeout(() => setCartAdded(false), 2500);
+    window.dispatchEvent(new CustomEvent('nk-cart-updated'));
   }
 
   return (
@@ -222,7 +307,17 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
             {sale && <span className="text-sm font-bold text-green-600">Save ₹{(orig - sale).toLocaleString()}</span>}
           </div>
           {!inStock && (
-            <div className="mt-2 bg-red-50 text-red-600 text-sm font-bold px-3 py-1.5 rounded-lg">Out of Stock</div>
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              <div className="bg-red-50 text-red-600 text-sm font-bold px-3 py-1.5 rounded-lg">Out of Stock</div>
+              {!waitlistDone ? (
+                <button onClick={handleJoinWaitlist}
+                  className="text-xs font-bold text-navy border border-navy/30 bg-navy/5 px-3 py-1.5 rounded-lg hover:bg-navy/10 transition-colors">
+                  📋 Join Waitlist
+                </button>
+              ) : (
+                <span className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-lg">✓ On Waitlist</span>
+              )}
+            </div>
           )}
           {inStock && product.stock_count <= 5 && (
             <div className="mt-2 bg-amber-50 text-amber-700 text-sm font-semibold px-3 py-1.5 rounded-lg">⚠️ Only {product.stock_count} left!</div>
@@ -334,13 +429,24 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
                 Only {product.stock_count} left — reserve to secure yours before someone else does!
               </p>
             )}
-            <div className="flex gap-2">
+            <div className="flex gap-2 mb-3">
               {[1, 2, 3].map(h => (
                 <button key={h} onClick={() => setHoldHours(h)}
                   className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-all ${holdHours === h ? 'bg-navy text-white border-navy' : 'border-gray-200 text-gray-600 hover:border-navy bg-white'}`}>
                   {h}h
                 </button>
               ))}
+            </div>
+            {/* Pickup time preference */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Preferred pickup time (optional)</label>
+              <input
+                type="datetime-local"
+                value={pickupTime}
+                onChange={e => setPickupTime(e.target.value)}
+                min={new Date().toISOString().slice(0, 16)}
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-navy"
+              />
             </div>
           </div>
         )}
@@ -464,6 +570,76 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
             </div>
           </div>
         )}
+
+        {/* Q&A */}
+        <div>
+          <h3 className="text-sm font-bold text-navy mb-3">Questions & Answers</h3>
+          {qaEntries.length > 0 && (
+            <div className="space-y-3 mb-4">
+              {qaEntries.map((qa: any) => (
+                <div key={qa.id} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                  <p className="text-sm font-semibold text-navy">Q: {qa.question}</p>
+                  <p className="text-[10px] text-gray-400 mb-1">{qa.asker_name} · {new Date(qa.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+                  {qa.is_answered
+                    ? <p className="text-sm text-green-700 mt-1">A: {qa.answer}</p>
+                    : <p className="text-xs text-gray-400 italic mt-1">Awaiting answer from store</p>}
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <input value={qaQuestion} onChange={e => setQaQuestion(e.target.value)}
+              placeholder="Ask a question about this product…"
+              className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-navy/40 focus:ring-2 focus:ring-navy/10" />
+            <button disabled={qaSubmitting || !qaQuestion.trim()}
+              onClick={async () => {
+                const token = localStorage.getItem('ns_access');
+                if (!token) { window.location.href = '/auth/login'; return; }
+                setQaSubmitting(true);
+                try {
+                  await api.post(`/products/${productId}/qa/`, { question: qaQuestion.trim() });
+                  setQaQuestion('');
+                  refetchQA();
+                } finally { setQaSubmitting(false); }
+              }}
+              className="px-4 py-2 rounded-xl bg-navy text-white text-sm font-bold disabled:opacity-50 hover:bg-navy/90 transition-colors">
+              {qaSubmitting ? '…' : 'Ask'}
+            </button>
+          </div>
+        </div>
+
+        {/* Price History */}
+        {priceHistory.length > 0 && (
+          <div>
+            <h3 className="text-sm font-bold text-navy mb-3">Price History</h3>
+            <div className="overflow-hidden rounded-xl border border-gray-100">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left px-3 py-2 text-gray-500 font-semibold">Date</th>
+                    <th className="text-right px-3 py-2 text-gray-500 font-semibold">Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {priceHistory.slice(0, 8).map((h: any) => (
+                    <tr key={h.id} className="border-t border-gray-100">
+                      <td className="px-3 py-2 text-gray-600">{new Date(h.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-navy">₹{parseFloat(h.price).toLocaleString('en-IN')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Barcode */}
+        {(product as any).barcode && (
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <span className="font-semibold text-gray-500">Barcode/EAN:</span>
+            <code className="bg-gray-100 px-2 py-0.5 rounded font-mono">{(product as any).barcode}</code>
+          </div>
+        )}
       </div>
 
       {/* Sticky CTA */}
@@ -481,10 +657,18 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
             )}
           </div>
         ) : inStock ? (
-          <button onClick={handleReserve} disabled={reserving || !!reserved}
-            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors disabled:opacity-60 ${reserved ? 'bg-green-600 text-white' : product.stock_count <= 5 && !reserved ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-navy text-white hover:bg-navy/90'}`}>
-            {reserving ? 'Reserving…' : reserved ? '✓ Reserved' : product.stock_count <= 5 ? `Reserve Now · ₹${(finalPrice * qty).toLocaleString()}` : `Reserve · ₹${(finalPrice * qty).toLocaleString()}`}
-          </button>
+          <>
+            {/* Add to Cart */}
+            <button onClick={addToCart}
+              className={`w-12 h-12 shrink-0 flex items-center justify-center rounded-xl border transition-colors ${cartAdded ? 'border-green-400 bg-green-50 text-green-600' : 'border-gray-200 hover:border-navy hover:text-navy'}`}
+              title="Add to cart">
+              {cartAdded ? '✓' : '🛒'}
+            </button>
+            <button onClick={handleReserve} disabled={reserving || !!reserved}
+              className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors disabled:opacity-60 ${reserved ? 'bg-green-600 text-white' : product.stock_count <= 5 && !reserved ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-navy text-white hover:bg-navy/90'}`}>
+              {reserving ? 'Reserving…' : reserved ? '✓ Reserved' : product.stock_count <= 5 ? `Reserve Now · ₹${(finalPrice * qty).toLocaleString()}` : `Reserve · ₹${(finalPrice * qty).toLocaleString()}`}
+            </button>
+          </>
         ) : notifyDone ? (
           <div className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm text-center">
             ✓ We'll notify you!

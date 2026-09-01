@@ -15,7 +15,43 @@ try {
 
 // Don't redirect — let the client-side island handle 404s gracefully
 const title = store?.name ?? 'Store';
+
+// JSON-LD LocalBusiness structured data for SEO
+const jsonLd = store ? JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'LocalBusiness',
+  'name': store.name,
+  'description': store.description ?? '',
+  'image': store.cover_image ?? store.avatar ?? '',
+  'telephone': store.phone ?? '',
+  'address': {
+    '@type': 'PostalAddress',
+    'streetAddress': store.address ?? '',
+    'addressLocality': store.location ?? '',
+    'addressCountry': 'IN',
+  },
+  ...(store.lat && store.lng ? {
+    'geo': { '@type': 'GeoCoordinates', 'latitude': store.lat, 'longitude': store.lng },
+  } : {}),
+  ...(store.rating ? {
+    'aggregateRating': {
+      '@type': 'AggregateRating',
+      'ratingValue': store.rating,
+      'reviewCount': store.review_count ?? 0,
+    },
+  } : {}),
+  'openingHoursSpecification': (store.weekly_hours ?? [])
+    .filter((h: any) => !h.is_closed)
+    .map((h: any) => ({
+      '@type': 'OpeningHoursSpecification',
+      'dayOfWeek': ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][h.day],
+      'opens': h.open_time,
+      'closes': h.close_time,
+    })),
+  'url': `${Astro.url.origin}/stores/${id}`,
+}) : null;
 ---
 <AppLayout title={title} fullWidth noFooter>
+  {jsonLd && <script type="application/ld+json" set:html={jsonLd} slot="head" />}
   <StoreDetailIsland client:load storeId={id!} initialStore={store} />
 </AppLayout>
