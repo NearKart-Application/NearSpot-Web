@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
@@ -13,6 +13,93 @@ interface VendorStore {
   is_open: boolean; holiday_mode: boolean; privacy_mode: boolean;
   store_type?: string;
   logo_url?: string; banner_url?: string; lat?: number; lng?: number;
+}
+interface StorePhoto { id: string; image_url: string; caption: string; order: number; }
+
+function PhotoGallerySection({ storeId }: { storeId: string }) {
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+
+  const { data: photos = [], refetch } = useQuery<StorePhoto[]>({
+    queryKey: ['store-photos', storeId],
+    queryFn: () => api.get(`/stores/${storeId}/photos/`).then(r => Array.isArray(r.data) ? r.data : r.data.results ?? []),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (photoId: string) => api.delete(`/stores/${storeId}/photos/${photoId}/`),
+    onSuccess: () => refetch(),
+  });
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || !files.length) return;
+    if (photos.length + files.length > 10) {
+      setUploadError(`Max 10 gallery photos. You have ${photos.length}.`);
+      return;
+    }
+    setUploading(true);
+    setUploadError('');
+    const fd = new FormData();
+    Array.from(files).forEach(f => fd.append('images', f));
+    try {
+      await api.post(`/stores/${storeId}/photos/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await refetch();
+    } catch (err: any) {
+      setUploadError(err?.response?.data?.message ?? 'Upload failed. Try again.');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  return (
+    <div className="card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="font-bold text-navy">Photo Gallery</h2>
+          <p className="text-xs text-gray-400">{photos.length}/10 photos — shown on your store page</p>
+        </div>
+        <button onClick={() => fileRef.current?.click()}
+          disabled={uploading || photos.length >= 10}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-navy text-white text-xs font-bold hover:bg-navy/90 transition-colors disabled:opacity-50">
+          {uploading ? 'Uploading…' : '+ Add Photos'}
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleUpload} />
+      </div>
+
+      {uploadError && <p className="text-xs text-red-500 mb-3">{uploadError}</p>}
+
+      {photos.length === 0 ? (
+        <div className="border-2 border-dashed border-gray-200 rounded-xl py-10 text-center text-gray-400 cursor-pointer hover:border-navy/30 hover:bg-navy/3 transition-all"
+          onClick={() => fileRef.current?.click()}>
+          <div className="text-3xl mb-2">🖼️</div>
+          <p className="text-sm font-semibold text-gray-500">No gallery photos yet</p>
+          <p className="text-xs mt-1">Click to upload photos of your store</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+          {photos.map(p => (
+            <div key={p.id} className="relative group aspect-square rounded-xl overflow-hidden border border-gray-100">
+              <img src={p.image_url} alt={p.caption || 'Gallery'} className="w-full h-full object-cover" />
+              <button onClick={() => { if (confirm('Remove this photo?')) deleteMut.mutate(p.id); }}
+                className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                ✕
+              </button>
+            </div>
+          ))}
+          {photos.length < 10 && (
+            <button onClick={() => fileRef.current?.click()}
+              className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 hover:border-navy hover:text-navy transition-colors text-xs gap-1">
+              <span className="text-xl leading-none">+</span>
+              Add
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function useLocationOptions(field: 'state' | 'district' | 'city', state = '', district = '') {
@@ -173,6 +260,9 @@ function Inner() {
           </div>
         </div>
       )}
+
+      {/* Photo Gallery */}
+      {store?.id && <PhotoGallerySection storeId={store.id} />}
 
       {/* Basic info */}
       <div className="card p-6 space-y-4">

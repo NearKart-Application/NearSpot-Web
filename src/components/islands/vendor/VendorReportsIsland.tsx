@@ -56,7 +56,7 @@ interface PagedResponse<T> { results: T[]; next: string | null; count: number; }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const TABS = ['Activity', 'Returns', 'Invoices', 'Purchases', 'Audits'] as const;
+const TABS = ['Activity', 'Returns', 'Invoices', 'Purchases', 'Audits', 'Earnings'] as const;
 type Tab = typeof TABS[number];
 
 const ACTIVITY_REASONS: { value: string; label: string }[] = [
@@ -484,6 +484,81 @@ function AuditsTab() {
   );
 }
 
+// ── Earnings Tab ──────────────────────────────────────────────────────────────
+
+function EarningsTab() {
+  const today = new Date();
+  const [month, setMonth] = useState(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`);
+  const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('access_token') ?? '';
+      const baseUrl = (api.defaults.baseURL ?? '').replace(/\/$/, '');
+      const resp = await fetch(`${baseUrl}/stores/mine/earnings/pdf/?month=${month}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) {
+        const text = await resp.text();
+        setError(text || `HTTP ${resp.status}`);
+        return;
+      }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `earnings-${month}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setError(e?.message ?? 'Download failed');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <div className="card p-6 space-y-5">
+      <div>
+        <h2 className="font-bold text-navy text-lg">Monthly Earnings Report</h2>
+        <p className="text-sm text-gray-400 mt-0.5">Download a PDF summary of all invoices for any month</p>
+      </div>
+
+      <div className="flex items-end gap-3">
+        <div>
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Select Month</label>
+          <input
+            type="month"
+            value={month}
+            onChange={e => setMonth(e.target.value)}
+            max={`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`}
+            className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40 focus:ring-2 focus:ring-navy/10"
+          />
+        </div>
+        <button
+          onClick={handleDownload}
+          disabled={downloading || !month}
+          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-navy text-white text-sm font-bold hover:bg-navy/90 transition-colors disabled:opacity-50"
+        >
+          {downloading ? '⏳ Generating…' : '↓ Download PDF'}
+        </button>
+      </div>
+
+      {error && (
+        <p className="text-sm text-red-500 bg-red-50 rounded-xl px-4 py-3">{error}</p>
+      )}
+
+      <div className="bg-gray-50 rounded-xl p-4 text-xs text-gray-500 space-y-1">
+        <p>📄 The PDF includes all invoices issued that month, itemised totals, and net revenue.</p>
+        <p>📦 Reports are generated in real-time from your invoice data.</p>
+      </div>
+    </div>
+  );
+}
+
 // ── Main inner component ──────────────────────────────────────────────────────
 
 function Inner() {
@@ -520,6 +595,7 @@ function Inner() {
       {activeTab === 'Invoices'  && <InvoicesTab />}
       {activeTab === 'Purchases' && <PurchasesTab />}
       {activeTab === 'Audits'    && <AuditsTab />}
+      {activeTab === 'Earnings'  && <EarningsTab />}
     </div>
   );
 }
