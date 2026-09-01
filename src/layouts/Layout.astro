@@ -31,6 +31,12 @@ const pageTitle = title === 'NearSpot' ? 'NearSpot' : `${title} | NearSpot`;
   <body>
     <slot />
     <script>
+      // Register PWA service worker
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      }
+    </script>
+    <script>
       // Cross-tab session sync: when ns_user changes in another tab, react immediately.
       // The 'storage' event only fires in tabs that did NOT make the change — that's exactly what we need.
       window.addEventListener('storage', (e: StorageEvent) => {

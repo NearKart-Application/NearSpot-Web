@@ -7,6 +7,82 @@ import api from '../../lib/api';
 // Session-level mute state: persists across video cards, resets on page reload
 let globalMuted = true;
 
+interface VideoComment {
+  id: number;
+  user: { id: string; full_name?: string; phone_number?: string };
+  content: string;
+  is_deleted: boolean;
+  created_at: string;
+}
+
+function VideoCommentsDrawer({ videoId, onClose }: { videoId: string; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [text, setText] = useState('');
+  const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('ns_access');
+  const userId: string = (() => { try { return String(JSON.parse(localStorage.getItem('ns_user') ?? '{}').id ?? ''); } catch { return ''; } })();
+
+  const commentsQ = useQuery<{ results: VideoComment[] }>({
+    queryKey: ['video-comments', videoId],
+    queryFn: () => api.get(`/videos/${videoId}/comments/`).then(r => r.data),
+  });
+  const comments = commentsQ.data?.results ?? (Array.isArray(commentsQ.data) ? commentsQ.data as VideoComment[] : []);
+
+  const postMut = useMutation({
+    mutationFn: (content: string) => api.post(`/videos/${videoId}/comments/`, { content }).then(r => r.data),
+    onSuccess: () => { setText(''); qc.invalidateQueries({ queryKey: ['video-comments', videoId] }); },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: number) => api.delete(`/videos/${videoId}/comments/${id}/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['video-comments', videoId] }),
+  });
+
+  return (
+    <div className="absolute inset-0 z-30 flex flex-col justify-end" onClick={onClose}>
+      <div className="bg-white rounded-t-3xl max-h-[70%] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100 shrink-0">
+          <p className="font-bold text-navy text-sm">Comments</p>
+          <button onClick={onClose} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-sm">✕</button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
+          {commentsQ.isLoading ? (
+            <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-8 bg-gray-100 rounded-xl animate-pulse" />)}</div>
+          ) : comments.length === 0 ? (
+            <p className="text-center text-gray-400 text-sm py-8">No comments yet. Be the first!</p>
+          ) : comments.filter(c => !c.is_deleted).map(c => (
+            <div key={c.id} className="flex gap-2">
+              <div className="w-7 h-7 rounded-full bg-navy/10 flex items-center justify-center text-xs font-bold text-navy shrink-0 mt-0.5">
+                {(c.user.full_name ?? c.user.phone_number ?? '?').slice(0, 2).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-semibold text-gray-600">{c.user.full_name ?? c.user.phone_number}</p>
+                <p className="text-sm text-gray-800">{c.content}</p>
+              </div>
+              {String(c.user.id) === userId && (
+                <button onClick={() => deleteMut.mutate(c.id)}
+                  className="text-gray-300 hover:text-red-400 transition-colors shrink-0 self-start mt-1 text-xs">✕</button>
+              )}
+            </div>
+          ))}
+        </div>
+        {isLoggedIn && (
+          <div className="px-4 py-3 border-t border-gray-100 flex gap-2 items-center shrink-0">
+            <input value={text} onChange={e => setText(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && text.trim()) { e.preventDefault(); postMut.mutate(text.trim()); }}}
+              placeholder="Add a comment…"
+              className="flex-1 bg-gray-100 rounded-xl px-4 py-2.5 text-sm outline-none" />
+            <button onClick={() => text.trim() && postMut.mutate(text.trim())}
+              disabled={!text.trim() || postMut.isPending}
+              className="w-10 h-10 bg-navy text-white rounded-xl flex items-center justify-center disabled:opacity-40 hover:bg-navy/90 transition-colors">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 interface Video {
   id: string;
   store_id?: string;
@@ -54,6 +130,7 @@ function VideoCard({ video }: { video: Video }) {
   const [likes, setLikes] = useState(video.like_count ?? 0);
   const [saved, setSaved] = useState(video.is_saved ?? false);
   const [muted, setMuted] = useState(globalMuted);
+  const [showComments, setShowComments] = useState(false);
   const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('ns_access');
 
   const src       = video.video_url ?? video.hls_url;
@@ -252,7 +329,19 @@ function VideoCard({ video }: { video: Video }) {
           </div>
           <span className="text-white text-xs font-bold">{fmtCount(video.view_count)}</span>
         </div>
+
+        {/* Comments */}
+        <button onClick={() => setShowComments(true)} className="flex flex-col items-center gap-1">
+          <div className="w-11 h-11 rounded-full bg-black/30 flex items-center justify-center">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+            </svg>
+          </div>
+          <span className="text-white text-xs font-bold">Comments</span>
+        </button>
       </div>
+
+      {showComments && <VideoCommentsDrawer videoId={video.id} onClose={() => setShowComments(false)} />}
 
       {/* Bottom info */}
       <div className="absolute bottom-8 left-4 right-16">

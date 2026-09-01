@@ -30,6 +30,8 @@ interface Group {
   members_count?: number;
   created_at: string;
   is_active: boolean;
+  avatar_url?: string;
+  invite_token?: string | null;
 }
 
 interface Message {
@@ -206,6 +208,22 @@ function GroupThread({ group, userId, onBack }: {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['group-detail', group.id] }),
   });
 
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
+
+  const getInviteMut = useMutation({
+    mutationFn: () => api.get(`/groups/${group.id}/invite/`).then(r => r.data),
+    onSuccess: (data) => {
+      const link = `${window.location.origin}/groups/join/${data.invite_token}`;
+      setInviteLink(link);
+    },
+  });
+
+  const revokeInviteMut = useMutation({
+    mutationFn: () => api.delete(`/groups/${group.id}/invite/`),
+    onSuccess: () => { setInviteLink(null); qc.invalidateQueries({ queryKey: ['group-detail', group.id] }); },
+  });
+
   const productsQ = useQuery<SharedProduct[]>({
     queryKey: ['group-products', group.id],
     queryFn: () => api.get(`/groups/${group.id}/products/`).then(r => Array.isArray(r.data) ? r.data : (r.data?.results ?? [])),
@@ -247,8 +265,11 @@ function GroupThread({ group, userId, onBack }: {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
           </svg>
         </button>
-        <div className="w-10 h-10 rounded-2xl bg-navy flex items-center justify-center text-white font-black text-sm shrink-0">
-          {initials(group.name)}
+        <div className="w-10 h-10 rounded-2xl bg-navy flex items-center justify-center text-white font-black text-sm shrink-0 overflow-hidden">
+          {detail.avatar_url
+            ? <img src={detail.avatar_url} alt={group.name} className="w-full h-full object-cover" />
+            : initials(group.name)
+          }
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-navy truncate">{group.name}</p>
@@ -386,6 +407,30 @@ function GroupThread({ group, userId, onBack }: {
       {/* Members tab (admin only) */}
       {tab === 'members' && (
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-gray-50">
+          {/* Invite link */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+            <p className="text-xs font-bold text-navy mb-3">Invite Link</p>
+            {inviteLink ? (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input readOnly value={inviteLink}
+                    className="flex-1 bg-gray-100 rounded-xl px-3 py-2 text-xs outline-none font-mono truncate" />
+                  <button onClick={() => { navigator.clipboard.writeText(inviteLink); setInviteCopied(true); setTimeout(() => setInviteCopied(false), 1500); }}
+                    className="px-3 py-2 bg-navy text-white text-xs font-bold rounded-xl hover:bg-navy/90 transition-colors shrink-0">
+                    {inviteCopied ? '✓' : 'Copy'}
+                  </button>
+                </div>
+                <button onClick={() => revokeInviteMut.mutate()} disabled={revokeInviteMut.isPending}
+                  className="text-xs text-red-500 hover:underline disabled:opacity-50">Revoke link</button>
+              </div>
+            ) : (
+              <button onClick={() => getInviteMut.mutate()} disabled={getInviteMut.isPending}
+                className="w-full py-2.5 border border-gray-200 rounded-xl text-xs font-bold text-navy hover:bg-gray-50 transition-colors disabled:opacity-50">
+                {getInviteMut.isPending ? 'Generating…' : 'Generate Invite Link'}
+              </button>
+            )}
+          </div>
+
           {/* Add member */}
           <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
             <p className="text-xs font-bold text-navy mb-3">Add Member by Profile ID</p>
@@ -552,8 +597,11 @@ function Inner() {
             return (
               <button key={g.id} onClick={() => setSelected(g)}
                 className="w-full bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4 flex items-center gap-4 hover:border-navy hover:shadow-md transition-all text-left">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-navy to-navy/60 flex items-center justify-center text-white font-black text-sm shrink-0">
-                  {initials(g.name)}
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-navy to-navy/60 flex items-center justify-center text-white font-black text-sm shrink-0 overflow-hidden">
+                  {g.avatar_url
+                    ? <img src={g.avatar_url} alt={g.name} className="w-full h-full object-cover" />
+                    : initials(g.name)
+                  }
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">

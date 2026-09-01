@@ -19,6 +19,12 @@ interface Conversation {
   is_active?: boolean;
 }
 
+interface MessageReaction {
+  emoji: string;
+  count: number;
+  reacted_by_me: boolean;
+}
+
 interface Message {
   id: string;
   sender_role: 'customer' | 'vendor';
@@ -28,7 +34,11 @@ interface Message {
   ref_id?: string | null;
   created_at: string;
   is_read?: boolean;
+  is_deleted?: boolean;
+  reactions?: MessageReaction[];
 }
+
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
 
 function timeAgo(dateStr?: string) {
   if (!dateStr) return '';
@@ -173,10 +183,32 @@ function ChatThread({ conv, onBack }: { conv: Conversation; onBack: () => void }
   const sendMut = useMutation({
     mutationFn: (payload: { content: string; message_type?: string; media_url?: string }) =>
       api.post(`/conversations/${conv.id}/messages/`, payload).then(r => r.data as Message),
-    onSuccess: (msg) => {
-      injectMessage(msg);
+    onSuccess: (msg) => { injectMessage(msg); },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (msgId: string) =>
+      api.delete(`/conversations/${conv.id}/messages/${msgId}/`),
+    onSuccess: (_, msgId) => {
+      qc.setQueryData(['messages', conv.id], (old: any) => {
+        const list: Message[] = Array.isArray(old) ? old : (old?.results ?? []);
+        return list.map(m => m.id === msgId ? { ...m, is_deleted: true, content: '' } : m);
+      });
     },
   });
+
+  const reactMut = useMutation({
+    mutationFn: ({ msgId, emoji }: { msgId: string; emoji: string }) =>
+      api.post(`/conversations/${conv.id}/messages/${msgId}/react/`, { emoji }).then(r => r.data),
+    onSuccess: (data, { msgId }) => {
+      qc.setQueryData(['messages', conv.id], (old: any) => {
+        const list: Message[] = Array.isArray(old) ? old : (old?.results ?? []);
+        return list.map(m => m.id === msgId ? { ...m, reactions: data.reactions } : m);
+      });
+    },
+  });
+
+  const [reactionPickerFor, setReactionPickerFor] = useState<string | null>(null);
 
   const sendText = () => {
     const t = text.trim();
@@ -289,45 +321,98 @@ function ChatThread({ conv, onBack }: { conv: Conversation; onBack: () => void }
         )}
         {msgs.map(msg => {
           const isMe = msg.sender_role === 'customer';
+          const isDeleted = !!msg.is_deleted;
           return (
-            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}>
               {!isMe && (
                 <div className="w-7 h-7 rounded-full bg-navy flex items-center justify-center text-white text-[10px] font-bold mr-1.5 mt-auto shrink-0">
                   {conv.store_name.slice(0, 1).toUpperCase()}
                 </div>
               )}
-              <div className={`max-w-[75%] rounded-2xl overflow-hidden ${
-                isMe
-                  ? 'bg-navy text-white rounded-br-md'
-                  : 'bg-white text-navy border border-gray-100 rounded-bl-md shadow-sm'
-              }`}>
-                {msg.message_type === 'image' && msg.media_url ? (
-                  <a href={msg.media_url} target="_blank" rel="noopener noreferrer">
-                    <img
-                      src={msg.media_url}
-                      alt="Chat image"
-                      className="max-w-[240px] max-h-[320px] object-cover block"
-                      loading="lazy"
-                    />
-                  </a>
-                ) : (
-                  <div className="px-4 py-2.5">
-                    <p className="text-sm">{msg.content}</p>
+              <div className="max-w-[75%] flex flex-col">
+                <div className={`relative rounded-2xl overflow-visible ${
+                  isMe
+                    ? 'bg-navy text-white rounded-br-md'
+                    : 'bg-white text-navy border border-gray-100 rounded-bl-md shadow-sm'
+                }`}>
+                  {/* Reaction picker trigger */}
+                  {!isDeleted && !msg.id.startsWith('tmp_') && (
+                    <button
+                      onClick={() => setReactionPickerFor(p => p === msg.id ? null : msg.id)}
+                      className={`absolute -top-3 ${isMe ? 'left-0' : 'right-0'} opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-xs z-10`}
+                      title="React">
+                      😊
+                    </button>
+                  )}
+                  {/* Delete button on own messages */}
+                  {isMe && !isDeleted && !msg.id.startsWith('tmp_') && (
+                    <button
+                      onClick={() => { if (confirm('Delete this message?')) deleteMut.mutate(msg.id); }}
+                      className="absolute -top-3 right-7 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full bg-red-100 border border-red-200 flex items-center justify-center z-10"
+                      title="Delete">
+                      <svg className="w-3 h-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                      </svg>
+                    </button>
+                  )}
+                  {/* Reaction emoji picker */}
+                  {reactionPickerFor === msg.id && (
+                    <div className={`absolute -top-10 ${isMe ? 'right-0' : 'left-0'} flex gap-1 bg-white border border-gray-200 rounded-full px-2 py-1 shadow-lg z-20`}>
+                      {REACTION_EMOJIS.map(emoji => (
+                        <button key={emoji} onClick={() => { reactMut.mutate({ msgId: msg.id, emoji }); setReactionPickerFor(null); }}
+                          className="text-lg hover:scale-125 transition-transform">{emoji}</button>
+                      ))}
+                    </div>
+                  )}
+                  {isDeleted ? (
+                    <div className="px-4 py-2.5">
+                      <p className="text-sm italic opacity-50">This message was deleted</p>
+                    </div>
+                  ) : msg.message_type === 'image' && msg.media_url ? (
+                    <a href={msg.media_url} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={msg.media_url}
+                        alt="Chat image"
+                        className="max-w-[240px] max-h-[320px] object-cover block"
+                        loading="lazy"
+                      />
+                    </a>
+                  ) : (
+                    <div className="px-4 py-2.5">
+                      <p className="text-sm">{msg.content}</p>
+                    </div>
+                  )}
+                  <div className={`px-4 pb-2 pt-0 flex items-center gap-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    <span className={`text-[10px] ${isMe ? 'text-white/60' : 'text-gray-400'}`}>
+                      {msg.id.startsWith('tmp_')
+                        ? 'Sending…'
+                        : new Date(msg.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+                      }
+                    </span>
+                    {isMe && !msg.id.startsWith('tmp_') && !isDeleted && (
+                      <span className={`text-[10px] ${msg.is_read ? 'text-sky-300' : 'text-white/40'}`}>
+                        {msg.is_read ? '✓✓' : '✓'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {/* Reactions display */}
+                {(msg.reactions?.length ?? 0) > 0 && (
+                  <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    {msg.reactions!.map(r => (
+                      <button key={r.emoji}
+                        onClick={() => reactMut.mutate({ msgId: msg.id, emoji: r.emoji })}
+                        className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors ${
+                          r.reacted_by_me
+                            ? 'bg-navy/10 border-navy/30 text-navy'
+                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}>
+                        <span>{r.emoji}</span>
+                        <span className="font-semibold">{r.count}</span>
+                      </button>
+                    ))}
                   </div>
                 )}
-                <div className={`px-4 pb-2 pt-0 flex items-center gap-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                  <span className={`text-[10px] ${isMe ? 'text-white/60' : 'text-gray-400'}`}>
-                    {msg.id.startsWith('tmp_')
-                      ? 'Sending…'
-                      : new Date(msg.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-                    }
-                  </span>
-                  {isMe && !msg.id.startsWith('tmp_') && (
-                    <span className={`text-[10px] ${msg.is_read ? 'text-sky-300' : 'text-white/40'}`}>
-                      {msg.is_read ? '✓✓' : '✓'}
-                    </span>
-                  )}
-                </div>
               </div>
             </div>
           );
