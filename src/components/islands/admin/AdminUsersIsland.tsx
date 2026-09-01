@@ -215,10 +215,11 @@ function Inner() {
   const [pageSize,        setPageSize]        = useState<20 | 50 | 100>(20);
   const [suspendTarget,   setSuspendTarget]   = useState<AdminUser | null>(null);
   const [loyaltyTarget,   setLoyaltyTarget]   = useState<AdminUser | null>(null);
+  const [selectedIds,     setSelectedIds]     = useState<Set<string>>(new Set());
 
   const dSearch = useDebounce(search, 400);
 
-  useEffect(() => { setPage(1); }, [dSearch, roleFilter, activeFilter, suspendedFilter, pageSize]);
+  useEffect(() => { setPage(1); setSelectedIds(new Set()); }, [dSearch, roleFilter, activeFilter, suspendedFilter, pageSize]);
 
   const { data, isLoading, error, refetch } = useQuery<{ count: number; results: AdminUser[] }>({
     queryKey: ['admin-users', dSearch, roleFilter, activeFilter, suspendedFilter, page, pageSize],
@@ -247,6 +248,15 @@ function Inner() {
       api.post(`/admin-panel/users/${id}/suspend/`, payload).then((r) => r.data),
     onSuccess: () => {
       setSuspendTarget(null);
+      qc.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+  });
+
+  const bulkMut = useMutation({
+    mutationFn: (payload: { action: string; ids: string[] }) =>
+      api.post('/admin-panel/users/bulk/', payload).then((r) => r.data),
+    onSuccess: () => {
+      setSelectedIds(new Set());
       qc.invalidateQueries({ queryKey: ['admin-users'] });
     },
   });
@@ -344,12 +354,52 @@ function Inner() {
         </div>
       </div>
 
+      {/* ── Bulk action bar ── */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-navy/5 border border-navy/20">
+          <span className="text-xs font-semibold text-navy">{selectedIds.size} selected</span>
+          <div className="flex gap-2 ml-auto">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => bulkMut.mutate({ action: 'activate', ids: [...selectedIds] })}
+              disabled={bulkMut.isPending}
+            >
+              Activate
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => bulkMut.mutate({ action: 'deactivate', ids: [...selectedIds] })}
+              disabled={bulkMut.isPending}
+            >
+              Deactivate
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+              Clear
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* ── User list ── */}
       <div className={`space-y-2 transition-opacity ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
         {isLoading && users.length === 0
           ? [...Array(8)].map((_, i) => <div key={i} className="h-20 bg-gray-200 rounded-2xl animate-pulse" />)
           : users.map((user) => (
             <div key={user.id} className="card p-4 flex items-center justify-between gap-4 flex-wrap">
+              <input
+                type="checkbox"
+                className="w-4 h-4 shrink-0 accent-navy cursor-pointer"
+                checked={selectedIds.has(user.id)}
+                onChange={(e) => {
+                  setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    e.target.checked ? next.add(user.id) : next.delete(user.id);
+                    return next;
+                  });
+                }}
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold text-sm text-gray-900">

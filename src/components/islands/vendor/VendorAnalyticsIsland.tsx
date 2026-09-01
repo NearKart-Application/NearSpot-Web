@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
@@ -11,15 +12,26 @@ interface DashData {
   subscription?: { plan: string; days_left: number };
   current_plan?: { display_name: string };
 }
-
 interface ProductStat {
   id: string; name: string; primary_image?: string;
   view_count: number; reservation_count: number; wishlist_count: number;
 }
-
 interface VideoStat {
   id: string; title: string; thumbnail?: string;
   view_count: number; like_count: number; status: string;
+}
+interface SnapshotRow {
+  date: string; reservation_count: number; completed_count: number;
+  revenue: string; follower_count: number; new_customer_count: number;
+}
+interface RevenueData {
+  period_days: number; total_revenue: string; total_orders: number;
+  avg_order_value: string;
+  top_products: { name: string; revenue: string; count: number }[];
+}
+interface CustomerStats {
+  total_customers: number; new_customers: number; returning_customers: number;
+  customers_this_month: number; total_completed: number;
 }
 
 function StatCard({ icon, label, value, sub, color = 'bg-navy/8' }: {
@@ -39,20 +51,50 @@ function StatCard({ icon, label, value, sub, color = 'bg-navy/8' }: {
   );
 }
 
+function MiniSparkline({ data, field, color }: { data: SnapshotRow[]; field: keyof SnapshotRow; color: string }) {
+  if (!data.length) return <div className="h-12 flex items-center justify-center text-xs text-gray-300">No data yet</div>;
+  const values = data.map(d => Number(d[field]));
+  const max = Math.max(...values, 1);
+  return (
+    <div className="flex items-end gap-0.5 h-12">
+      {values.map((v, i) => (
+        <div
+          key={i}
+          className={`flex-1 rounded-t-sm ${color}`}
+          style={{ height: `${Math.max(4, (v / max) * 100)}%` }}
+          title={`${data[i].date}: ${v}`}
+        />
+      ))}
+    </div>
+  );
+}
+
 function Inner() {
+  const [period, setPeriod] = useState(30);
+
   const { data: dash, isLoading, isError, error, refetch } = useQuery<DashData>({
     queryKey: ['vendor-analytics'],
     queryFn: () => api.get('/analytics/vendor/').then(r => r.data),
   });
-
   const { data: productStats } = useQuery<ProductStat[]>({
     queryKey: ['vendor-product-stats'],
     queryFn: () => api.get('/analytics/vendor/products/').then(r => r.data?.results ?? r.data ?? []),
   });
-
   const { data: videoStats } = useQuery<VideoStat[]>({
     queryKey: ['vendor-video-stats'],
     queryFn: () => api.get('/analytics/vendor/videos/').then(r => r.data?.results ?? r.data ?? []),
+  });
+  const { data: tsData } = useQuery<{ data: SnapshotRow[] }>({
+    queryKey: ['vendor-timeseries', period],
+    queryFn: () => api.get(`/analytics/vendor/timeseries/?days=${period}`).then(r => r.data),
+  });
+  const { data: revenueData } = useQuery<RevenueData>({
+    queryKey: ['vendor-revenue', period],
+    queryFn: () => api.get(`/analytics/vendor/revenue/?period=${period}`).then(r => r.data),
+  });
+  const { data: customerStats } = useQuery<CustomerStats>({
+    queryKey: ['vendor-customer-stats'],
+    queryFn: () => api.get('/analytics/vendor/customers/').then(r => r.data),
   });
 
   if (isLoading) return (
@@ -63,17 +105,42 @@ function Inner() {
       </div>
     </div>
   );
-
   if (isError) return <IslandError error={error} refetch={refetch} />;
 
+  const snapshots: SnapshotRow[] = tsData?.data ?? [];
   const topProducts: ProductStat[] = (productStats ?? []).slice(0, 5);
-  const topVideos: VideoStat[] = (videoStats ?? []).slice(0, 5);
+  const topVideos: VideoStat[]    = (videoStats ?? []).slice(0, 5);
+
+  function handleExport() {
+    window.open('/api/v1/analytics/vendor/export/', '_blank');
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-navy">Analytics</h1>
-        <p className="text-sm text-gray-400">{dash?.store?.name}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-navy">Analytics</h1>
+          <p className="text-sm text-gray-400">{dash?.store?.name}</p>
+        </div>
+        <button
+          onClick={handleExport}
+          className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"
+        >
+          ⬇ Export CSV
+        </button>
+      </div>
+
+      {/* Period selector */}
+      <div className="flex gap-2">
+        {[7, 30, 90].map(d => (
+          <button
+            key={d}
+            onClick={() => setPeriod(d)}
+            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+              period === d ? 'bg-navy text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >{d}d</button>
+        ))}
       </div>
 
       {/* KPI grid */}
@@ -87,6 +154,77 @@ function Inner() {
         <StatCard icon="🚀" label="Plan" value={dash?.current_plan?.display_name ?? 'Free'} sub={dash?.subscription?.days_left != null ? `${dash.subscription.days_left}d left` : ''} color="bg-navy/8" />
         <StatCard icon="📋" label="Draft Products" value={dash?.products?.draft ?? 0} color="bg-gray-50" />
       </div>
+
+      {/* Revenue + Trend charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="card p-5 lg:col-span-1">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Revenue ({period}d)</p>
+          <p className="text-2xl font-bold text-navy">₹{Number(revenueData?.total_revenue ?? 0).toLocaleString('en-IN')}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{revenueData?.total_orders ?? 0} orders · avg ₹{Number(revenueData?.avg_order_value ?? 0).toLocaleString('en-IN')}</p>
+        </div>
+        <div className="card p-5 lg:col-span-2">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Reservations trend</p>
+            <span className="text-xs text-gray-300">{period}d</span>
+          </div>
+          <MiniSparkline data={snapshots} field="completed_count" color="bg-navy" />
+          <p className="text-xs text-gray-300 mt-1">Completed reservations per day</p>
+        </div>
+      </div>
+
+      {/* Revenue by day */}
+      {snapshots.length > 0 && (
+        <div className="card p-5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-bold text-navy">Revenue trend</p>
+          </div>
+          <MiniSparkline data={snapshots} field="revenue" color="bg-gold" />
+          <p className="text-xs text-gray-300 mt-1">Revenue (₹) per day</p>
+        </div>
+      )}
+
+      {/* Customer demographics */}
+      {customerStats && (
+        <div className="card overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h2 className="font-bold text-navy">Customer Insights</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-gray-100">
+            {[
+              { label: 'Total',       value: customerStats.total_customers },
+              { label: 'New',         value: customerStats.new_customers },
+              { label: 'Returning',   value: customerStats.returning_customers },
+              { label: 'This Month',  value: customerStats.customers_this_month },
+            ].map(({ label, value }) => (
+              <div key={label} className="p-5 text-center">
+                <p className="text-2xl font-bold text-navy">{value}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Top revenue products */}
+      {(revenueData?.top_products ?? []).length > 0 && (
+        <div className="card overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h2 className="font-bold text-navy">Top Revenue Products</h2>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {revenueData!.top_products.map((p, i) => (
+              <div key={p.name} className="flex items-center gap-4 px-5 py-3">
+                <span className="text-xs font-bold text-gray-400 w-4">#{i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-navy truncate">{p.name}</p>
+                  <p className="text-xs text-gray-400">{p.count} orders</p>
+                </div>
+                <p className="text-sm font-bold text-green-600">₹{Number(p.revenue).toLocaleString('en-IN')}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Products */}

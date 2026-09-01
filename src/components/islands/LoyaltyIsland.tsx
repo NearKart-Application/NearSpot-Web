@@ -140,7 +140,15 @@ interface LoyaltyBalance {
   referral_code: string;
   points_value_rupees: number;
   referrals_count: number;
+  tier?: string;
+  next_tier_points_needed?: number;
 }
+
+const TIER_CONFIG: Record<string, { emoji: string; label: string; color: string; bg: string; next: string }> = {
+  bronze: { emoji: '🥉', label: 'Bronze',  color: 'text-amber-700',  bg: 'bg-amber-50  border-amber-200',  next: 'Silver' },
+  silver: { emoji: '🥈', label: 'Silver',  color: 'text-slate-600',  bg: 'bg-slate-50  border-slate-200',  next: 'Gold' },
+  gold:   { emoji: '🥇', label: 'Gold',    color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200',  next: '' },
+};
 
 interface HistoryItem {
   id: string;
@@ -244,6 +252,39 @@ function Inner() {
           </button>
         </motion.div>
       ) : null}
+
+      {/* Loyalty tier card */}
+      {balance && (
+        <motion.div variants={card} className={`rounded-2xl border p-5 ${TIER_CONFIG[balance.tier ?? 'bronze']?.bg ?? 'bg-amber-50 border-amber-200'}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-4xl">{TIER_CONFIG[balance.tier ?? 'bronze']?.emoji ?? '🥉'}</span>
+              <div>
+                <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Loyalty Tier</p>
+                <p className={`text-xl font-black ${TIER_CONFIG[balance.tier ?? 'bronze']?.color ?? 'text-amber-700'}`}>
+                  {TIER_CONFIG[balance.tier ?? 'bronze']?.label ?? 'Bronze'}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-400">{balance.total_earned.toLocaleString()} pts earned</p>
+              {(balance.next_tier_points_needed ?? 0) > 0 && (
+                <p className="text-xs font-semibold text-gray-600 mt-0.5">
+                  {balance.next_tier_points_needed?.toLocaleString()} more → {TIER_CONFIG[balance.tier ?? 'bronze']?.next}
+                </p>
+              )}
+            </div>
+          </div>
+          {(balance.next_tier_points_needed ?? 0) > 0 && (
+            <div className="mt-3 h-1.5 rounded-full bg-black/10 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-current transition-all"
+                style={{ width: `${Math.min(100, ((balance.total_earned) / (balance.total_earned + (balance.next_tier_points_needed ?? 1))) * 100)}%` }}
+              />
+            </div>
+          )}
+        </motion.div>
+      )}
 
       {/* Referral card */}
       {balance?.referral_code && (
