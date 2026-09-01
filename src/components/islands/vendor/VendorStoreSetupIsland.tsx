@@ -9,9 +9,25 @@ import { Button } from '@/components/ui/button';
 interface VendorStore {
   id: string; name: string; description: string; category: string; phone: string;
   address: string; locality: string; area: string; city: string;
+  district?: string; state?: string;
   is_open: boolean; holiday_mode: boolean; privacy_mode: boolean;
   store_type?: string;
   logo_url?: string; banner_url?: string; lat?: number; lng?: number;
+}
+
+function useLocationOptions(field: 'state' | 'district' | 'city', state = '', district = '') {
+  return useQuery<string[]>({
+    queryKey: ['location-options', field, state, district],
+    queryFn: async () => {
+      const params = new URLSearchParams({ field });
+      if (state)    params.set('state', state);
+      if (district) params.set('district', district);
+      const r = await api.get(`/locations/?${params}`);
+      return r.data.options as string[];
+    },
+    enabled: field === 'state' || (field === 'district' && !!state) || (field === 'city' && !!state && !!district),
+    staleTime: 10 * 60 * 1000,
+  });
 }
 
 interface DayHours { open: string; close: string; isOpen: boolean; }
@@ -72,7 +88,7 @@ function Inner() {
 
   const [form, setForm] = useState({
     name: '', description: '', category: '', phone: '',
-    address: '', locality: '', area: '', city: '',
+    address: '', locality: '', area: '', city: '', district: '', state: '',
     is_open: true, holiday_mode: false, privacy_mode: false,
     store_type: savedBusinessType,
   });
@@ -88,6 +104,8 @@ function Inner() {
         locality: store.locality ?? '',
         area: store.area ?? '',
         city: store.city ?? '',
+        district: store.district ?? '',
+        state: store.state ?? '',
         is_open: store.is_open,
         holiday_mode: store.holiday_mode,
         privacy_mode: store.privacy_mode,
@@ -95,6 +113,10 @@ function Inner() {
       });
     }
   }, [store]);
+
+  const { data: states = [] }    = useLocationOptions('state');
+  const { data: districts = [] } = useLocationOptions('district', form.state);
+  const { data: cities = [] }    = useLocationOptions('city', form.state, form.district);
 
   const updateMut = useMutation({
     mutationFn: () => api.patch(`/stores/${store!.id}/`, form),
@@ -221,12 +243,44 @@ function Inner() {
             <input {...field('locality')} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
           </div>
           <div>
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Area</label>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Area / Landmark</label>
             <input {...field('area')} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
           </div>
+          {/* Cascading State → District → City */}
           <div>
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">City</label>
-            <input {...field('city')} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">State</label>
+            <select
+              value={form.state}
+              onChange={e => setForm(f => ({ ...f, state: e.target.value, district: '', city: '' }))}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-navy/40"
+            >
+              <option value="">Select state…</option>
+              {states.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">District</label>
+            <select
+              value={form.district}
+              onChange={e => setForm(f => ({ ...f, district: e.target.value, city: '' }))}
+              disabled={!form.state}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-navy/40 disabled:opacity-50"
+            >
+              <option value="">{form.state ? 'Select district…' : 'Select state first'}</option>
+              {districts.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">City / Area</label>
+            <select
+              value={form.city}
+              onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+              disabled={!form.district}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-navy/40 disabled:opacity-50"
+            >
+              <option value="">{form.district ? 'Select city…' : 'Select district first'}</option>
+              {cities.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
         </div>
       </div>
@@ -289,10 +343,22 @@ function Inner() {
         ))}
       </div>
 
-      <Button onClick={() => updateMut.mutate()} disabled={updateMut.isPending}
-        className="w-full py-3.5 rounded-xl font-bold text-sm">
-        {updateMut.isPending ? 'Saving…' : 'Save Store Info'}
-      </Button>
+      <div className="flex gap-3">
+        <Button onClick={() => updateMut.mutate()} disabled={updateMut.isPending}
+          className="flex-1 py-3.5 rounded-xl font-bold text-sm">
+          {updateMut.isPending ? 'Saving…' : 'Save Store Info'}
+        </Button>
+        {store?.id && (
+          <a href={`/stores/${store.id}`} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-4 py-3.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:border-navy hover:text-navy transition-colors whitespace-nowrap">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+            View as Customer
+          </a>
+        )}
+      </div>
     </div>
   );
 }

@@ -618,8 +618,273 @@ function LogMovementModal({ onClose, onSuccess }: { onClose: () => void; onSucce
   );
 }
 
+// ── Serial Numbers Tab ────────────────────────────────────────────────────────
+
+interface SerialNumber {
+  id: string; serial_number: string; status: string;
+  product?: { id: string; name: string };
+  variant?: { id: string; name: string };
+  notes?: string; created_at: string;
+}
+
+function SerialNumbersTab() {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ serial_number: '', product_id: '', variant_id: '', notes: '', status: 'available' });
+  const [adding, setAdding] = useState(false);
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['serial-numbers'],
+    queryFn: () => api.get('/inventory/serial-numbers/').then(r => r.data),
+  });
+
+  const { data: productsData } = useQuery({
+    queryKey: ['vendor-products-all'],
+    queryFn: () => api.get('/products/vendor/', { params: { page_size: 200 } }).then(r => r.data),
+  });
+
+  const createMut = useMutation({
+    mutationFn: () => api.post('/inventory/serial-numbers/', {
+      serial_number: form.serial_number.trim(),
+      product: form.product_id || undefined,
+      variant: form.variant_id || undefined,
+      notes: form.notes.trim() || undefined,
+      status: form.status,
+    }),
+    onSuccess: () => { refetch(); setAdding(false); setForm({ serial_number: '', product_id: '', variant_id: '', notes: '', status: 'available' }); },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/inventory/serial-numbers/${id}/`),
+    onSuccess: () => refetch(),
+  });
+
+  const serials: SerialNumber[] = data?.results ?? (Array.isArray(data) ? data : []);
+  const products = productsData?.results ?? [];
+
+  const STATUS_COLORS: Record<string, string> = {
+    available: 'bg-green-100 text-green-700',
+    sold:      'bg-gray-100 text-gray-600',
+    returned:  'bg-amber-100 text-amber-700',
+    defective: 'bg-red-100 text-red-700',
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={() => setAdding(true)} className="px-5 py-2.5 rounded-xl font-bold text-sm">+ Add Serial Number</Button>
+      </div>
+
+      {adding && (
+        <div className="card p-5 space-y-3">
+          <h4 className="font-bold text-navy text-sm">New Serial Number</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Serial Number *</label>
+              <input value={form.serial_number} onChange={e => setForm(f => ({ ...f, serial_number: e.target.value }))}
+                placeholder="SN123456789" className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-navy/40" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Status</label>
+              <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none">
+                {['available', 'sold', 'returned', 'defective'].map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Product</label>
+            <select value={form.product_id} onChange={e => setForm(f => ({ ...f, product_id: e.target.value, variant_id: '' }))}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none">
+              <option value="">— Select product —</option>
+              {products.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Notes</label>
+            <input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+              placeholder="IMEI, tag number, etc." className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none" />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button onClick={() => createMut.mutate()} disabled={createMut.isPending || !form.serial_number.trim()} className="flex-1">
+              {createMut.isPending ? 'Saving…' : 'Save'}
+            </Button>
+            <button onClick={() => setAdding(false)} className="flex-1 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="space-y-2">{[...Array(4)].map((_, i) => <div key={i} className="card h-14 animate-pulse" />)}</div>
+      ) : serials.length === 0 ? (
+        <div className="card p-12 text-center text-gray-400">
+          <div className="text-4xl mb-3">🔢</div>
+          <p className="font-semibold text-gray-600">No serial numbers tracked yet</p>
+          <p className="text-sm mt-1">Add IMEI numbers, tag numbers, or any unit-level IDs</p>
+        </div>
+      ) : (
+        <div className="card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                {['Serial #', 'Product', 'Status', 'Notes', ''].map(h => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {serials.map(sn => (
+                <tr key={sn.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 font-mono text-xs text-navy font-semibold">{sn.serial_number}</td>
+                  <td className="px-4 py-3 text-gray-700 text-xs">{sn.product?.name ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold capitalize ${STATUS_COLORS[sn.status] ?? 'bg-gray-100 text-gray-500'}`}>
+                      {sn.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 text-xs max-w-[120px] truncate">{sn.notes ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    <button onClick={() => { if (confirm('Delete this serial number?')) deleteMut.mutate(sn.id); }}
+                      className="text-xs text-red-500 hover:text-red-700 font-semibold">Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Bundles / Composite Products Tab ─────────────────────────────────────────
+
+interface Bundle {
+  id: string; name: string; description?: string;
+  components: { product: { id: string; name: string }; quantity: number }[];
+  created_at: string;
+}
+
+function BundlesTab() {
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name: '', description: '', components: [{ product_id: '', quantity: '1' }] });
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['bundles'],
+    queryFn: () => api.get('/inventory/bundles/').then(r => r.data),
+  });
+
+  const { data: productsData } = useQuery({
+    queryKey: ['vendor-products-all'],
+    queryFn: () => api.get('/products/vendor/', { params: { page_size: 200 } }).then(r => r.data),
+  });
+
+  const createMut = useMutation({
+    mutationFn: () => api.post('/inventory/bundles/', {
+      name: form.name.trim(),
+      description: form.description.trim() || undefined,
+      components: form.components.filter(c => c.product_id).map(c => ({ product: c.product_id, quantity: parseInt(c.quantity) || 1 })),
+    }),
+    onSuccess: () => { refetch(); setShowAdd(false); setForm({ name: '', description: '', components: [{ product_id: '', quantity: '1' }] }); },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/inventory/bundles/${id}/`),
+    onSuccess: () => refetch(),
+  });
+
+  const bundles: Bundle[] = data?.results ?? (Array.isArray(data) ? data : []);
+  const products = productsData?.results ?? [];
+
+  const addComponent = () => setForm(f => ({ ...f, components: [...f.components, { product_id: '', quantity: '1' }] }));
+  const removeComponent = (i: number) => setForm(f => ({ ...f, components: f.components.filter((_, j) => j !== i) }));
+  const setComponent = (i: number, key: 'product_id' | 'quantity', val: string) =>
+    setForm(f => ({ ...f, components: f.components.map((c, j) => j === i ? { ...c, [key]: val } : c) }));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={() => setShowAdd(true)} className="px-5 py-2.5 rounded-xl font-bold text-sm">+ Create Bundle</Button>
+      </div>
+
+      {showAdd && (
+        <div className="card p-5 space-y-4">
+          <h4 className="font-bold text-navy text-sm">New Bundle / Combo</h4>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Bundle Name *</label>
+            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="e.g. Phone + Cover Combo" className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-navy/40" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Description</label>
+            <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Optional description" className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 block">Components</label>
+            <div className="space-y-2">
+              {form.components.map((comp, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <select value={comp.product_id} onChange={e => setComponent(i, 'product_id', e.target.value)}
+                    className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none">
+                    <option value="">— Select product —</option>
+                    {products.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <input type="number" min="1" value={comp.quantity} onChange={e => setComponent(i, 'quantity', e.target.value)}
+                    className="w-16 rounded-xl border border-gray-200 px-3 py-2 text-sm text-center focus:outline-none" />
+                  {form.components.length > 1 && (
+                    <button onClick={() => removeComponent(i)} className="text-red-400 hover:text-red-600 text-lg">×</button>
+                  )}
+                </div>
+              ))}
+              <button onClick={addComponent} className="text-xs text-navy font-semibold hover:underline">+ Add component</button>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={() => createMut.mutate()} disabled={createMut.isPending || !form.name.trim()} className="flex-1">
+              {createMut.isPending ? 'Creating…' : 'Create Bundle'}
+            </Button>
+            <button onClick={() => setShowAdd(false)} className="flex-1 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="card h-24 animate-pulse" />)}</div>
+      ) : bundles.length === 0 ? (
+        <div className="card p-12 text-center text-gray-400">
+          <div className="text-4xl mb-3">📦</div>
+          <p className="font-semibold text-gray-600">No bundles yet</p>
+          <p className="text-sm mt-1">Group products into bundles or combos</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {bundles.map(b => (
+            <div key={b.id} className="card p-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="font-bold text-navy text-sm">{b.name}</h4>
+                  {b.description && <p className="text-xs text-gray-400 mt-0.5">{b.description}</p>}
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {b.components.map((c, i) => (
+                      <span key={i} className="px-2 py-1 bg-navy/8 text-navy text-[11px] font-semibold rounded-full">
+                        {c.product.name} ×{c.quantity}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={() => { if (confirm('Delete this bundle?')) deleteMut.mutate(b.id); }}
+                  className="text-xs text-red-500 hover:text-red-700 font-semibold shrink-0 ml-4">Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Inner() {
-  const [tab, setTab] = useState<'alerts' | 'all' | 'history'>('alerts');
+  const [tab, setTab] = useState<'alerts' | 'all' | 'history' | 'serials' | 'bundles'>('alerts');
   const [showLogMovement, setShowLogMovement] = useState(false);
 
   const { data: alertsData, isLoading: alertsLoading, isError, error, refetch } = useQuery({
@@ -660,16 +925,18 @@ function Inner() {
       </div>
 
       {/* Tab switcher */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 flex-wrap">
         {([
-          { key: 'alerts' as const, label: alerts.length > 0 ? `Stock Alerts (${alerts.length})` : 'Stock Alerts' },
-          { key: 'all' as const, label: totalProducts > 0 ? `All Products (${totalProducts})` : 'All Products' },
-          { key: 'history' as const, label: 'Change Log' },
+          { key: 'alerts' as const, label: alerts.length > 0 ? `Alerts (${alerts.length})` : 'Alerts' },
+          { key: 'all' as const, label: 'Products' },
+          { key: 'history' as const, label: 'Log' },
+          { key: 'serials' as const, label: 'Serials' },
+          { key: 'bundles' as const, label: 'Bundles' },
         ]).map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all min-w-[60px] ${
               tab === t.key
                 ? 'bg-white text-navy shadow-sm'
                 : 'text-gray-500 hover:text-gray-700'
@@ -713,6 +980,9 @@ function Inner() {
           <StockHistoryTab />
         </div>
       )}
+
+      {tab === 'serials' && <SerialNumbersTab />}
+      {tab === 'bundles' && <BundlesTab />}
 
       {showLogMovement && (
         <LogMovementModal

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { queryClient } from '../../lib/queryClient';
@@ -163,16 +163,35 @@ function ToggleRow({ icon, title, subtitle, checked, onChange }: {
 
 function SettingsTab() {
   const [prefs, setPrefs] = useState<NotifPrefs>(loadPrefs);
+  const [syncing, setSyncing] = useState(false);
+  const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('ns_access');
 
-  const update = (key: keyof NotifPrefs, val: boolean) => {
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    api.get('/notifications/preferences/').then(r => {
+      const p = r.data as Partial<NotifPrefs>;
+      const merged = { ...loadPrefs(), ...p };
+      setPrefs(merged);
+      savePrefs(merged);
+    }).catch(() => {});
+  }, []);
+
+  const update = async (key: keyof NotifPrefs, val: boolean) => {
     const next = { ...prefs, [key]: val };
     setPrefs(next);
     savePrefs(next);
+    if (!isLoggedIn) return;
+    setSyncing(true);
+    try { await api.patch('/notifications/preferences/', { [key]: val }); } catch {}
+    setSyncing(false);
   };
 
   return (
     <div>
-      <p className="text-xs text-gray-400 mb-4">Choose which notification types you want to see in-app.</p>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs text-gray-400">Choose which notification types you want to receive.</p>
+        {syncing && <span className="text-[10px] text-gray-400 animate-pulse">Saving…</span>}
+      </div>
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4">
         <ToggleRow icon="💬" title="Chat messages" subtitle="Messages from stores" checked={prefs.chat} onChange={v => update('chat', v)} />
         <ToggleRow icon="📌" title="Reservations" subtitle="Confirmations, reminders, cancellations" checked={prefs.reservations} onChange={v => update('reservations', v)} />
