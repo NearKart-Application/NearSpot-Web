@@ -12,6 +12,7 @@ interface ProductFormData {
   base_price: string;
   sale_price: string;
   cost_price: string;
+  mrp: string;
   stock: string;
   product_code: string;
   barcode: string;
@@ -106,7 +107,7 @@ function Inner({ productId }: { productId?: string }) {
 
   const [form, setForm] = useState<ProductFormData>({
     name: '', category: 'fashion', description: '',
-    base_price: '', sale_price: '', cost_price: '', stock: '', product_code: '', barcode: '',
+    base_price: '', sale_price: '', cost_price: '', mrp: '', stock: '', product_code: '', barcode: '',
     status: 'draft', is_visible: true, colors: '',
     hsn_code: '', gst_rate: '',
   });
@@ -150,6 +151,7 @@ function Inner({ productId }: { productId?: string }) {
       base_price: String(existing.base_price ?? existing.price ?? ''),
       sale_price: String(existing.sale_price ?? ''),
       cost_price: String(existing.cost_price ?? ''),
+      mrp: String(existing.variants?.[0]?.mrp ?? existing.mrp ?? ''),
       stock: String(existing.stock_count ?? existing.stock_total ?? ''),
       product_code: existing.product_code ?? '',
       barcode: existing.barcode ?? '',
@@ -170,6 +172,7 @@ function Inner({ productId }: { productId?: string }) {
         base_price: parseFloat(form.base_price) || 0,
         ...(form.sale_price ? { sale_price: parseFloat(form.sale_price) } : {}),
         ...(form.cost_price ? { cost_price: parseFloat(form.cost_price) } : {}),
+        ...(form.mrp ? { mrp: parseFloat(form.mrp) } : {}),
         stock: parseInt(form.stock) || 0,
         product_code: form.product_code.trim(),
         ...(form.barcode.trim() ? { barcode: form.barcode.trim() } : {}),
@@ -266,6 +269,15 @@ function Inner({ productId }: { productId?: string }) {
             <input type="number" min="0" step="0.01" value={form.sale_price} onChange={set('sale_price')} placeholder="Optional"
               className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
           </div>
+        </div>
+
+        {/* MRP */}
+        <div>
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">
+            MRP ₹ <span className="font-normal normal-case text-gray-400">(Maximum Retail Price — shown as crossed-out price to customers)</span>
+          </label>
+          <input type="number" min="0" step="0.01" value={form.mrp} onChange={set('mrp')} placeholder="e.g. 699"
+            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
         </div>
 
         {/* Stock + Code */}

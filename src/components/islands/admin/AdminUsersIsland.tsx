@@ -110,6 +110,100 @@ function SuspendDialog({
   );
 }
 
+function LoyaltyAdjustDialog({
+  user,
+  onClose,
+}: {
+  user: AdminUser;
+  onClose: () => void;
+}) {
+  const [accountId, setAccountId] = useState<string | null>(null);
+  const [balance,   setBalance]   = useState<number | null>(null);
+  const [points,    setPoints]    = useState('');
+  const [reason,    setReason]    = useState('');
+  const [loading,   setLoading]   = useState(false);
+  const [fetching,  setFetching]  = useState(true);
+  const [success,   setSuccess]   = useState<number | null>(null);
+  const [error,     setError]     = useState('');
+
+  useEffect(() => {
+    api.get('/admin-panel/loyalty/', { params: { search: user.phone_number, page_size: 1 } })
+      .then(r => {
+        const acc = r.data?.results?.[0];
+        if (acc) { setAccountId(acc.id); setBalance(acc.balance); }
+        else setError('No loyalty account found for this user.');
+      })
+      .catch(() => setError('Failed to load loyalty account.'))
+      .finally(() => setFetching(false));
+  }, []);
+
+  const submit = async () => {
+    if (!accountId) return;
+    const pts = parseInt(points);
+    if (!pts || pts === 0) { setError('Enter a non-zero integer.'); return; }
+    if (!reason.trim()) { setError('Reason is required.'); return; }
+    setLoading(true);
+    setError('');
+    try {
+      const r = await api.post(`/admin-panel/loyalty/${accountId}/adjust/`, { points: pts, reason: reason.trim() });
+      setBalance(r.data.balance);
+      setSuccess(r.data.adjusted);
+      setPoints('');
+      setReason('');
+    } catch (e: any) {
+      setError(e?.response?.data?.message ?? 'Adjustment failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="card p-6 w-full max-w-sm mx-4">
+        <h3 className="font-bold text-sm mb-1 text-gray-900">Loyalty Adjust</h3>
+        <p className="text-xs text-gray-400 mb-4">{user.full_name || user.phone_number} · {user.phone_number}</p>
+
+        {fetching ? (
+          <div className="text-sm text-gray-400 py-4 text-center">Loading account…</div>
+        ) : error && !accountId ? (
+          <p className="text-sm text-red-500 mb-4">{error}</p>
+        ) : (
+          <>
+            {balance !== null && (
+              <p className="text-xs font-semibold text-gray-500 mb-3">
+                Current balance: <span className="text-navy font-bold">{balance.toLocaleString()} pts</span>
+                {success !== null && <span className="text-green-600 ml-2">(adjusted {success > 0 ? '+' : ''}{success})</span>}
+              </p>
+            )}
+            <div className="space-y-3">
+              <div>
+                <label className="label">Points (use − to deduct)</label>
+                <input type="number" value={points} onChange={e => setPoints(e.target.value)}
+                  placeholder="e.g. 500 or -200" className="input" />
+              </div>
+              <div>
+                <label className="label">Reason *</label>
+                <input value={reason} onChange={e => setReason(e.target.value)}
+                  placeholder="Compensation, correction, etc." className="input" />
+              </div>
+              {error && <p className="text-xs text-red-500">{error}</p>}
+            </div>
+          </>
+        )}
+
+        <div className="flex gap-2 justify-end mt-4">
+          <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
+          {accountId && (
+            <Button size="sm" onClick={submit} disabled={loading || !points || !reason.trim()}>
+              {loading ? 'Saving…' : 'Adjust'}
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Inner() {
   const qc = useQueryClient();
 
@@ -120,6 +214,7 @@ function Inner() {
   const [page,            setPage]            = useState(1);
   const [pageSize,        setPageSize]        = useState<20 | 50 | 100>(20);
   const [suspendTarget,   setSuspendTarget]   = useState<AdminUser | null>(null);
+  const [loyaltyTarget,   setLoyaltyTarget]   = useState<AdminUser | null>(null);
 
   const dSearch = useDebounce(search, 400);
 
@@ -175,6 +270,9 @@ function Inner() {
 
   return (
     <div className="space-y-4">
+      {loyaltyTarget && (
+        <LoyaltyAdjustDialog user={loyaltyTarget} onClose={() => setLoyaltyTarget(null)} />
+      )}
       {suspendTarget && (
         <SuspendDialog
           user={suspendTarget}
@@ -294,6 +392,14 @@ function Inner() {
                   onClick={() => setSuspendTarget(user)}
                 >
                   {user.is_suspended ? 'Unsuspend' : 'Suspend'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLoyaltyTarget(user)}
+                  title="Adjust loyalty points"
+                >
+                  Pts
                 </Button>
               </div>
             </div>

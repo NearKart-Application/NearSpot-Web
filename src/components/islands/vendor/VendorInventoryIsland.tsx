@@ -6,7 +6,7 @@ import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import Img from '../../ui/Img';
 import { Button } from '@/components/ui/button';
 
-interface Variant { id: string; name: string; sku: string; price: number; stock_quantity: number; }
+interface Variant { id: string; name: string; sku: string; price: number; stock_quantity: number; mrp?: number; cost_price?: number; reorder_point?: number; low_stock_threshold?: number; }
 interface StockAlert {
   id: string; name: string; product_code: string; status: string;
   primary_image?: string;
@@ -120,8 +120,9 @@ function AlertCard({ alert }: { alert: StockAlert }) {
           <p className="text-[10px] text-gray-400 mb-1.5 mt-2">Tap to update stock</p>
           <div className="flex gap-1.5 overflow-x-auto pb-1 flex-wrap" style={{ scrollbarWidth: 'none' }}>
             {variants.map(v => {
+              const threshold = v.reorder_point ?? v.low_stock_threshold ?? 5;
               const isEmpty = v.stock_quantity === 0;
-              const isLow = !isEmpty && v.stock_quantity <= 5;
+              const isLow = !isEmpty && v.stock_quantity <= threshold;
               return (
                 <button
                   key={v.id}
@@ -138,6 +139,9 @@ function AlertCard({ alert }: { alert: StockAlert }) {
                   <span className={`font-black ${isEmpty ? 'text-red-600' : isLow ? 'text-orange-600' : 'text-gray-700'}`}>
                     {v.stock_quantity}
                   </span>
+                  {v.reorder_point != null && (
+                    <span className="text-[9px] text-gray-400">/{v.reorder_point}</span>
+                  )}
                   <span className="text-gray-300">·</span>
                   <span className="text-[10px] text-gray-400">edit</span>
                 </button>
