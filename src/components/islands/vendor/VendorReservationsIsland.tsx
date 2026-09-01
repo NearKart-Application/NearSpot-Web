@@ -116,6 +116,11 @@ function ReservationCard({ res, onUpdate }: { res: Reservation; onUpdate: () => 
     onSuccess: () => { setDialog(null); qc.invalidateQueries({ queryKey: ['vendor-reservations'] }); onUpdate(); },
   });
 
+  const returnMut = useMutation({
+    mutationFn: () => api.post(`/reservations/${res.id}/return/`, {}),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor-reservations'] }); onUpdate(); },
+  });
+
   const price = parseFloat(res.product.base_price ?? '0');
   const statusToSend: Record<DialogAction, string> = {
     confirm: 'confirmed', reject: 'cancelled', complete: 'completed', cancel: 'cancelled',
@@ -167,12 +172,28 @@ function ReservationCard({ res, onUpdate }: { res: Reservation; onUpdate: () => 
       )}
       {/* Actions — confirmed */}
       {res.status === 'confirmed' && (
-        <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+        <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100 flex-wrap">
           <Button onClick={() => setDialog('complete')} disabled={updateStatus.isPending}
             size="sm" className="flex-1 py-2">✅ Mark Completed</Button>
+          {res.variant_id && (
+            <Button onClick={() => { if (confirm('Mark as returned? Stock will be restored.')) returnMut.mutate(); }}
+              disabled={returnMut.isPending} variant="outline" size="sm" className="flex-1 py-2 text-orange-600 border-orange-200 hover:bg-orange-50">
+              ↩ Return
+            </Button>
+          )}
           <Button onClick={() => setDialog('cancel')} disabled={updateStatus.isPending}
-            variant="destructive" size="sm" className="flex-1 py-2">⚠️ Emergency Cancel</Button>
+            variant="destructive" size="sm" className="flex-1 py-2">⚠️ Cancel</Button>
           <Button onClick={() => setShowNote(v => !v)} variant="outline" size="sm" className="px-3 py-2">📝</Button>
+        </div>
+      )}
+
+      {/* Actions — completed (allow return) */}
+      {res.status === 'completed' && res.variant_id && (
+        <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+          <Button onClick={() => { if (confirm('Mark as returned? Stock will be restored.')) returnMut.mutate(); }}
+            disabled={returnMut.isPending} variant="outline" size="sm" className="py-2 text-orange-600 border-orange-200 hover:bg-orange-50">
+            ↩ Mark Returned
+          </Button>
         </div>
       )}
 

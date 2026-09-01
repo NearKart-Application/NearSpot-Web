@@ -5,6 +5,16 @@ import api from '../../../lib/api';
 import { VendorAuthGuard } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
 
+const UNIT_OPTIONS = [
+  { value: 'piece',  label: 'Piece' },
+  { value: 'kg',     label: 'Kilogram (kg)' },
+  { value: 'gram',   label: 'Gram (g)' },
+  { value: 'litre',  label: 'Litre (L)' },
+  { value: 'dozen',  label: 'Dozen' },
+  { value: 'metre',  label: 'Metre (m)' },
+  { value: 'pair',   label: 'Pair' },
+];
+
 interface ProductFormData {
   name: string;
   category: string;
@@ -14,6 +24,7 @@ interface ProductFormData {
   cost_price: string;
   mrp: string;
   stock: string;
+  unit: string;
   product_code: string;
   barcode: string;
   status: string;
@@ -107,7 +118,7 @@ function Inner({ productId }: { productId?: string }) {
 
   const [form, setForm] = useState<ProductFormData>({
     name: '', category: 'fashion', description: '',
-    base_price: '', sale_price: '', cost_price: '', mrp: '', stock: '', product_code: '', barcode: '',
+    base_price: '', sale_price: '', cost_price: '', mrp: '', stock: '', unit: 'piece', product_code: '', barcode: '',
     status: 'draft', is_visible: true, colors: '',
     hsn_code: '', gst_rate: '',
   });
@@ -153,6 +164,7 @@ function Inner({ productId }: { productId?: string }) {
       cost_price: String(existing.cost_price ?? ''),
       mrp: String(existing.variants?.[0]?.mrp ?? existing.mrp ?? ''),
       stock: String(existing.stock_count ?? existing.stock_total ?? ''),
+      unit: existing.variants?.[0]?.unit ?? 'piece',
       product_code: existing.product_code ?? '',
       barcode: existing.barcode ?? '',
       status: existing.status ?? 'draft',
@@ -174,6 +186,7 @@ function Inner({ productId }: { productId?: string }) {
         ...(form.cost_price ? { cost_price: parseFloat(form.cost_price) } : {}),
         ...(form.mrp ? { mrp: parseFloat(form.mrp) } : {}),
         stock: parseInt(form.stock) || 0,
+        unit: form.unit,
         product_code: form.product_code.trim(),
         ...(form.barcode.trim() ? { barcode: form.barcode.trim() } : {}),
         status: form.status,
@@ -323,11 +336,20 @@ function Inner({ productId }: { productId?: string }) {
           </div>
         </div>
 
-        {/* Cost Price — P2 margin analytics */}
-        <div>
-          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Cost Price ₹ <span className="font-normal normal-case text-gray-400">(not visible to customers)</span></label>
-          <input type="number" min="0" step="0.01" value={form.cost_price} onChange={set('cost_price')} placeholder="Your purchase cost"
-            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+        {/* Cost Price + Unit */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Cost Price ₹ <span className="font-normal normal-case text-gray-400">(not shown to customers)</span></label>
+            <input type="number" min="0" step="0.01" value={form.cost_price} onChange={set('cost_price')} placeholder="Your purchase cost"
+              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Unit of Measure</label>
+            <select value={form.unit} onChange={set('unit')}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-navy/40">
+              {UNIT_OPTIONS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+            </select>
+          </div>
         </div>
 
         {/* Status + Visible */}
