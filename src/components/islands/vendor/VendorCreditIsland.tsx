@@ -36,6 +36,18 @@ interface AgingReport {
   buckets: { '0_30': AgingEntry[]; '31_60': AgingEntry[]; '61_90': AgingEntry[]; '90_plus': AgingEntry[]; };
 }
 
+interface ReminderResponse {
+  account_id: string; name: string; phone: string; balance: string;
+  message: string; whatsapp_url: string | null; reminder_sent: boolean;
+}
+
+interface StatementEntry { date: string; type: string; amount: string; note: string; method: string; balance: string; }
+interface Statement {
+  store_name: string; customer_name: string; customer_phone: string;
+  credit_limit: string; outstanding: string; generated_at: string;
+  ledger: StatementEntry[];
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n: string | number) => `₹${Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
@@ -50,6 +62,9 @@ function Inner() {
   const [selectedId, setSelectedId]         = useState<string | null>(null);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showAddTx, setShowAddTx]           = useState<'credit' | 'payment' | null>(null);
+  const [reminder, setReminder]             = useState<ReminderResponse | null>(null);
+  const [statement, setStatement]           = useState<Statement | null>(null);
+  const [actionLoading, setActionLoading]   = useState<string | null>(null);
 
   // ── Queries ─────────────────────────────────────────────────────────────────
   const { data: accounts = [], isLoading, error } = useQuery<CreditAccount[]>({
@@ -92,6 +107,24 @@ function Inner() {
     mutationFn: (id: string) => api.delete(`/credit/customers/${id}/`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['credit-accounts'] }); setSelectedId(null); },
   });
+
+  const sendReminder = async (accountId: string) => {
+    setActionLoading('remind-' + accountId);
+    try {
+      const r = await api.post(`/credit/customers/${accountId}/remind/`);
+      setReminder(r.data);
+    } catch { /* ignore */ }
+    finally { setActionLoading(null); }
+  };
+
+  const loadStatement = async (accountId: string) => {
+    setActionLoading('stmt-' + accountId);
+    try {
+      const r = await api.get(`/credit/customers/${accountId}/statement/`);
+      setStatement(r.data);
+    } catch { /* ignore */ }
+    finally { setActionLoading(null); }
+  };
 
   const filtered = accounts.filter(a =>
     a.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -191,11 +224,23 @@ function Inner() {
                     <div className={`text-2xl font-bold ${Number(detail.balance) > 0 ? 'text-rose-600' : 'text-green-600'}`}>
                       {fmt(detail.balance)}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button onClick={() => setShowAddTx('credit')}
                         className="btn-primary text-xs px-3 py-1.5">+ Credit Sale</button>
                       <button onClick={() => setShowAddTx('payment')}
                         className="bg-green-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors">↩ Record Payment</button>
+                      <button
+                        onClick={() => sendReminder(detail.id)}
+                        disabled={actionLoading === 'remind-' + detail.id}
+                        className="bg-amber-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50">
+                        {actionLoading === 'remind-' + detail.id ? '…' : '🔔 Remind'}
+                      </button>
+                      <button
+                        onClick={() => loadStatement(detail.id)}
+                        disabled={actionLoading === 'stmt-' + detail.id}
+                        className="border border-rose-400 text-rose-600 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-rose-50 transition-colors disabled:opacity-50">
+                        {actionLoading === 'stmt-' + detail.id ? '…' : '📄 Statement'}
+                      </button>
                       <button onClick={() => deleteMut.mutate(detail.id)}
                         className="text-xs text-red-400 hover:text-red-600 px-2">Delete</button>
                     </div>
@@ -293,6 +338,70 @@ function Inner() {
               <button onClick={() => setShowAddCustomer(false)} className="btn-outline flex-1 text-sm">Cancel</button>
             </div>
             {addCustomerMut.isError && <p className="text-xs text-red-500">{(addCustomerMut.error as any)?.response?.data?.detail || 'Failed'}</p>}
+          </div>
+        </div>
+      )}
+
+      {/* ── Reminder modal ── */}
+      {reminder && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <h2 className="font-bold text-navy text-lg">🔔 Send Reminder</h2>
+            <p className="text-sm"><span className="font-semibold">{reminder.name}</span> · Outstanding: <span className="text-rose-600 font-bold">{fmt(reminder.balance)}</span></p>
+            <div className="bg-gray-50 rounded-xl p-3 text-sm text-gray-700 whitespace-pre-wrap">{reminder.message}</div>
+            {reminder.whatsapp_url && (
+              <a href={reminder.whatsapp_url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 bg-green-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-green-700 transition-colors">
+                <span>💬</span> Open in WhatsApp
+              </a>
+            )}
+            <button onClick={() => setReminder(null)} className="btn-outline w-full text-sm">Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Statement modal ── */}
+      {statement && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="font-bold text-navy text-lg">📄 Credit Statement</h2>
+                <p className="text-sm text-gray-500">{statement.customer_name} · {statement.customer_phone}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-400">Outstanding</p>
+                <p className="font-bold text-rose-600 text-lg">{fmt(statement.outstanding)}</p>
+              </div>
+            </div>
+            <div className="overflow-y-auto flex-1 min-h-0">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-gray-200 text-gray-500">
+                    <th className="text-left py-2">Date</th>
+                    <th className="text-left py-2">Type</th>
+                    <th className="text-right py-2">Amount</th>
+                    <th className="text-right py-2">Note</th>
+                    <th className="text-right py-2">Balance</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {statement.ledger.map((entry, i) => (
+                    <tr key={i}>
+                      <td className="py-1.5">{entry.date}</td>
+                      <td className={`py-1.5 font-medium ${entry.type === 'credit' ? 'text-rose-600' : 'text-green-600'}`}>
+                        {entry.type === 'credit' ? 'Sale' : 'Payment'}
+                      </td>
+                      <td className="py-1.5 text-right">₹{entry.amount}</td>
+                      <td className="py-1.5 text-right text-gray-400">{entry.note}</td>
+                      <td className="py-1.5 text-right font-semibold">₹{entry.balance}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-gray-400">Generated: {statement.generated_at} · {statement.store_name}</p>
+            <button onClick={() => setStatement(null)} className="btn-outline w-full text-sm">Close</button>
           </div>
         </div>
       )}
