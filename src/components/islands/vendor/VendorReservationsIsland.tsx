@@ -14,6 +14,7 @@ interface Reservation {
   status: string; expires_at: string; created_at: string;
   note?: string; vendor_note?: string; cancel_reason?: string;
   payment_method?: string; actual_selling_price?: string;
+  served_by_id?: string; served_by_name?: string;
 }
 
 const PAYMENT_METHODS = [
@@ -184,6 +185,13 @@ function ReservationCard({ res, onUpdate }: { res: Reservation; onUpdate: () => 
           </div>
           {res.note && <p className="mt-2 text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">Customer note: {res.note}</p>}
           {res.vendor_note && <p className="mt-2 text-xs text-blue-600 bg-blue-50 rounded-lg px-3 py-2">Your note: {res.vendor_note}</p>}
+          {res.status === 'completed' && (
+            <div className="flex flex-wrap gap-3 mt-2 text-xs">
+              {res.actual_selling_price && <span className="bg-green-50 text-green-700 px-2 py-1 rounded-lg font-semibold">₹{res.actual_selling_price} charged</span>}
+              {res.payment_method && <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg font-semibold capitalize">{res.payment_method}</span>}
+              {res.served_by_name && <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-lg">🧑‍💼 {res.served_by_name}</span>}
+            </div>
+          )}
         </div>
       </div>
 
