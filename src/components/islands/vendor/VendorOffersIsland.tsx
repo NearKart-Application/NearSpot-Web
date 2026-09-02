@@ -7,7 +7,10 @@ import { Button } from '@/components/ui/button';
 
 interface Offer {
   id: string; title: string; description?: string; offer_type?: string;
-  discount_pct?: number; discount_flat?: number; image_url?: string;
+  discount_pct?: number;
+  discount_type?: 'percent' | 'flat';
+  discount_value?: number;
+  image_url?: string;
   valid_from?: string; valid_till?: string; is_active: boolean; created_at?: string;
 }
 
@@ -28,7 +31,8 @@ function AddOfferModal({ storeId, onClose, onSuccess }: { storeId: string; onClo
   const createMut = useMutation({
     mutationFn: () => api.post(`/stores/${storeId}/offers/`, {
       title, description: desc, offer_type: offerType,
-      ...(offerType === 'percentage' ? { discount_pct: parseFloat(discPct) } : { discount_flat: parseFloat(discFlat) }),
+      discount_type: offerType === 'percentage' ? 'percent' : 'flat',
+      discount_value: offerType === 'percentage' ? parseFloat(discPct) : parseFloat(discFlat),
       ...(validFrom ? { valid_from: validFrom } : {}),
       ...(validUntil ? { valid_till: validUntil } : {}),
     }),
@@ -168,8 +172,12 @@ function Inner() {
                     </div>
                     {offer.description && <p className="text-sm text-gray-500 mb-2">{offer.description}</p>}
                     <div className="flex gap-4 text-xs text-gray-400">
-                      {offer.discount_pct ? <span className="font-semibold text-green-600">{offer.discount_pct}% off</span> : null}
-                      {offer.discount_flat ? <span className="font-semibold text-green-600">₹{offer.discount_flat} off</span> : null}
+                      {(offer.discount_type === 'percent' || offer.discount_pct) && (
+                        <span className="font-semibold text-green-600">{offer.discount_value ?? offer.discount_pct}% off</span>
+                      )}
+                      {offer.discount_type === 'flat' && (
+                        <span className="font-semibold text-green-600">₹{offer.discount_value} off</span>
+                      )}
                       <span>{offer.valid_from ? fmtDate(offer.valid_from) : '—'} – {offer.valid_till ? fmtDate(offer.valid_till) : '—'}</span>
                     </div>
                   </div>
