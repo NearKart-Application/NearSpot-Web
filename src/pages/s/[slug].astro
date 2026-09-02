@@ -1,0 +1,63 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import VendorMiniWebsiteIsland from '../../components/islands/VendorMiniWebsiteIsland';
+
+const { slug } = Astro.params;
+const base = (import.meta.env.API_BASE as string | undefined)
+  ?? (process.env.API_BASE ?? 'http://localhost:8000/api/v1');
+
+let store: any = null;
+try {
+  const r = await fetch(`${base}/stores/s/${slug}/`);
+  if (r.ok) store = await r.json();
+} catch {}
+
+if (!store) return Astro.redirect('/404');
+
+const title = `${store.name} — NearSpot`;
+const desc  = store.description?.slice(0, 160) || `${store.name} on NearSpot — browse products and reserve in-store`;
+
+// JSON-LD structured data
+const jsonLd = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'LocalBusiness',
+  'name': store.name,
+  'description': desc,
+  'image': store.banner_url || store.logo_url || '',
+  'telephone': store.phone || '',
+  'address': {
+    '@type': 'PostalAddress',
+    'streetAddress': store.is_home_based ? '' : (store.address ?? ''),
+    'addressLocality': store.locality ?? store.city ?? '',
+    'addressRegion': store.state ?? '',
+    'addressCountry': 'IN',
+  },
+  ...(store.rating > 0 ? {
+    'aggregateRating': {
+      '@type': 'AggregateRating',
+      'ratingValue': store.rating,
+      'reviewCount': store.review_count ?? 0,
+    },
+  } : {}),
+  'openingHoursSpecification': (store.hours ?? [])
+    .filter((h: any) => !h.is_closed)
+    .map((h: any) => ({
+      '@type': 'OpeningHoursSpecification',
+      'dayOfWeek': ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][h.day],
+      'opens': h.open_time,
+      'closes': h.close_time,
+    })),
+  'url': `${Astro.url.origin}/s/${slug}`,
+});
+---
+<AppLayout title={title} description={desc} fullWidth noFooter>
+  <meta slot="head" name="description" content={desc} />
+  <meta slot="head" property="og:title" content={title} />
+  <meta slot="head" property="og:description" content={desc} />
+  {(store.banner_url || store.logo_url) && (
+    <meta slot="head" property="og:image" content={store.banner_url || store.logo_url} />
+  )}
+  <meta slot="head" property="og:type" content="website" />
+  <script slot="head" type="application/ld+json" set:html={jsonLd} />
+  <VendorMiniWebsiteIsland client:load initialStore={store} storeSlug={slug!} />
+</AppLayout>
