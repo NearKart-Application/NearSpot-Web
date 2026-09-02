@@ -1,5 +1,7 @@
 ---
 import '../styles/global.css';
+import { getLang } from '../i18n/utils';
+
 interface Props {
   title?: string;
   description?: string;
@@ -7,9 +9,31 @@ interface Props {
 }
 const { title = 'NearSpot', description = 'Discover local stores & deals near you', ogImage = '/og.png' } = Astro.props;
 const pageTitle = title === 'NearSpot' ? 'NearSpot' : `${title} | NearSpot`;
+const lang = getLang(Astro.request);
+
+const websiteJsonLd = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  'name': 'NearSpot',
+  'url': 'https://nearspot.in',
+  'description': 'Discover hyperlocal stores, products, and deals near you.',
+  'potentialAction': {
+    '@type': 'SearchAction',
+    'target': { '@type': 'EntryPoint', 'urlTemplate': 'https://nearspot.in/search?q={search_term_string}' },
+    'query-input': 'required name=search_term_string',
+  },
+});
+const orgJsonLd = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  'name': 'NearSpot',
+  'url': 'https://nearspot.in',
+  'logo': 'https://nearspot.in/icons/icon-512.png',
+  'sameAs': [],
+});
 ---
 <!doctype html>
-<html lang="en">
+<html lang={lang}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -26,6 +50,9 @@ const pageTitle = title === 'NearSpot' ? 'NearSpot' : `${title} | NearSpot`;
     <meta property="og:type"        content="website" />
     <meta name="theme-color"        content="#0F172A" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="sitemap" href="/sitemap.xml" />
+    <script type="application/ld+json" set:html={websiteJsonLd} />
+    <script type="application/ld+json" set:html={orgJsonLd} />
     <slot name="head" />
   </head>
   <body>
