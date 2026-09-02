@@ -11,7 +11,7 @@ interface VendorStore {
   address: string; locality: string; area: string; city: string;
   district?: string; state?: string;
   is_open: boolean; holiday_mode: boolean; privacy_mode: boolean;
-  store_type?: string;
+  store_type?: string; gst_mode?: string;
   logo_url?: string; banner_url?: string; lat?: number; lng?: number;
 }
 interface StorePhoto { id: string; image_url: string; caption: string; order: number; }
@@ -177,7 +177,7 @@ function Inner() {
     name: '', description: '', category: '', phone: '',
     address: '', locality: '', area: '', city: '', district: '', state: '',
     is_open: true, holiday_mode: false, privacy_mode: false,
-    store_type: savedBusinessType,
+    store_type: savedBusinessType, gst_mode: 'unregistered',
   });
 
   useEffect(() => {
@@ -197,6 +197,7 @@ function Inner() {
         holiday_mode: store.holiday_mode,
         privacy_mode: store.privacy_mode,
         store_type: store.store_type ?? savedBusinessType,
+        gst_mode: store.gst_mode ?? 'unregistered',
       });
     }
   }, [store]);
@@ -373,6 +374,42 @@ function Inner() {
             </select>
           </div>
         </div>
+      </div>
+
+      {/* GST Mode */}
+      <div className="card p-6 space-y-4">
+        <div className="border-b border-gray-100 pb-3">
+          <h2 className="font-bold text-navy">GST Registration</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Affects how invoices are generated for your customers</p>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { val: 'unregistered', label: 'Unregistered', sub: 'No GST charged', icon: '🏪' },
+            { val: 'composition',  label: 'Composition',  sub: '1–5% flat turnover', icon: '📋' },
+            { val: 'regular',      label: 'Regular GST',  sub: '18% + ITC eligible', icon: '🧾' },
+          ].map(({ val, label, sub, icon }) => (
+            <button key={val} type="button"
+              onClick={() => setForm(f => ({ ...f, gst_mode: val }))}
+              className={`flex flex-col items-center gap-1 py-3 px-2 rounded-xl border text-center transition-all ${
+                form.gst_mode === val
+                  ? 'bg-navy text-white border-navy shadow-sm'
+                  : 'border-gray-200 text-gray-600 hover:border-navy/40'
+              }`}>
+              <span className="text-lg">{icon}</span>
+              <span className="text-xs font-bold leading-tight">{label}</span>
+              <span className={`text-[10px] leading-tight ${form.gst_mode === val ? 'text-white/70' : 'text-gray-400'}`}>{sub}</span>
+            </button>
+          ))}
+        </div>
+        {form.gst_mode === 'unregistered' && (
+          <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">Most Tier-2/3 vendors are unregistered. No GSTIN needed. Invoices will not include GST charges.</p>
+        )}
+        {form.gst_mode === 'composition' && (
+          <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">Composition vendors cannot collect GST from customers. A flat turnover tax (1–5%) is paid directly to the government.</p>
+        )}
+        {form.gst_mode === 'regular' && (
+          <p className="text-xs text-blue-700 bg-blue-50 rounded-lg px-3 py-2">Regular GST vendors charge 18% (or applicable rate) and can claim Input Tax Credit (ITC). GSTIN required.</p>
+        )}
       </div>
 
       {/* Toggles */}
