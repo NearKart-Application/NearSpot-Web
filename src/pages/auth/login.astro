@@ -196,14 +196,21 @@ const isDev = import.meta.env.DEV;
     setLoading(true);
     errorBox.classList.add('hidden');
     try {
-      const res = await fetch('/api/v1/auth/otp/send/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone_number: fullPhone, is_signup: false }),
-      });
+      let res: Response;
+      try {
+        res = await fetch('/api/v1/auth/otp/send/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone_number: fullPhone, is_signup: false }),
+        });
+      } catch {
+        throw new Error('Cannot reach server. Make sure the backend is running.');
+      }
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        throw new Error(d.detail ?? d.message ?? 'Failed to send OTP');
+        // Handle DRF field-level errors (e.g. {phone_number: ["..."]})
+        const fieldErr = Object.values(d).flat().join(' ');
+        throw new Error(d.detail ?? d.message ?? fieldErr || 'Failed to send OTP');
       }
       window.location.href = `/auth/otp?phone=${encodeURIComponent(fullPhone)}`;
     } catch (err: any) {
