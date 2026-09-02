@@ -528,6 +528,7 @@ function LogMovementModal({ onClose, onSuccess }: { onClose: () => void; onSucce
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['vendor-stock-logs'] });
       qc.invalidateQueries({ queryKey: ['vendor-stock-alerts'] });
+      qc.invalidateQueries({ queryKey: ['vendor-products-paged'] });
       onSuccess();
     },
     onError: (e: any) => setError(e?.response?.data?.detail ?? 'Failed to log movement'),
@@ -923,7 +924,7 @@ function BulkAdjustModal({ onClose }: { onClose: () => void }) {
     mutationFn: () => api.post('/inventory/bulk-adjust/', {
       items: rows.map(r => ({ variant_id: r.variantId, delta: parseInt(r.delta) || 0, note: r.note })),
     }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor-stock-alerts'] }); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor-stock-alerts'] }); qc.invalidateQueries({ queryKey: ['vendor-stock-logs'] }); qc.invalidateQueries({ queryKey: ['vendor-products-paged'] }); onClose(); },
     onError: (e: any) => setError(e?.response?.data?.error ?? 'Bulk adjust failed'),
   });
 

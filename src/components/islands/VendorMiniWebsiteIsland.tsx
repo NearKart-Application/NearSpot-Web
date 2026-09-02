@@ -29,7 +29,7 @@ function StarRow({ value }: { value: number }) {
 }
 
 function formatDiscount(offer: Offer) {
-  if (offer.discount_type === 'percentage') return `${offer.discount_value}% off`;
+  if (offer.discount_type === 'percent') return `${offer.discount_value}% off`;
   if (offer.discount_type === 'flat')       return `₹${offer.discount_value} off`;
   return offer.title;
 }

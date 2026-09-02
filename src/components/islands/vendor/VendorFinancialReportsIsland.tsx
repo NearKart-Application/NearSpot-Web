@@ -52,8 +52,21 @@ function Inner() {
     </select>
   );
 
-  const exportCSV = (type: string) => {
-    window.open(api.defaults.baseURL + `/reports/export/?type=${type}&month=${month}`, '_blank');
+  const exportCSV = async (type: string) => {
+    const token = localStorage.getItem('ns_access');
+    const url = api.defaults.baseURL + `/reports/export/?type=${type}&month=${month}`;
+    try {
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${type}-${month}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      console.error('Export failed', e);
+    }
   };
 
   return (

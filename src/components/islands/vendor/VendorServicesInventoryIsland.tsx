@@ -233,6 +233,7 @@ function BomTab() {
 
   const deductMut = useMutation({
     mutationFn: (sessions: number) => api.post(`/services/services/${selectedService}/deduct/?sessions=${sessions}`).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['svc-consumables'] }),
   });
 
   return (
@@ -251,7 +252,7 @@ function BomTab() {
             <p className="text-sm text-slate-500">Consumables used per session of this service</p>
             <div className="flex gap-2">
               <button
-                onClick={() => { const n = prompt('Number of sessions to deduct for?', '1'); if (n) deductMut.mutate(parseInt(n)); }}
+                onClick={() => { const raw = prompt('Number of sessions to deduct for?', '1'); const n = parseInt(raw ?? ''); if (!raw || isNaN(n) || n <= 0) return; deductMut.mutate(n); }}
                 className="bg-amber-500 text-white text-sm px-4 py-2 rounded-lg hover:bg-amber-600 transition"
               >
                 Deduct Stock

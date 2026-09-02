@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { auth } from '../../../lib/auth';
 import { Button } from '@/components/ui/button';
 
@@ -50,9 +50,11 @@ export function useVendorAuth() {
 export function VendorAuthGuard({ children }: { children: React.ReactNode }) {
   const status                        = useVendorAuth();
   const [showWarning, setShowWarning] = useState(false);
+  const resetRef                      = useRef<() => void>(() => {});
 
   const resetTimers = useCallback(() => {
     setShowWarning(false);
+    resetRef.current();
   }, []);
 
   useEffect(() => {
@@ -68,6 +70,8 @@ export function VendorAuthGuard({ children }: { children: React.ReactNode }) {
       warnTimer   = setTimeout(() => setShowWarning(true),           VENDOR_WARNING_MS);
       logoutTimer = setTimeout(() => { auth.logout(); window.location.href = '/auth/login'; }, VENDOR_INACTIVITY_MS);
     }
+
+    resetRef.current = reset;
 
     const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'] as const;
     events.forEach(ev => document.addEventListener(ev, reset, { passive: true }));

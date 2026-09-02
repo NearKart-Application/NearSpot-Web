@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
-import { VendorAuthGuard } from './VendorAuthGuard';
+import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 
 interface HomeDecorVariant {
   variant_id: string;
@@ -39,7 +39,7 @@ function Island() {
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<HomeDecorVariant | null>(null);
 
-  const { data: variants = [], isLoading } = useQuery<HomeDecorVariant[]>({
+  const { data: variants = [], isLoading, isError, error, refetch } = useQuery<HomeDecorVariant[]>({
     queryKey: ['home-decor-variants'],
     queryFn: () => api.get('/products/home-decor/').then(r => r.data),
   });
@@ -88,7 +88,7 @@ function Island() {
       />
 
       {/* Table */}
-      {isLoading ? (
+      {isError ? <IslandError error={error} refetch={refetch} /> : isLoading ? (
         <div className="flex justify-center py-12"><div className="animate-spin h-8 w-8 border-4 border-slate-800 border-t-transparent rounded-full" /></div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-slate-400">No home decor variants found. Edit a product variant and set its physical attributes to have it appear here.</div>

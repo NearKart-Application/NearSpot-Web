@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
-import { VendorAuthGuard } from './VendorAuthGuard';
+import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 
 export default function VendorRestaurantInventoryIsland() {
   return (
@@ -97,7 +97,7 @@ function IngredientsTab() {
   const [editItem,  setEditItem]  = useState<Ingredient|null>(null);
   const [lowOnly,   setLowOnly]   = useState(false);
 
-  const {data:ingredients=[],isLoading} = useQuery<Ingredient[]>({
+  const {data:ingredients=[],isLoading,isError,error,refetch} = useQuery<Ingredient[]>({
     queryKey: ['rest-ingredients',lowOnly],
     queryFn: () => api.get('/restaurant/ingredients/',{params:lowOnly?{low_stock:'true'}:{}}).then(r=>r.data),
   });
@@ -119,7 +119,7 @@ function IngredientsTab() {
         <button onClick={() => setShowAdd(true)} style={btn('#0f172a','#fff')}>+ Add Ingredient</button>
       </div>
 
-      {isLoading ? <p>Loading…</p> : (
+      {isError ? <IslandError error={error} refetch={refetch} /> : isLoading ? <p>Loading…</p> : (
         <table style={{width:'100%',borderCollapse:'collapse',fontSize:14}}>
           <thead><tr style={{background:'#f9fafb'}}>
             {['Name','Unit','Stock','Reorder','Cost/Unit','Status','Actions'].map(h=>(
@@ -212,7 +212,7 @@ function RecipesTab() {
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<Recipe|null>(null);
 
-  const {data:recipes=[],isLoading} = useQuery<Recipe[]>({
+  const {data:recipes=[],isLoading,isError,error,refetch} = useQuery<Recipe[]>({
     queryKey: ['rest-recipes'],
     queryFn: () => api.get('/restaurant/recipes/').then(r=>r.data),
   });
@@ -228,7 +228,7 @@ function RecipesTab() {
       <div style={{display:'flex',justifyContent:'flex-end',marginBottom:12}}>
         <button onClick={()=>setShowAdd(true)} style={btn('#0f172a','#fff')}>+ Add Recipe</button>
       </div>
-      {isLoading ? <p>Loading…</p> : (
+      {isError ? <IslandError error={error} refetch={refetch} /> : isLoading ? <p>Loading…</p> : (
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
           {recipes.map(r=>(
             <div key={r.id} style={{border:'1px solid #e5e7eb',borderRadius:8,padding:16}}>
@@ -361,7 +361,7 @@ function WastageTab() {
   const [dateFilter, setDateFilter] = useState(today());
   const [showAdd, setShowAdd] = useState(false);
 
-  const {data:wastage=[],isLoading} = useQuery<Wastage[]>({
+  const {data:wastage=[],isLoading,isError,error,refetch} = useQuery<Wastage[]>({
     queryKey:['rest-wastage',dateFilter],
     queryFn:()=>api.get('/restaurant/wastage/',{params:dateFilter?{date:dateFilter}:{}}).then(r=>r.data),
   });
@@ -375,7 +375,7 @@ function WastageTab() {
         </div>
         <button onClick={()=>setShowAdd(true)} style={btn('#0f172a','#fff')}>+ Record Wastage</button>
       </div>
-      {isLoading ? <p>Loading…</p> : (
+      {isError ? <IslandError error={error} refetch={refetch} /> : isLoading ? <p>Loading…</p> : (
         <table style={{width:'100%',borderCollapse:'collapse',fontSize:14}}>
           <thead><tr style={{background:'#f9fafb'}}>
             {['Date','Ingredient','Qty','Reason','Notes'].map(h=>(
@@ -452,7 +452,7 @@ function DailyStockTab() {
   const [dateFilter, setDateFilter] = useState(today());
   const [showOpeningModal, setShowOpeningModal] = useState(false);
 
-  const {data:dailyStocks=[],isLoading} = useQuery<DailyStock[]>({
+  const {data:dailyStocks=[],isLoading,isError,error,refetch} = useQuery<DailyStock[]>({
     queryKey:['rest-daily-stock',dateFilter],
     queryFn:()=>api.get('/restaurant/daily-stock/',{params:{date:dateFilter}}).then(r=>r.data),
   });
@@ -484,7 +484,7 @@ function DailyStockTab() {
         </div>
       )}
 
-      {isLoading ? <p>Loading…</p> : (
+      {isError ? <IslandError error={error} refetch={refetch} /> : isLoading ? <p>Loading…</p> : (
         <table style={{width:'100%',borderCollapse:'collapse',fontSize:14}}>
           <thead><tr style={{background:'#f9fafb'}}>
             {['Ingredient','Opening','Received','Closing','Consumed','Actions'].map(h=>(

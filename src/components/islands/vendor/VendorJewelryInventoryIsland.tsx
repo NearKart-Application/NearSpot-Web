@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
-import { VendorAuthGuard } from './VendorAuthGuard';
+import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 
 export default function VendorJewelryInventoryIsland() {
   return (
@@ -57,7 +57,7 @@ function JewelryInventoryApp() {
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<JewelryVariant | null>(null);
 
-  const { data: variants = [], isLoading } = useQuery<JewelryVariant[]>({
+  const { data: variants = [], isLoading, isError, error, refetch } = useQuery<JewelryVariant[]>({
     queryKey: ['jewelry-variants'],
     queryFn: () => api.get('/products/jewelry/').then(r => r.data),
   });
@@ -97,7 +97,7 @@ function JewelryInventoryApp() {
         />
       </div>
 
-      {isLoading ? (
+      {isError ? <IslandError error={error} refetch={refetch} /> : isLoading ? (
         <p>Loading…</p>
       ) : displayed.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>

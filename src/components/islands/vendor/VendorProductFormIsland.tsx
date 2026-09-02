@@ -156,7 +156,7 @@ function Inner({ productId }: { productId?: string }) {
     });
   }, []);
 
-  const { data: existing } = useQuery({
+  const { data: existing, isError: existingError, error: existingErr, refetch: existingRefetch } = useQuery({
     queryKey: ['vendor-product-detail', productId],
     queryFn: () => api.get(`/products/${productId}/`).then(r => r.data),
     enabled: isEdit,
@@ -231,6 +231,8 @@ function Inner({ productId }: { productId?: string }) {
 
   const set = (key: keyof ProductFormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [key]: e.target.value }));
+
+  if (isEdit && existingError) return <IslandError error={existingErr} refetch={existingRefetch} />;
 
   if (saved) return (
     <div className="flex flex-col items-center justify-center py-24 text-center">

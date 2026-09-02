@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
-import { VendorAuthGuard } from './VendorAuthGuard';
+import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 
 export default function VendorGroceryInventoryIsland() {
   return (
@@ -135,7 +135,7 @@ function GroceryInventoryApp() {
             ))}
           </div>
 
-          {batchesQ.isLoading ? <p>Loading...</p> : (
+          {batchesQ.isError ? <IslandError error={batchesQ.error} refetch={batchesQ.refetch} /> : batchesQ.isLoading ? <p>Loading...</p> : (
             <BatchTable
               batches={batchesQ.data ?? []}
               onWastage={b => { setSelectedBatch(b); setShowWastage(true); }}
@@ -146,7 +146,7 @@ function GroceryInventoryApp() {
       )}
 
       {tab === 'nearExpiry' && (
-        nearExpiryQ.isLoading ? <p>Loading...</p> : (
+        nearExpiryQ.isError ? <IslandError error={nearExpiryQ.error} refetch={nearExpiryQ.refetch} /> : nearExpiryQ.isLoading ? <p>Loading...</p> : (
           <div>
             <p style={{ color: '#d97706', fontWeight: 600 }}>{nearExpiryQ.data?.count ?? 0} batches expiring within 7 days</p>
             <BatchTable
