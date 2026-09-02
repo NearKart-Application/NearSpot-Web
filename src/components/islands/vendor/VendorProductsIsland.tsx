@@ -31,6 +31,16 @@ function Inner() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ created: number; errors: { row: number; message: string }[] } | null>(null);
 
+  // ── Bulk select state ───────────────────────────────────────────────────────
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkMsg, setBulkMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  const toggleSelect = (id: string) =>
+    setSelectedIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+
+  const exitSelect = () => { setSelectMode(false); setSelectedIds(new Set()); setBulkMsg(null); };
+
   const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -66,6 +76,17 @@ function Inner() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vendor-products'] }),
   });
 
+  const bulkMut = useMutation({
+    mutationFn: ({ action, ids }: { action: string; ids: string[] }) =>
+      api.post('/products/vendor/bulk-action/', { action, product_ids: ids }),
+    onSuccess: (r, vars) => {
+      qc.invalidateQueries({ queryKey: ['vendor-products'] });
+      setBulkMsg({ type: 'ok', text: `${r.data.affected} product${r.data.affected !== 1 ? 's' : ''} ${vars.action === 'delete' ? 'deleted' : vars.action === 'activate' ? 'activated' : 'deactivated'}.` });
+      setSelectedIds(new Set());
+    },
+    onError: (e: any) => setBulkMsg({ type: 'err', text: e?.response?.data?.message ?? 'Bulk action failed.' }),
+  });
+
   const products: Product[] = data?.results ?? (Array.isArray(data) ? data : []);
 
   const filtered = products.filter(p => {
@@ -73,6 +94,15 @@ function Inner() {
     const matchStatus = statusFilter === 'all' || p.status === statusFilter;
     return matchSearch && matchStatus;
   });
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every(p => selectedIds.has(p.id));
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelectedIds(prev => { const s = new Set(prev); filtered.forEach(p => s.delete(p.id)); return s; });
+    } else {
+      setSelectedIds(prev => { const s = new Set(prev); filtered.forEach(p => s.add(p.id)); return s; });
+    }
+  };
 
   const stats = {
     total:      products.length,
@@ -110,6 +140,17 @@ function Inner() {
           <p className="text-sm text-gray-400">{stats.total} total · {stats.active} active · {stats.outOfStock} out of stock</p>
         </div>
         <div className="flex items-center gap-2">
+          {selectMode ? (
+            <button onClick={exitSelect}
+              className="px-3 py-2 rounded-xl border border-gray-300 text-xs font-bold text-gray-600 hover:border-gray-400 transition-colors">
+              Cancel
+            </button>
+          ) : (
+            <button onClick={() => setSelectMode(true)}
+              className="px-3 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:border-navy hover:text-navy transition-colors">
+              ☑ Select
+            </button>
+          )}
           <button onClick={() => csvRef.current?.click()} disabled={importing}
             className="px-3 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:border-navy hover:text-navy transition-colors disabled:opacity-60">
             {importing ? '⏳ Importing…' : '📂 Import CSV'}
@@ -195,6 +236,12 @@ function Inner() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">
+                  {selectMode && (
+                    <th className="px-4 py-3 w-10">
+                      <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll}
+                        className="w-4 h-4 rounded border-gray-300 accent-navy cursor-pointer" />
+                    </th>
+                  )}
                   <th className="px-4 py-3">Product</th>
                   <th className="px-4 py-3">Code</th>
                   <th className="px-4 py-3">Price</th>
@@ -202,61 +249,102 @@ function Inner() {
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Visible</th>
                   <th className="px-4 py-3">Views</th>
-                  <th className="px-4 py-3">Actions</th>
+                  {!selectMode && <th className="px-4 py-3">Actions</th>}
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(p => (
-                  <tr key={p.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gray-100 overflow-hidden shrink-0">
-                          <Img src={p.primary_image} alt={p.name} fallback="product" className="w-full h-full object-cover" />
+                {filtered.map(p => {
+                  const isSelected = selectedIds.has(p.id);
+                  return (
+                    <tr key={p.id}
+                      className={`border-b border-gray-100 last:border-0 transition-colors ${selectMode ? 'cursor-pointer' : ''} ${isSelected ? 'bg-navy/5' : 'hover:bg-gray-50'}`}
+                      onClick={selectMode ? () => toggleSelect(p.id) : undefined}>
+                      {selectMode && (
+                        <td className="px-4 py-3">
+                          <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(p.id)}
+                            onClick={e => e.stopPropagation()}
+                            className="w-4 h-4 rounded border-gray-300 accent-navy cursor-pointer" />
+                        </td>
+                      )}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-gray-100 overflow-hidden shrink-0">
+                            <Img src={p.primary_image} alt={p.name} fallback="product" className="w-full h-full object-cover" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-navy line-clamp-1">{p.name}</p>
+                            <p className="text-xs text-gray-400 capitalize">{p.category}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-navy line-clamp-1">{p.name}</p>
-                          <p className="text-xs text-gray-400 capitalize">{p.category}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500 font-mono">{p.product_code || '—'}</td>
-                    <td className="px-4 py-3">
-                      <p className="font-bold text-navy">{fmt(p.base_price)}</p>
-                      {p.sale_price && <p className="text-xs text-green-600">{fmt(p.sale_price)} sale</p>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`font-bold ${(p.stock_total ?? 0) === 0 ? 'text-red-500' : (p.stock_total ?? 0) <= 5 ? 'text-orange-500' : 'text-gray-700'}`}>
-                        {p.stock_total ?? 0}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${STATUS_BADGE[p.status] ?? 'bg-gray-100 text-gray-500'}`}>
-                        {(p.status ?? '').replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <button onClick={() => toggleVisible.mutate({ id: p.id, visible: !p.is_visible })}
-                        className="relative rounded-full transition-colors"
-                        style={{ width: '40px', height: '22px', background: p.is_visible ? '#1C2E4A' : '#e5e7eb' }}>
-                        <span className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform ${p.is_visible ? 'translate-x-[18px]' : ''}`}
-                          style={{ width: '18px', height: '18px' }} />
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-gray-500">{(p.view_count ?? 0).toLocaleString()}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2 flex-wrap">
-                        <a href={`/vendor/products/${p.id}/edit`} className="text-xs text-navy font-bold hover:underline">Edit</a>
-                        <a href="/vendor/inventory" className="text-xs text-amber-700 font-bold hover:underline">Stock</a>
-                        <button onClick={() => {
-                          if (confirm(`Delete "${p.name}"?`)) deleteMut.mutate(p.id);
-                        }} className="text-xs text-red-500 font-bold hover:underline">Delete</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500 font-mono">{p.product_code || '—'}</td>
+                      <td className="px-4 py-3">
+                        <p className="font-bold text-navy">{fmt(p.base_price)}</p>
+                        {p.sale_price && <p className="text-xs text-green-600">{fmt(p.sale_price)} sale</p>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`font-bold ${(p.stock_total ?? 0) === 0 ? 'text-red-500' : (p.stock_total ?? 0) <= 5 ? 'text-orange-500' : 'text-gray-700'}`}>
+                          {p.stock_total ?? 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${STATUS_BADGE[p.status] ?? 'bg-gray-100 text-gray-500'}`}>
+                          {(p.status ?? '').replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button onClick={e => { e.stopPropagation(); toggleVisible.mutate({ id: p.id, visible: !p.is_visible }); }}
+                          className="relative rounded-full transition-colors"
+                          style={{ width: '40px', height: '22px', background: p.is_visible ? '#1C2E4A' : '#e5e7eb' }}>
+                          <span className={`absolute top-0.5 left-0.5 bg-white rounded-full shadow transition-transform ${p.is_visible ? 'translate-x-[18px]' : ''}`}
+                            style={{ width: '18px', height: '18px' }} />
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">{(p.view_count ?? 0).toLocaleString()}</td>
+                      {!selectMode && (
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2 flex-wrap">
+                            <a href={`/vendor/products/${p.id}/edit`} className="text-xs text-navy font-bold hover:underline">Edit</a>
+                            <a href="/vendor/inventory" className="text-xs text-amber-700 font-bold hover:underline">Stock</a>
+                            <button onClick={() => { if (confirm(`Delete "${p.name}"?`)) deleteMut.mutate(p.id); }}
+                              className="text-xs text-red-500 font-bold hover:underline">Delete</button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Floating bulk action bar */}
+      {selectMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-navy text-white rounded-2xl px-5 py-3 shadow-2xl">
+          <span className="text-sm font-bold mr-1">{selectedIds.size} selected</span>
+          {bulkMsg && (
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${bulkMsg.type === 'ok' ? 'bg-green-500/30' : 'bg-red-400/30'}`}>
+              {bulkMsg.text}
+            </span>
+          )}
+          <button disabled={bulkMut.isPending}
+            onClick={() => bulkMut.mutate({ action: 'activate', ids: [...selectedIds] })}
+            className="px-3 py-1.5 rounded-xl bg-green-500 text-white text-xs font-bold hover:bg-green-600 disabled:opacity-50 transition-colors">
+            ✓ Activate
+          </button>
+          <button disabled={bulkMut.isPending}
+            onClick={() => bulkMut.mutate({ action: 'deactivate', ids: [...selectedIds] })}
+            className="px-3 py-1.5 rounded-xl bg-gray-500 text-white text-xs font-bold hover:bg-gray-600 disabled:opacity-50 transition-colors">
+            ○ Deactivate
+          </button>
+          <button disabled={bulkMut.isPending}
+            onClick={() => { if (confirm(`Delete ${selectedIds.size} products? This cannot be undone.`)) bulkMut.mutate({ action: 'delete', ids: [...selectedIds] }); }}
+            className="px-3 py-1.5 rounded-xl bg-red-500 text-white text-xs font-bold hover:bg-red-600 disabled:opacity-50 transition-colors">
+            🗑 Delete
+          </button>
+          <button onClick={exitSelect} className="ml-1 text-white/60 hover:text-white text-lg leading-none">✕</button>
         </div>
       )}
     </div>
