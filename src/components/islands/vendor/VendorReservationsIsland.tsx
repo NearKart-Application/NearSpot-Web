@@ -10,7 +10,7 @@ interface Reservation {
   id: string;
   customer: { id: string; full_name: string; phone_number: string };
   product: { id: string; name: string; primary_image?: string; base_price: string };
-  variant_name?: string; quantity: number;
+  variant_id?: string; variant_name?: string; quantity: number;
   status: string; expires_at: string; created_at: string;
   note?: string; vendor_note?: string; cancel_reason?: string;
   payment_method?: string; actual_selling_price?: string; cost_price_at_sale?: string;
