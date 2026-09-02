@@ -5,7 +5,7 @@ import api from '../../../lib/api';
 import { VendorAuthGuard } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
 
-const UNIT_OPTIONS = [
+const FALLBACK_UNITS = [
   { value: 'piece',  label: 'Piece' },
   { value: 'kg',     label: 'Kilogram (kg)' },
   { value: 'gram',   label: 'Gram (g)' },
@@ -115,6 +115,15 @@ const STATUSES = ['active', 'draft', 'inactive'];
 
 function Inner({ productId }: { productId?: string }) {
   const isEdit = !!productId;
+
+  const { data: uomList = [] } = useQuery<{ symbol: string; name: string; category: string }[]>({
+    queryKey: ['uom-list'],
+    queryFn: () => api.get('/inventory/uom/').then(r => r.data),
+    staleTime: 5 * 60_000,
+  });
+  const unitOptions = uomList.length > 0
+    ? uomList.map(u => ({ value: u.symbol, label: `${u.name} (${u.symbol})` }))
+    : FALLBACK_UNITS;
 
   const [form, setForm] = useState<ProductFormData>({
     name: '', category: 'fashion', description: '',
@@ -347,7 +356,7 @@ function Inner({ productId }: { productId?: string }) {
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Unit of Measure</label>
             <select value={form.unit} onChange={set('unit')}
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-navy/40">
-              {UNIT_OPTIONS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+              {unitOptions.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
             </select>
           </div>
         </div>

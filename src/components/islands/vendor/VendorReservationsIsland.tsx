@@ -13,7 +13,7 @@ interface Reservation {
   variant_name?: string; quantity: number;
   status: string; expires_at: string; created_at: string;
   note?: string; vendor_note?: string; cancel_reason?: string;
-  payment_method?: string; actual_selling_price?: string;
+  payment_method?: string; actual_selling_price?: string; cost_price_at_sale?: string;
   served_by_id?: string; served_by_name?: string;
 }
 
@@ -188,6 +188,10 @@ function ReservationCard({ res, onUpdate }: { res: Reservation; onUpdate: () => 
           {res.status === 'completed' && (
             <div className="flex flex-wrap gap-3 mt-2 text-xs">
               {res.actual_selling_price && <span className="bg-green-50 text-green-700 px-2 py-1 rounded-lg font-semibold">₹{res.actual_selling_price} charged</span>}
+              {res.actual_selling_price && res.cost_price_at_sale && (() => {
+                const margin = (parseFloat(res.actual_selling_price) - parseFloat(res.cost_price_at_sale)) * res.quantity;
+                return <span className={`px-2 py-1 rounded-lg font-semibold ${margin >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>Margin ₹{margin.toFixed(0)}</span>;
+              })()}
               {res.payment_method && <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg font-semibold capitalize">{res.payment_method}</span>}
               {res.served_by_name && <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-lg">🧑‍💼 {res.served_by_name}</span>}
             </div>
