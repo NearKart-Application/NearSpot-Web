@@ -999,7 +999,7 @@ function ReportsTab() {
   const deadItems: DeadStockItem[] = deadData?.items ?? [];
 
   const handleExport = () => {
-    const token = localStorage.getItem('access_token') ?? '';
+    const token = localStorage.getItem('ns_access') ?? '';
     const baseUrl = (api.defaults.baseURL ?? '').replace(/\/$/, '');
     const url = `${baseUrl}/inventory/export/`;
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })

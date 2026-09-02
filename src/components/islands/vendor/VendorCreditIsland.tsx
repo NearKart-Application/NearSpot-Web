@@ -67,7 +67,7 @@ function Inner() {
   const [actionLoading, setActionLoading]   = useState<string | null>(null);
 
   // ── Queries ─────────────────────────────────────────────────────────────────
-  const { data: accounts = [], isLoading, error } = useQuery<CreditAccount[]>({
+  const { data: accounts = [], isLoading, error, refetch } = useQuery<CreditAccount[]>({
     queryKey: ['credit-accounts'],
     queryFn: () => api.get('/credit/customers/').then(r => r.data),
   });
@@ -132,7 +132,7 @@ function Inner() {
   );
 
   if (isLoading) return <div className="flex items-center justify-center h-48"><div className="w-8 h-8 border-4 border-rose-500 border-t-transparent rounded-full animate-spin" /></div>;
-  if (error) return <IslandError message="Failed to load credit accounts" />;
+  if (error) return <IslandError error={error} refetch={refetch} />;
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">

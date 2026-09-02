@@ -172,7 +172,7 @@ function Inner({ productId }: { productId?: string }) {
       sale_price: String(existing.sale_price ?? ''),
       cost_price: String(existing.cost_price ?? ''),
       mrp: String(existing.variants?.[0]?.mrp ?? existing.mrp ?? ''),
-      stock: String(existing.stock_count ?? existing.stock_total ?? ''),
+      stock: String(existing.total_stock ?? existing.stock_count ?? existing.stock_total ?? ''),
       unit: existing.variants?.[0]?.unit ?? 'piece',
       product_code: existing.product_code ?? '',
       barcode: existing.barcode ?? '',

@@ -42,7 +42,7 @@ function Inner() {
 
   // Queries
   const { data: categories = [] } = useQuery<Category[]>({ queryKey: ['exp-categories'], queryFn: () => api.get('/expenses/categories/').then(r => r.data) });
-  const { data: expenses = [], isLoading, error } = useQuery<Expense[]>({ queryKey: ['expenses', filterMonth], queryFn: () => api.get(`/expenses/?month=${filterMonth}`).then(r => r.data) });
+  const { data: expenses = [], isLoading, error, refetch } = useQuery<Expense[]>({ queryKey: ['expenses', filterMonth], queryFn: () => api.get(`/expenses/?month=${filterMonth}`).then(r => r.data) });
   const { data: summary } = useQuery<Summary>({ queryKey: ['exp-summary'], queryFn: () => api.get('/expenses/summary/').then(r => r.data), enabled: tab === 'summary' });
   const { data: pnl } = useQuery<PnL>({ queryKey: ['exp-pnl', pnlMonth], queryFn: () => api.get(`/expenses/pnl/?month=${pnlMonth}`).then(r => r.data), enabled: tab === 'pnl' });
 
@@ -83,7 +83,7 @@ function Inner() {
   const monthTotal = expenses.reduce((s, e) => s + Number(e.amount), 0);
   const monthGst   = expenses.reduce((s, e) => s + Number(e.gst_amount), 0);
 
-  if (error) return <IslandError message="Failed to load expenses" />;
+  if (error) return <IslandError error={error} refetch={refetch} />;
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">

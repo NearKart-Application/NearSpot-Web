@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '../../../lib/api';
-import { QueryClientProvider } from '../../../lib/queryClient';
-import VendorAuthGuard from '../VendorAuthGuard';
+import { useQuery, useMutation, useQueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '../../../lib/queryClient';
+import api from '../../../lib/api';
+import { VendorAuthGuard } from './VendorAuthGuard';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -736,7 +736,7 @@ function Empty({ children }: { children: React.ReactNode }) {
 
 export default function VendorServicesInventoryIsland() {
   return (
-    <QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
       <VendorAuthGuard>
         <Island />
       </VendorAuthGuard>

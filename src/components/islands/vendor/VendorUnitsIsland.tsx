@@ -104,7 +104,7 @@ function UomModal({
 
 function UnitsContent() {
   const qc = useQueryClient();
-  const { data: units = [], isLoading, error } = useQuery<UoM[]>({
+  const { data: units = [], isLoading, error, refetch } = useQuery<UoM[]>({
     queryKey: ['uom'],
     queryFn: () => api.get('/inventory/uom/').then(r => r.data),
   });
@@ -141,7 +141,7 @@ function UnitsContent() {
       <div className="w-8 h-8 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
     </div>
   );
-  if (error) return <IslandError message="Failed to load units" />;
+  if (error) return <IslandError error={error} refetch={refetch} />;
 
   return (
     <div className="space-y-6">

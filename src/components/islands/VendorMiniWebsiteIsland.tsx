@@ -90,7 +90,7 @@ export default function VendorMiniWebsiteIsland({
             {/* Category + location */}
             <p className="text-sm text-gray-500">
               {store.category}
-              {(store.locality || store.city) && ` · ${store.locality || store.city}${store.city ? `, ${store.state}` : ''}`}
+              {(store.locality || store.city) && ` · ${store.locality ? `${store.locality}, ` : ''}${store.city}${store.state ? `, ${store.state}` : ''}`}
             </p>
 
             {/* Open status */}

@@ -143,7 +143,7 @@ function SourceModal({
 
 function PurchaseSourcesContent() {
   const qc = useQueryClient();
-  const { data: sources = [], isLoading, error } = useQuery<PurchaseSource[]>({
+  const { data: sources = [], isLoading, error, refetch } = useQuery<PurchaseSource[]>({
     queryKey: ['purchase-sources'],
     queryFn: () => api.get('/inventory/purchase-sources/').then(r => r.data),
   });
@@ -180,7 +180,7 @@ function PurchaseSourcesContent() {
     );
   }
 
-  if (error) return <IslandError message="Failed to load purchase sources" />;
+  if (error) return <IslandError error={error} refetch={refetch} />;
 
   return (
     <div className="space-y-6">

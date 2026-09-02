@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
-import VendorAuthGuard from '../../auth/VendorAuthGuard';
-
-const qc = new QueryClient();
+import { VendorAuthGuard } from './VendorAuthGuard';
 
 export default function VendorGroceryInventoryIsland() {
   return (
-    <QueryClientProvider client={qc}>
+    <QueryClientProvider client={queryClient}>
       <VendorAuthGuard>
         <GroceryInventoryApp />
       </VendorAuthGuard>

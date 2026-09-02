@@ -99,7 +99,7 @@ function DayBookTab({ date, onDateChange }: { date: string; onDateChange: (d: st
           className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" />
       </div>
       {isLoading && <Spinner />}
-      {error && <IslandError message="Failed to load day book" />}
+      {error && <IslandError error={error} />}
       {data && (
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
@@ -140,7 +140,7 @@ function PnLTab({ month, picker, onExport }: { month: string; picker: React.Reac
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">{picker}<button onClick={onExport} className="btn-outline text-sm">↓ CSV</button></div>
       {isLoading && <Spinner />}
-      {error && <IslandError message="Failed to load P&L" />}
+      {error && <IslandError error={error} />}
       {data && (
         <div className="space-y-3">
           {[
@@ -176,7 +176,7 @@ function CashFlowTab({ month, picker }: { month: string; picker: React.ReactNode
     <div className="space-y-4">
       <div className="flex">{picker}</div>
       {isLoading && <Spinner />}
-      {error && <IslandError message="Failed to load cash flow" />}
+      {error && <IslandError error={error} />}
       {data && data.rows.length === 0 && <p className="text-gray-400 text-center py-8">No transactions this month.</p>}
       {data && data.rows.length > 0 && (
         <div className="card overflow-auto">
