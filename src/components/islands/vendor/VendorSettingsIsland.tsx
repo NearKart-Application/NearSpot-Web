@@ -6,6 +6,17 @@ import { auth } from '../../../lib/auth';
 import { VendorAuthGuard } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
 
+interface Session {
+  id: string; device_type: string; device_name: string;
+  os: string; browser: string; city: string; created_at: string;
+}
+
+function DeviceIcon({ type }: { type: string }) {
+  if (type === 'mobile') return <span className="text-base">📱</span>;
+  if (type === 'tablet')  return <span className="text-base">📟</span>;
+  return <span className="text-base">💻</span>;
+}
+
 interface SettingsItem {
   icon: string; title: string; subtitle: string;
   href?: string; onClick?: () => void; danger?: boolean;
@@ -137,6 +148,7 @@ function Inner() {
   const [showReferral, setShowReferral] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
+  const [showSessions, setShowSessions] = useState(false);
   const [websiteReqDone, setWebsiteReqDone] = useState(false);
   const [websiteReqErr, setWebsiteReqErr] = useState('');
 
@@ -157,6 +169,20 @@ function Inner() {
       window.location.href = '/auth/login';
     });
   };
+
+  const { data: sessionsData, isLoading: sessionsLoading } = useQuery<{ results: Session[] }>({
+    queryKey: ['vendor-sessions'],
+    queryFn:  () => api.get('/auth/me/sessions/').then(r => r.data),
+    enabled:  showSessions,
+  });
+
+  const signoutAllMut = useMutation({
+    mutationFn: () => api.delete('/auth/me/sessions/', { data: { refresh: localStorage.getItem('ns_refresh') } }),
+    onSuccess: () => {
+      ['ns_access', 'ns_refresh', 'ns_user'].forEach(k => localStorage.removeItem(k));
+      window.location.href = '/auth/login';
+    },
+  });
 
   const storeId = (store as any)?.id ?? '';
   const storeName = (store as any)?.name ?? 'My Store';
@@ -202,6 +228,61 @@ function Inner() {
         <SettingsRow icon="🔔" title="Notification Preferences" subtitle="Choose what alerts you receive" href="/vendor/notifications" />
         <SettingsRow icon="🔒" title="Change Password" subtitle="Update your account password" onClick={() => setShowPw(true)} />
         <SettingsRow icon="🎁" title="Referral Program" subtitle="Earn 100 pts per vendor referred" onClick={() => setShowReferral(true)} />
+
+        {/* Active Sessions — expandable inline */}
+        <div className="border-t border-gray-100">
+          <button
+            onClick={() => setShowSessions(v => !v)}
+            className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left"
+          >
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0" style={{ background: 'rgba(28,46,74,0.08)' }}>
+              🖥️
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-navy">Active Sessions</p>
+              <p className="text-xs text-gray-400">Devices logged into your account</p>
+            </div>
+            <svg className={`w-4 h-4 text-gray-300 transition-transform ${showSessions ? 'rotate-90' : ''}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+
+          {showSessions && (
+            <div className="border-t border-gray-100 px-4 py-3 space-y-2">
+              {sessionsLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />)}
+                </div>
+              ) : (sessionsData?.results ?? []).length === 0 ? (
+                <p className="text-xs text-gray-400 py-2">No login history found.</p>
+              ) : (
+                <>
+                  {(sessionsData?.results ?? []).map(s => (
+                    <div key={s.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+                      <DeviceIcon type={s.device_type} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-navy truncate">
+                          {s.device_name || s.browser || 'Unknown device'}
+                        </p>
+                        <p className="text-[11px] text-gray-400">
+                          {[s.os, s.city].filter(Boolean).join(' · ')} · {new Date(s.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => signoutAllMut.mutate()}
+                    disabled={signoutAllMut.isPending}
+                    className="w-full text-xs text-red-500 font-semibold border border-red-200 rounded-xl py-2 mt-2 hover:bg-red-50 transition-colors"
+                  >
+                    {signoutAllMut.isPending ? 'Signing out…' : 'Sign Out All Devices'}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Support */}
