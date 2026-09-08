@@ -4,6 +4,7 @@ import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import Img from '../../ui/Img';
+import NoStoreBanner from './NoStoreBanner';
 
 interface DashData {
   store: { id: string; name: string; follower_count: number; avg_rating: number; review_count: number };
@@ -105,7 +106,11 @@ function Inner() {
       </div>
     </div>
   );
-  if (isError) return <IslandError error={error} refetch={refetch} />;
+  if (isError) {
+    const errCode = (error as any)?.response?.data?.error;
+    if (errCode === 'no_store') return <NoStoreBanner feature="analytics" />;
+    return <IslandError error={error} refetch={refetch} />;
+  }
 
   const snapshots: SnapshotRow[] = tsData?.data ?? [];
   const topProducts: ProductStat[] = (productStats ?? []).slice(0, 5);

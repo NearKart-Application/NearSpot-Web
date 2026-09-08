@@ -1,5 +1,5 @@
-// NearSpot PWA Service Worker — cache-first for static assets, network-first for API
-const CACHE_NAME = 'nearspot-v1';
+// NearSpot PWA Service Worker — cache-first for media/fonts, network-first for JS/CSS/HTML/API
+const CACHE_NAME = 'nearspot-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -14,7 +14,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate: clean old caches
+// Activate: clean ALL old caches (including nearspot-v1)
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -25,18 +25,19 @@ self.addEventListener('activate', (event) => {
 });
 
 // Fetch strategy:
-//  - API calls (/api/): network-first, fall through on failure (no offline stub)
-//  - Navigation (HTML): network-first with cached fallback
-//  - Static assets (JS/CSS/images/fonts): cache-first
+//  - API / WS calls:            pass-through (no cache)
+//  - HTML navigations:          network-first, cached fallback for offline
+//  - JS / CSS bundles:          network-first (must always be fresh)
+//  - Images / fonts:            cache-first (safe to serve stale)
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET and cross-origin requests
+  // Skip non-GET and cross-origin (except Google Fonts)
   if (request.method !== 'GET') return;
   if (url.origin !== self.location.origin && !url.hostname.includes('fonts.g')) return;
 
-  // API — network-first, no cache
+  // API / WebSocket — never cache
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/ws/')) return;
 
   // HTML navigations — network-first, fall back to cache
@@ -47,7 +48,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets — cache-first
+  const ext = url.pathname.split('.').pop()?.toLowerCase();
+
+  // JS / CSS — always network-first so code updates are instant
+  if (ext === 'js' || ext === 'mjs' || ext === 'css' || ext === 'ts' || ext === 'tsx') {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          if (!response || response.status !== 200 || response.type === 'opaque') return response;
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // Images / fonts / other static assets — cache-first (safe to serve stale)
   event.respondWith(
     caches.match(request).then(cached => {
       if (cached) return cached;

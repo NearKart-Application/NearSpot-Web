@@ -179,17 +179,31 @@ function Inner() {
     </div>
   );
 
-  if (error || !data) return (
-    <div className="card p-8 text-center">
-      <div className="text-4xl mb-3">⚠️</div>
-      <p className="font-semibold text-navy">Could not load dashboard</p>
-      <p className="text-sm text-gray-500 mt-1">
-        {(error as any)?.response?.data?.message ?? 'Check your connection and try again'}
-      </p>
-      <Button onClick={() => window.location.reload()}
-              className="mt-4">Retry</Button>
-    </div>
-  );
+  if (error || !data) {
+    const isNoStore = (error as any)?.response?.data?.error === 'no_store';
+    if (isNoStore) return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+        <div className="text-6xl mb-4">🏪</div>
+        <h2 className="text-2xl font-bold text-navy mb-2">Welcome to NearSpot!</h2>
+        <p className="text-gray-500 mb-6 max-w-sm">You don't have a store yet. Set up your store to start selling and managing your products.</p>
+        <a href="/vendor/store-setup"
+           className="inline-flex items-center gap-2 bg-navy text-white font-bold px-8 py-3 rounded-2xl hover:bg-navy/90 transition-colors text-sm">
+          🚀 Set Up My Store
+        </a>
+        <p className="text-xs text-gray-400 mt-4">Takes less than 2 minutes</p>
+      </div>
+    );
+    return (
+      <div className="card p-8 text-center">
+        <div className="text-4xl mb-3">⚠️</div>
+        <p className="font-semibold text-navy">Could not load dashboard</p>
+        <p className="text-sm text-gray-500 mt-1">
+          {(error as any)?.response?.data?.message ?? 'Check your connection and try again'}
+        </p>
+        <Button onClick={() => window.location.reload()} className="mt-4">Retry</Button>
+      </div>
+    );
+  }
 
   const { store, wallet, subscription, current_plan, products, videos } = data;
   const daysLeft = subscription?.days_left ?? 0;

@@ -155,7 +155,11 @@ function Inner() {
   const websiteReqMut = useMutation({
     mutationFn: () => api.post('/stores/mine/website-request/', {}),
     onSuccess: () => { setWebsiteReqDone(true); setWebsiteReqErr(''); },
-    onError: () => setWebsiteReqErr('Request failed. Please try again.'),
+    onError: (e: any) => {
+      const code = e?.response?.data?.error;
+      if (code === 'no_store') setWebsiteReqErr('Set up your store first before requesting a website.');
+      else setWebsiteReqErr('Request failed. Please try again.');
+    },
   });
 
   const { data: store } = useQuery({
@@ -211,17 +215,6 @@ function Inner() {
         </div>
       )}
 
-      {/* Store management */}
-      <div className="card overflow-hidden">
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3 bg-gray-50 border-b border-gray-100">Store Management</p>
-        <SettingsRow icon="🏪" title="Edit Store Profile" subtitle="Name, address, category, hours" href="/vendor/store-setup" />
-        <SettingsRow icon="📱" title="Get QR Code" subtitle="Show store QR for customer payments" onClick={() => setShowQr(true)} />
-        <SettingsRow icon="👥" title="Staff Members" subtitle="Manage your store team" href="/vendor/staff" />
-        <SettingsRow icon="🏷️" title="Discount Codes" subtitle="Create and manage promo codes" href="/vendor/discount-codes" />
-        <SettingsRow icon="🚫" title="Blocked Customers" subtitle="View and manage blocked customers" href="/vendor/blacklist" />
-        <SettingsRow icon="🌐" title="Request Website" subtitle={websiteReqDone ? '✓ Request sent!' : websiteReqErr || 'Get a dedicated website for your store'} onClick={() => { if (!websiteReqDone) websiteReqMut.mutate(); }} />
-      </div>
-
       {/* Account */}
       <div className="card overflow-hidden">
         <p className="text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3 bg-gray-50 border-b border-gray-100">Account</p>
@@ -229,7 +222,7 @@ function Inner() {
         <SettingsRow icon="🔒" title="Change Password" subtitle="Update your account password" onClick={() => setShowPw(true)} />
         <SettingsRow icon="🎁" title="Referral Program" subtitle="Earn 100 pts per vendor referred" onClick={() => setShowReferral(true)} />
 
-        {/* Active Sessions — expandable inline */}
+        {/* Session History */}
         <div className="border-t border-gray-100">
           <button
             onClick={() => setShowSessions(v => !v)}
@@ -239,50 +232,58 @@ function Inner() {
               🖥️
             </div>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-navy">Active Sessions</p>
-              <p className="text-xs text-gray-400">Devices logged into your account</p>
+              <p className="text-sm font-semibold text-navy">Session History</p>
+              <p className="text-xs text-gray-400">Recent devices logged into your account</p>
             </div>
-            <svg className={`w-4 h-4 text-gray-300 transition-transform ${showSessions ? 'rotate-90' : ''}`}
+            <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${showSessions ? 'rotate-180' : ''}`}
               fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/>
             </svg>
           </button>
-
-          {showSessions && (
-            <div className="border-t border-gray-100 px-4 py-3 space-y-2">
-              {sessionsLoading ? (
-                <div className="space-y-2">
-                  {[1, 2, 3].map(i => <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />)}
-                </div>
-              ) : (sessionsData?.results ?? []).length === 0 ? (
-                <p className="text-xs text-gray-400 py-2">No login history found.</p>
-              ) : (
-                <>
-                  {(sessionsData?.results ?? []).map(s => (
-                    <div key={s.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-                      <DeviceIcon type={s.device_type} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-navy truncate">
-                          {s.device_name || s.browser || 'Unknown device'}
-                        </p>
-                        <p className="text-[11px] text-gray-400">
-                          {[s.os, s.city].filter(Boolean).join(' · ')} · {new Date(s.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                        </p>
-                      </div>
+          {showSessions && <div className="px-4 pb-3 space-y-2">
+            {sessionsLoading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map(i => <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />)}
+              </div>
+            ) : (sessionsData?.results ?? []).length === 0 ? (
+              <p className="text-xs text-gray-400 py-2">No login history found.</p>
+            ) : (
+              <>
+                {(sessionsData?.results ?? []).map(s => (
+                  <div key={s.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+                    <DeviceIcon type={s.device_type} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-navy truncate">
+                        {s.device_name || s.browser || 'Unknown device'}
+                      </p>
+                      <p className="text-[11px] text-gray-400">
+                        {[s.os, s.city].filter(Boolean).join(' · ')} · {new Date(s.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      </p>
                     </div>
-                  ))}
-                  <button
-                    onClick={() => signoutAllMut.mutate()}
-                    disabled={signoutAllMut.isPending}
-                    className="w-full text-xs text-red-500 font-semibold border border-red-200 rounded-xl py-2 mt-2 hover:bg-red-50 transition-colors"
-                  >
-                    {signoutAllMut.isPending ? 'Signing out…' : 'Sign Out All Devices'}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
+                  </div>
+                ))}
+                <button
+                  onClick={() => signoutAllMut.mutate()}
+                  disabled={signoutAllMut.isPending}
+                  className="w-full text-xs text-red-500 font-semibold border border-red-200 rounded-xl py-2 mt-2 hover:bg-red-50 transition-colors"
+                >
+                  {signoutAllMut.isPending ? 'Signing out…' : 'Sign Out All Devices'}
+                </button>
+              </>
+            )}
+          </div>}
         </div>
+      </div>
+
+      {/* Store management */}
+      <div className="card overflow-hidden">
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3 bg-gray-50 border-b border-gray-100">Store Management</p>
+        <SettingsRow icon="🏪" title="Edit Store Profile" subtitle="Name, address, category, hours" href="/vendor/store-setup" />
+        <SettingsRow icon="📱" title="Get QR Code" subtitle="Show store QR for customer payments" onClick={() => { if (storeId) setShowQr(true); else window.location.href = '/vendor/store-setup'; }} />
+        <SettingsRow icon="👥" title="Staff Members" subtitle="Manage your store team" href="/vendor/staff" />
+        <SettingsRow icon="🏷️" title="Discount Codes" subtitle="Create and manage promo codes" href="/vendor/discount-codes" />
+        <SettingsRow icon="🚫" title="Blocked Customers" subtitle="View and manage blocked customers" href="/vendor/blacklist" />
+        <SettingsRow icon="🌐" title="Request Website" subtitle={websiteReqDone ? '✓ Request sent!' : websiteReqErr || 'Get a dedicated website for your store'} onClick={() => { if (!websiteReqDone) websiteReqMut.mutate(); }} />
       </div>
 
       {/* Support */}
@@ -303,6 +304,7 @@ function Inner() {
       {showQr && storeId && <QrCodeModal storeId={storeId} storeName={storeName} onClose={() => setShowQr(false)} />}
       {showReferral && <ReferralModal onClose={() => setShowReferral(false)} />}
       {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
+
 
       {/* Logout confirm */}
       {showLogout && (

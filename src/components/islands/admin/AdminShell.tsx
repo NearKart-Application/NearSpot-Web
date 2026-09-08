@@ -1,5 +1,5 @@
 import { useEffect, useState, type ComponentType } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   Store,
@@ -15,12 +15,21 @@ import {
   Link2,
   LogOut,
   ChevronRight,
+  ChevronDown,
   History,
   LogIn,
   Activity,
   MousePointerClick,
+  RotateCcw,
+  User,
 } from 'lucide-react';
 import { auth } from '../../../lib/auth';
+
+type NavChild = { label: string; href: string; icon: string };
+type NavItem  = { label: string; icon: string } & (
+  | { href: string; children?: never }
+  | { href?: never; children: NavChild[] }
+);
 
 const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
   dashboard:    LayoutDashboard,
@@ -39,23 +48,34 @@ const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
   login:        LogIn,
   activity:     Activity,
   click:        MousePointerClick,
+  restore:      RotateCcw,
+  store:        Store,
+  user:         User,
 };
 
-const NAV_ALL = [
-  { label: 'Dashboard',         href: '/admin/dashboard',         icon: 'dashboard' },
-  { label: 'Stores',            href: '/admin/stores',            icon: 'stores' },
-  { label: 'Users',             href: '/admin/users',             icon: 'users' },
-  { label: 'Products',          href: '/admin/products',          icon: 'products' },
-  { label: 'Banners',           href: '/admin/banners',           icon: 'image' },
-  { label: 'Categories',        href: '/admin/categories',        icon: 'tag' },
-  { label: 'Offer Templates',   href: '/admin/offer-templates',   icon: 'ticket' },
-  { label: 'Coupons',           href: '/admin/coupons',           icon: 'ticket' },
-  { label: 'Website Requests',  href: '/admin/website-requests',  icon: 'globe' },
-  { label: 'Activity Log',      href: '/admin/activity-log',      icon: 'clipboard' },
-  { label: 'Stock Change Log',  href: '/admin/stock-logs',         icon: 'history' },
-  { label: 'Login Logs',        href: '/admin/login-logs',         icon: 'login' },
+const NAV_ALL: NavItem[] = [
+  { label: 'Dashboard',         href: '/admin/dashboard',           icon: 'dashboard' },
+  { label: 'Stores',            href: '/admin/stores',              icon: 'stores' },
+  { label: 'Users',             href: '/admin/users',               icon: 'users' },
+  { label: 'Products',          href: '/admin/products',            icon: 'products' },
+  { label: 'Banners',           href: '/admin/banners',             icon: 'image' },
+  { label: 'Categories',        href: '/admin/categories',          icon: 'tag' },
+  { label: 'Offer Templates',   href: '/admin/offer-templates',     icon: 'ticket' },
+  { label: 'Coupons',           href: '/admin/coupons',             icon: 'ticket' },
+  { label: 'Website Requests',  href: '/admin/website-requests',    icon: 'globe' },
+  { label: 'Activity Log',      href: '/admin/activity-log',        icon: 'clipboard' },
+  { label: 'Stock Change Log',  href: '/admin/stock-logs',          icon: 'history' },
+  { label: 'Login Logs',        href: '/admin/login-logs',          icon: 'login' },
   { label: 'Vendor Actions',    href: '/admin/vendor-action-logs',  icon: 'activity' },
   { label: 'Customer Activity', href: '/admin/customer-activity',   icon: 'click' },
+  {
+    label: 'Restore Accounts',
+    icon: 'restore',
+    children: [
+      { label: 'Vendors',   href: '/admin/restore-accounts/vendors',   icon: 'store' },
+      { label: 'Customers', href: '/admin/restore-accounts/customers', icon: 'user'  },
+    ],
+  },
 ];
 
 const NAV_MASTER = [
@@ -73,6 +93,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [isMaster, setIsMaster]       = useState(false);
   const [path, setPath]               = useState('');
   const [showWarning, setShowWarning] = useState(false);
+  const [openGroup, setOpenGroup]     = useState<string | null>(null);
 
   useEffect(() => {
     const user = auth.user();
@@ -82,10 +103,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       setStatus('denied');
       return;
     }
+    const currentPath = window.location.pathname;
     setUserName(user.full_name || user.phone_number);
     setIsMaster(mode === 'master_admin');
-    setPath(window.location.pathname);
+    setPath(currentPath);
     setStatus('ok');
+    if (currentPath.startsWith('/admin/restore-accounts')) {
+      setOpenGroup('Restore Accounts');
+    }
 
     // ── Inactivity timeout (30 min) ──────────────────────────────────────────
     let warnTimer:   ReturnType<typeof setTimeout>;
@@ -128,7 +153,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   if (status === 'denied') return null;
 
-  const navItems = isMaster ? [...NAV_ALL, ...NAV_MASTER] : NAV_ALL;
+  const navItems: NavItem[] = isMaster ? [...NAV_ALL, ...NAV_MASTER] : NAV_ALL;
 
   // ── Inactivity warning overlay ───────────────────────────────────────────────
   const warningOverlay = showWarning && (
@@ -152,7 +177,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       </motion.div>
     </div>
   );
-  const activeItem = navItems.find((n) => path === n.href || path.startsWith(n.href + '/'));
+  const activeItem = navItems.find(n => {
+    if (n.children) return n.children.some(c => path === c.href || path.startsWith(c.href + '/'));
+    return path === n.href || path.startsWith((n.href ?? '') + '/');
+  });
+  const activeChild = navItems.flatMap(n => n.children ?? []).find(c => path === c.href || path.startsWith(c.href + '/'));
 
   return (
     <>
@@ -188,8 +217,86 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-3 space-y-0.5 scrollbar-hide">
           {navItems.map((item, index) => {
-            const isActive = path === item.href || path.startsWith(item.href + '/');
             const Icon = ICON_MAP[item.icon] ?? LayoutDashboard;
+
+            /* ── Expandable group (has children) ── */
+            if (item.children) {
+              const isGroupActive = item.children.some(c => path === c.href || path.startsWith(c.href + '/'));
+              const isOpen = openGroup === item.label;
+              return (
+                <div key={item.label}>
+                  <motion.button
+                    initial={{ opacity: 0, x: -16 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.035, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setOpenGroup(isOpen ? null : item.label)}
+                    className="w-full flex items-center gap-3 rounded-xl text-sm transition-all duration-200 mx-1"
+                    style={{
+                      padding: '10px 12px',
+                      color: isGroupActive || isOpen ? 'white' : 'rgba(255,255,255,0.52)',
+                      background: isGroupActive ? 'rgba(255,255,255,0.1)' : 'transparent',
+                      fontWeight: isGroupActive ? 600 : 500,
+                      boxShadow: isGroupActive ? 'inset 3px 0 0 #F59E0B' : 'none',
+                      width: 'calc(100% - 8px)',
+                    }}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="flex-1 text-left">{item.label}</span>
+                    <motion.div
+                      animate={{ rotate: isOpen ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-60" />
+                    </motion.div>
+                  </motion.button>
+
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        key="children"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        <div className="ml-4 mt-0.5 mb-1 space-y-0.5 pl-3" style={{ borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
+                          {item.children.map(child => {
+                            const ChildIcon = ICON_MAP[child.icon] ?? Users;
+                            const isChildActive = path === child.href || path.startsWith(child.href + '/');
+                            return (
+                              <motion.a
+                                key={child.href}
+                                href={child.href}
+                                whileHover={{ x: 2 }}
+                                whileTap={{ scale: 0.97 }}
+                                className="flex items-center gap-2.5 rounded-xl text-xs transition-all duration-200 px-3 py-2"
+                                style={{
+                                  color: isChildActive ? 'white' : 'rgba(255,255,255,0.5)',
+                                  background: isChildActive ? 'rgba(255,255,255,0.12)' : 'transparent',
+                                  fontWeight: isChildActive ? 600 : 400,
+                                  boxShadow: isChildActive ? 'inset 3px 0 0 #F59E0B' : 'none',
+                                }}
+                              >
+                                <ChildIcon className="w-3.5 h-3.5 shrink-0" />
+                                <span>{child.label}</span>
+                                {isChildActive && (
+                                  <span className="w-1.5 h-1.5 rounded-full ml-auto shrink-0" style={{ backgroundColor: '#F59E0B' }} />
+                                )}
+                              </motion.a>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            }
+
+            /* ── Flat link ── */
+            const isActive = path === item.href || path.startsWith((item.href ?? '') + '/');
             return (
               <motion.a
                 key={item.href}
@@ -266,7 +373,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 transition={{ duration: 0.25 }}
                 className="text-sm font-bold text-gray-800"
               >
-                {activeItem?.label ?? 'Admin Panel'}
+                {activeChild ? `${activeItem?.label} › ${activeChild.label}` : (activeItem?.label ?? 'Admin Panel')}
               </motion.h1>
             </div>
           </div>

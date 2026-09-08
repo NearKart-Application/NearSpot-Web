@@ -4,6 +4,7 @@ import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
+import NoStoreBanner from './NoStoreBanner';
 
 interface BlockedCustomer {
   id: string; customer_name: string; customer_phone: string;
@@ -15,7 +16,7 @@ function Inner() {
   const [unblockTarget, setUnblockTarget] = useState<BlockedCustomer | null>(null);
   const [search, setSearch] = useState('');
 
-  const { data: storeData } = useQuery({
+  const { data: storeData, isError: storeError } = useQuery({
     queryKey: ['vendor-store-id'],
     queryFn: () => api.get('/stores/mine/').then(r => r.data),
   });
@@ -41,6 +42,8 @@ function Inner() {
         c.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
         c.customer_phone?.includes(search))
     : customers;
+
+  if (storeError || !storeId) return <NoStoreBanner feature="blacklist" />;
 
   return (
     <div className="space-y-6">

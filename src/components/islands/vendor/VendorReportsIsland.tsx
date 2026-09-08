@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { QueryClientProvider, useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import NoStoreBanner from './NoStoreBanner';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
@@ -563,6 +564,14 @@ function EarningsTab() {
 
 function Inner() {
   const [activeTab, setActiveTab] = useState<Tab>('Activity');
+
+  const { data: storeData, isError: storeError } = useQuery({
+    queryKey: ['vendor-store-id'],
+    queryFn: () => api.get('/stores/mine/').then(r => r.data),
+  });
+  const storeId: string = Array.isArray(storeData) ? ((storeData[0] as any)?.id ?? '') : ((storeData as any)?.id ?? '');
+
+  if (storeError || !storeId) return <NoStoreBanner feature="reports" />;
 
   return (
     <div className="space-y-6">

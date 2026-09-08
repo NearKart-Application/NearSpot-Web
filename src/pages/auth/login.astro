@@ -210,7 +210,7 @@ const isDev = import.meta.env.DEV;
         const d = await res.json().catch(() => ({}));
         // Handle DRF field-level errors (e.g. {phone_number: ["..."]})
         const fieldErr = Object.values(d).flat().join(' ');
-        throw new Error(d.detail ?? d.message ?? fieldErr || 'Failed to send OTP');
+        throw new Error((d.detail ?? d.message ?? fieldErr) || 'Failed to send OTP');
       }
       window.location.href = `/auth/otp?phone=${encodeURIComponent(fullPhone)}`;
     } catch (err: any) {
@@ -231,12 +231,12 @@ const isDev = import.meta.env.DEV;
   }
 
   // ── Dev panel toggle ─────────────────────────────────────────────────────────
-  const devToggle = document.getElementById('dev-toggle')!;
-  const devPanel  = document.getElementById('dev-panel')!;
-  const devChevron = document.getElementById('dev-chevron')!;
-  devToggle.addEventListener('click', () => {
-    const open = devPanel.classList.toggle('hidden');
-    devChevron.style.transform = open ? '' : 'rotate(180deg)';
+  const devToggle  = document.getElementById('dev-toggle');
+  const devPanel   = document.getElementById('dev-panel');
+  const devChevron = document.getElementById('dev-chevron');
+  devToggle?.addEventListener('click', () => {
+    const open = devPanel!.classList.toggle('hidden');
+    devChevron!.style.transform = open ? '' : 'rotate(180deg)';
   });
 
   // ── Google Sign-In ───────────────────────────────────────────────────────────
@@ -264,7 +264,15 @@ const isDev = import.meta.env.DEV;
       (window as any).google?.accounts?.id?.prompt();
     });
   } else {
-    googleBtn.classList.add('hidden');
+    googleBtn.addEventListener('click', () => showComingSoon());
+  }
+
+  function showComingSoon() {
+    const toast = document.createElement('div');
+    toast.textContent = '🚀 Google Sign-In coming soon!';
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1C2E4A;color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.2);';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
   }
 
   async function handleGoogleCredential(response: any) {

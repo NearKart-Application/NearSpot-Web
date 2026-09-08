@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
+import NoStoreBanner from './NoStoreBanner';
 
 interface Follower {
   // Confirmed API fields from mobile: full_name, profile_id
@@ -24,6 +25,12 @@ function Inner() {
   const [search, setSearch] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const { data: storeData, isError: storeError } = useQuery({
+    queryKey: ['vendor-store-id'],
+    queryFn: () => api.get('/stores/mine/').then(r => r.data),
+  });
+  const storeId: string = Array.isArray(storeData) ? ((storeData[0] as any)?.id ?? '') : ((storeData as any)?.id ?? '');
+
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['vendor-followers'],
     queryFn: () => api.get('/stores/mine/followers/').then(r => r.data),
@@ -36,6 +43,8 @@ function Inner() {
         (f.phone ?? '').includes(search) ||
         (f.profile_id ?? '').toLowerCase().includes(search.toLowerCase()))
     : followers;
+
+  if (storeError || !storeId) return <NoStoreBanner feature="followers" />;
 
   return (
     <div className="space-y-6">

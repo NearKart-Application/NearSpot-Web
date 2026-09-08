@@ -4,6 +4,7 @@ import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
+import NoStoreBanner from './NoStoreBanner';
 
 interface Offer {
   id: string; title: string; description?: string; offer_type?: string;
@@ -112,7 +113,7 @@ function Inner() {
   const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
 
-  const { data: storeData } = useQuery({
+  const { data: storeData, isError: storeError } = useQuery({
     queryKey: ['vendor-store-id'],
     queryFn: () => api.get('/stores/mine/').then(r => r.data),
   });
@@ -132,6 +133,8 @@ function Inner() {
   const offers: Offer[] = data?.results ?? (Array.isArray(data) ? data : []);
   const now = new Date();
   const active = offers.filter(o => o.is_active && new Date(o.valid_till ?? '') >= now);
+
+  if (storeError || !storeId) return <NoStoreBanner feature="offers" />;
 
   return (
     <div className="space-y-6">

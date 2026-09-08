@@ -5,6 +5,7 @@ import api from '../../../lib/api';
 import Img from '../../ui/Img';
 import { VendorAuthGuard } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
+import NoStoreBanner from './NoStoreBanner';
 
 interface Product {
   id: string; name: string; category: string; product_code: string;
@@ -112,8 +113,10 @@ function Inner() {
   };
 
   if (isError) {
-    const msg = (error as any)?.response?.data?.message ?? (error as any)?.response?.data?.detail ?? (error as any)?.message ?? 'Unknown error';
     const status = (error as any)?.response?.status;
+    const errCode = (error as any)?.response?.data?.error;
+    if (status === 404 || errCode === 'no_store') return <NoStoreBanner feature="products" />;
+    const msg = (error as any)?.response?.data?.message ?? (error as any)?.response?.data?.detail ?? (error as any)?.message ?? 'Unknown error';
     return (
       <div className="space-y-6">
         <h1 className="text-xl font-bold text-navy">Products</h1>
@@ -121,7 +124,6 @@ function Inner() {
           <div className="text-4xl mb-3">⚠️</div>
           <p className="font-bold text-navy mb-1">Failed to load products</p>
           <p className="text-sm text-gray-500 mb-1">{msg}</p>
-          {status && <p className="text-xs text-gray-400 mb-4">HTTP {status}</p>}
           {status === 401 && (
             <p className="text-sm text-red-500 mb-4">Your session expired. Please <a href="/auth/login" className="underline font-bold">log in again</a>.</p>
           )}

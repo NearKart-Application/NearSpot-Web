@@ -4,6 +4,7 @@ import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
+import NoStoreBanner from './NoStoreBanner';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -616,6 +617,12 @@ function Inner() {
   const [showExport,  setShowExport]  = useState(false);
   const [search,      setSearch]      = useState('');
 
+  const { data: storeData, isError: storeError } = useQuery({
+    queryKey: ['vendor-store-id'],
+    queryFn: () => api.get('/stores/mine/').then(r => r.data),
+  });
+  const storeId: string = Array.isArray(storeData) ? ((storeData[0] as any)?.id ?? '') : ((storeData as any)?.id ?? '');
+
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['vendor-invoices'],
     queryFn:  () => api.get('/stores/mine/invoices/').then(r => r.data),
@@ -633,6 +640,8 @@ function Inner() {
 
   const totalRevenue = invoices.reduce((s, i) => s + parseFloat(String(i.total ?? '0')), 0);
   const sentCount    = invoices.filter(i => i.is_sent).length;
+
+  if (storeError || !storeId) return <NoStoreBanner feature="invoices" />;
 
   return (
     <div className="space-y-6">
