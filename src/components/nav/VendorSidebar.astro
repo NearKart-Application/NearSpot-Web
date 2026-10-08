@@ -41,6 +41,11 @@ const icons: Record<string, string> = {
   settings:     'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
   notifications: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9',
   blacklist:     'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636',
+  bundles:       'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+  nearexpiry:    'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+  stocklogs:     'M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z',
+  invreports:    'M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z',
+  serials:       'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
   logout:       'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1',
 };
 
@@ -49,8 +54,9 @@ const groups = [
     label: 'Overview',
     links: [
       { href: '/vendor/dashboard', icon: 'dashboard',    label: 'Dashboard' },
-      { href: '/vendor/analytics',  icon: 'analytics',   label: 'Analytics' },
-      { href: '/vendor/reports',    icon: 'reports',     label: 'Reports'   },
+      { href: '/vendor/analytics',         icon: 'analytics',  label: 'Analytics'         },
+      { href: '/vendor/reports',           icon: 'reports',    label: 'Reports'           },
+      { href: '/vendor/inventory-reports', icon: 'invreports', label: 'Inventory Reports' },
     ],
   },
   {
@@ -66,7 +72,10 @@ const groups = [
       { href: '/vendor/service-catalogue', icon: 'catalogue',  label: 'Service Catalogue'},
       { href: '/vendor/offers',            icon: 'offers',     label: 'Offers'           },
       { href: '/vendor/videos',            icon: 'videos',     label: 'Videos'           },
-      { href: '/vendor/units',             icon: 'units',      label: 'Units (UoM)'      },
+      { href: '/vendor/units',          icon: 'units',      label: 'Units (UoM)'    },
+      { href: '/vendor/serial-numbers', icon: 'serials',    label: 'Serial Numbers' },
+      { href: '/vendor/bundles',         icon: 'bundles',    label: 'Bundles'        },
+      { href: '/vendor/near-expiry',     icon: 'nearexpiry', label: 'Near Expiry'    },
     ],
   },
   {
@@ -76,7 +85,8 @@ const groups = [
       { href: '/vendor/purchase-orders', icon: 'orders',    label: 'Purchase Orders'  },
       { href: '/vendor/purchase-sources',icon: 'market',    label: 'Purchase Sources' },
       { href: '/vendor/returns',         icon: 'returns',   label: 'Returns'          },
-      { href: '/vendor/stock-audit',     icon: 'audit',     label: 'Stock Audit'      },
+      { href: '/vendor/stock-audit',  icon: 'audit',      label: 'Stock Audit'  },
+      { href: '/vendor/stock-logs',   icon: 'stocklogs',  label: 'Stock Logs'   },
     ],
   },
   {
