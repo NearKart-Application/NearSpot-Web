@@ -22,6 +22,8 @@ import {
   MousePointerClick,
   RotateCcw,
   User,
+  BarChart2,
+  CalendarCheck,
 } from 'lucide-react';
 import { auth } from '../../../lib/auth';
 
@@ -51,6 +53,8 @@ const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
   restore:      RotateCcw,
   store:        Store,
   user:         User,
+  reports:      BarChart2,
+  reservations: CalendarCheck,
 };
 
 const NAV_ALL: NavItem[] = [
@@ -58,11 +62,13 @@ const NAV_ALL: NavItem[] = [
   { label: 'Stores',            href: '/admin/stores',              icon: 'stores' },
   { label: 'Users',             href: '/admin/users',               icon: 'users' },
   { label: 'Products',          href: '/admin/products',            icon: 'products' },
+  { label: 'Reports',           href: '/admin/reports',             icon: 'reports' },
   { label: 'Banners',           href: '/admin/banners',             icon: 'image' },
   { label: 'Categories',        href: '/admin/categories',          icon: 'tag' },
   { label: 'Offer Templates',   href: '/admin/offer-templates',     icon: 'ticket' },
   { label: 'Coupons',           href: '/admin/coupons',             icon: 'ticket' },
   { label: 'Website Requests',  href: '/admin/website-requests',    icon: 'globe' },
+  { label: 'Reservations',      href: '/admin/reservations',        icon: 'reservations' },
   { label: 'Activity Log',      href: '/admin/activity-log',        icon: 'clipboard' },
   { label: 'Stock Change Log',  href: '/admin/stock-logs',          icon: 'history' },
   { label: 'Login Logs',        href: '/admin/login-logs',          icon: 'login' },
