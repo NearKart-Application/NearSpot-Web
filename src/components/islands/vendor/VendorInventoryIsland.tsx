@@ -1174,7 +1174,7 @@ function Inner() {
         {([
           { key: 'alerts' as const, label: alerts.length > 0 ? `Alerts (${alerts.length})` : 'Alerts' },
           { key: 'all' as const, label: 'Products' },
-          { key: 'history' as const, label: 'Log' },
+          { key: 'history' as const, label: 'History' },
           { key: 'serials' as const, label: 'Serials' },
           { key: 'bundles' as const, label: 'Bundles' },
           { key: 'reports' as const, label: 'Reports' },

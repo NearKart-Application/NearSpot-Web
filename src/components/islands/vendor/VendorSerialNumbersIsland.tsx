@@ -112,7 +112,11 @@ function Inner() {
               placeholder="IMEI, tag number, etc." className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none" />
           </div>
           {createMut.isError && (
-            <p className="text-xs text-red-600 font-semibold">Failed to save. Please try again.</p>
+            <p className="text-xs text-red-600 font-semibold">
+              {(createMut.error as any)?.response?.data?.serial_number?.[0]
+                ?? (createMut.error as any)?.response?.data?.detail
+                ?? 'Failed to save. Please try again.'}
+            </p>
           )}
           <div className="flex gap-2 pt-1">
             <Button onClick={() => createMut.mutate()} disabled={createMut.isPending || !form.serial_number.trim()} className="flex-1">

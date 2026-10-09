@@ -224,6 +224,20 @@ function GroupThread({ group, userId, onBack }: {
     onSuccess: () => { setInviteLink(null); qc.invalidateQueries({ queryKey: ['group-detail', group.id] }); },
   });
 
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarError, setAvatarError] = useState('');
+  const avatarMut = useMutation({
+    mutationFn: (file: File) => {
+      const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!ALLOWED.includes(file.type)) throw new Error('Only JPEG, PNG or WebP images are allowed');
+      const fd = new FormData();
+      fd.append('avatar', file);
+      return api.post(`/groups/${group.id}/avatar/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    },
+    onSuccess: () => { setAvatarError(''); qc.invalidateQueries({ queryKey: ['group-detail', group.id] }); },
+    onError: (e: any) => setAvatarError(e?.message ?? e?.response?.data?.detail ?? 'Upload failed'),
+  });
+
   const productsQ = useQuery<SharedProduct[]>({
     queryKey: ['group-products', group.id],
     queryFn: () => api.get(`/groups/${group.id}/products/`).then(r => Array.isArray(r.data) ? r.data : (r.data?.results ?? [])),
@@ -265,11 +279,24 @@ function GroupThread({ group, userId, onBack }: {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
           </svg>
         </button>
-        <div className="w-10 h-10 rounded-2xl bg-navy flex items-center justify-center text-white font-black text-sm shrink-0 overflow-hidden">
-          {detail.avatar_url
-            ? <img src={detail.avatar_url} alt={group.name} className="w-full h-full object-cover" />
-            : initials(group.name)
-          }
+        <div className="relative shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-navy flex items-center justify-center text-white font-black text-sm overflow-hidden">
+            {detail.avatar_url
+              ? <img src={detail.avatar_url} alt={group.name} className="w-full h-full object-cover" />
+              : initials(group.name)
+            }
+          </div>
+          {isAdmin && (
+            <>
+              <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) avatarMut.mutate(f); e.target.value = ''; }} />
+              <button onClick={() => avatarInputRef.current?.click()} title="Change group avatar"
+                className="absolute -bottom-1 -right-1 w-4 h-4 bg-navy text-white rounded-full text-[8px] flex items-center justify-center hover:bg-navy/80 transition-colors">
+                ✎
+              </button>
+            </>
+          )}
+          {avatarError && <p className="absolute top-12 left-0 text-[10px] text-red-500 w-40 z-10 bg-white rounded shadow px-2 py-1">{avatarError}</p>}
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-navy truncate">{group.name}</p>
