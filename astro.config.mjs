@@ -1,12 +1,14 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
-import node from '@astrojs/node';
+// import node from '@astrojs/node';   // standalone server — use for self-hosted/local Docker
+import vercel from '@astrojs/vercel';
 import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
 
 export default defineConfig({
   output: 'server',
-  adapter: node({ mode: 'standalone' }),
+  // adapter: node({ mode: 'standalone' }),  // swap back for self-hosted deployment
+  adapter: vercel(),
   integrations: [
     react(),
     tailwind({ applyBaseStyles: false }),
