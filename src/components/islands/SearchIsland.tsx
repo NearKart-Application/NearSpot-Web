@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { QueryClientProvider, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
@@ -43,6 +43,18 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 function loadCoords() {
   try { const r = localStorage.getItem('ns_coords'); if (r) return JSON.parse(r); } catch { /**/ }
   return { lat: 17.385, lng: 78.4867 };
+}
+
+const RECENT_KEY = 'ns_recent_searches';
+function loadRecentSearches(): string[] {
+  try { const r = localStorage.getItem(RECENT_KEY); if (r) return JSON.parse(r); } catch { /**/ }
+  return [];
+}
+function saveRecentSearch(q: string) {
+  try {
+    const list = loadRecentSearches().filter(s => s.toLowerCase() !== q.toLowerCase());
+    localStorage.setItem(RECENT_KEY, JSON.stringify([q, ...list].slice(0, 5)));
+  } catch { /**/ }
 }
 
 /* ─── Store card ─────────────────────────────────────────────────────────── */
@@ -153,13 +165,15 @@ function StoreCard({ store, view }: { store: Store; view: ViewMode }) {
 /* ─── Filter sidebar content ─────────────────────────────────────────────── */
 function FilterPanel({
   tab, category, setCategory, radius, setRadius, onSale, setOnSale,
-  isOpenOnly, setIsOpenOnly, minRating, setMinRating, maxPrice, setMaxPrice,
+  isOpenOnly, setIsOpenOnly, minRating, setMinRating,
+  minPrice, setMinPrice, maxPrice, setMaxPrice,
 }: {
   tab: Tab; category: string | null; setCategory: (c: string | null) => void;
   radius: number; setRadius: (r: number) => void;
   onSale: boolean; setOnSale: (v: boolean) => void;
   isOpenOnly: boolean; setIsOpenOnly: (v: boolean) => void;
   minRating: number; setMinRating: (v: number) => void;
+  minPrice: number; setMinPrice: (v: number) => void;
   maxPrice: number; setMaxPrice: (v: number) => void;
 }) {
   return (
@@ -215,6 +229,28 @@ function FilterPanel({
         </div>
       </div>
 
+      {/* Price Range (products only) */}
+      {tab === 'products' && (
+        <div>
+          <p className="font-black text-navy text-xs uppercase tracking-widest mb-3">Price Range</p>
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <p className="text-[10px] text-gray-400 mb-1">Min ₹</p>
+              <input type="number" min="0" value={minPrice || ''} onChange={e => setMinPrice(Number(e.target.value) || 0)}
+                placeholder="0"
+                className="w-full px-2 py-1.5 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 outline-none focus:border-navy/40" />
+            </div>
+            <span className="text-gray-300 text-sm mt-4">–</span>
+            <div className="flex-1">
+              <p className="text-[10px] text-gray-400 mb-1">Max ₹</p>
+              <input type="number" min="0" value={maxPrice || ''} onChange={e => setMaxPrice(Number(e.target.value) || 0)}
+                placeholder="Any"
+                className="w-full px-2 py-1.5 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 outline-none focus:border-navy/40" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toggles */}
       <div>
         <p className="font-black text-navy text-xs uppercase tracking-widest mb-3">Filters</p>
@@ -255,10 +291,15 @@ function Inner({ initTab }: { initTab: Tab }) {
   const [onSale,    setOnSale]    = useState(false);
   const [isOpenOnly,setIsOpenOnly]= useState(false);
   const [minRating, setMinRating] = useState(0);
+  const [minPrice,  setMinPrice]  = useState(0);
   const [maxPrice,  setMaxPrice]  = useState(0);
   const [showFilter,setShowFilter]= useState(false);
   const [wishlisted,setWishlisted]= useState<Set<string>>(new Set());
+  const [inputFocused, setInputFocused] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => loadRecentSearches());
+  const [acQuery, setAcQuery] = useState(''); // debounced query for autocomplete
 
+  const inputRef = useRef<HTMLInputElement>(null);
   const [coords, setCoords] = useState(loadCoords);
   const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('ns_access');
 
@@ -272,6 +313,12 @@ function Inner({ initTab }: { initTab: Tab }) {
     return () => document.removeEventListener('ns:location-changed', handle);
   }, []);
 
+  // Debounce query for autocomplete
+  useEffect(() => {
+    const t = setTimeout(() => setAcQuery(query), 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
   const storeQ = useQuery({
     queryKey: ['search-stores', coords, radius],
     queryFn:  () => api.get('/stores/nearby/', { params: { lat: coords.lat, lng: coords.lng, radius } }).then(r => r.data),
@@ -279,23 +326,42 @@ function Inner({ initTab }: { initTab: Tab }) {
     staleTime: 60_000,
   });
 
-  // Use /products/search/ for text queries (real backend search), /products/nearby/ for location-only
-  const prodQ = useQuery({
-    queryKey: ['search-products', coords, radius, query],
-    queryFn: () => {
+  // Use /products/search/ for text queries, /products/nearby/ for location-only; both paginated
+  const prodQ = useInfiniteQuery({
+    queryKey: ['search-products', coords, radius, query.trim(), minPrice, maxPrice, onSale, minRating, sort],
+    queryFn: ({ pageParam = 1 }) => {
       const trimmed = query.trim();
       if (trimmed) {
         return api.get('/products/search/', {
-          params: { q: trimmed, lat: coords.lat, lng: coords.lng }
+          params: {
+            q: trimmed, lat: coords.lat, lng: coords.lng, radius,
+            page: pageParam, page_size: 20,
+            ...(minPrice > 0 ? { min_price: minPrice } : {}),
+            ...(maxPrice > 0 ? { max_price: maxPrice } : {}),
+            ...(onSale ? { has_offer: true } : {}),
+            ...(minRating > 0 ? { min_rating: minRating } : {}),
+            ...(sort === 'distance' ? {} : { ordering: sort }),
+          }
         }).then(r => r.data);
       }
       return api.get('/products/nearby/', {
-        params: { lat: coords.lat, lng: coords.lng, radius }
+        params: { lat: coords.lat, lng: coords.lng, radius, page: pageParam, page_size: 20 }
       }).then(r => r.data);
     },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage: any) => lastPage.next ?? undefined,
     enabled:  tab === 'products',
     staleTime: 30_000,
   });
+
+  // Autocomplete suggestions
+  const acQ = useQuery({
+    queryKey: ['autocomplete', acQuery],
+    queryFn:  () => api.get('/products/autocomplete/', { params: { q: acQuery } }).then(r => r.data),
+    enabled:  acQuery.length >= 2,
+    staleTime: 60_000,
+  });
+  const suggestions: string[] = acQ.data?.suggestions ?? [];
 
   const toggleWishlist = useCallback((id: string) => {
     if (!isLoggedIn) { window.location.href = '/auth/login'; return; }
@@ -308,7 +374,7 @@ function Inner({ initTab }: { initTab: Tab }) {
 
   // Client-side filter + sort
   const rawStores: Store[]   = storeQ.data?.results ?? (Array.isArray(storeQ.data) ? storeQ.data : []);
-  const rawProds:  ProductData[] = prodQ.data?.results ?? (Array.isArray(prodQ.data) ? prodQ.data : []);
+  const rawProds:  ProductData[] = (prodQ.data?.pages ?? []).flatMap((p: any) => p.results ?? (Array.isArray(p) ? p : []));
 
   const filterStores = useCallback((src: Store[], serviceOnly?: boolean) => {
     let s = serviceOnly != null ? src.filter(x => serviceOnly ? x.store_type === 'service' : x.store_type !== 'service') : src;
@@ -338,9 +404,11 @@ function Inner({ initTab }: { initTab: Tab }) {
     if (onSale)   p = p.filter(x => x.is_on_sale);
     if (minRating > 0) p = p.filter(x => (x.avg_rating ?? 0) >= minRating);
     const toN = (v: number | string | undefined | null) => typeof v === 'number' ? v : parseFloat(v as string || '0') || 0;
-    if (maxPrice > 0)  p = p.filter(x => {
+    if (minPrice > 0 || maxPrice > 0) p = p.filter(x => {
       const price = x.sale_price ?? toN(x.price ?? x.base_price);
-      return price <= maxPrice;
+      if (minPrice > 0 && price < minPrice) return false;
+      if (maxPrice > 0 && price > maxPrice) return false;
+      return true;
     });
     return [...p].sort((a, b) => {
       const pa = a.sale_price ?? toN(a.price ?? a.base_price);
@@ -354,23 +422,34 @@ function Inner({ initTab }: { initTab: Tab }) {
     });
   }, [rawProds, query, category, onSale, minRating, sort]);
 
-  const isLoading = tab === 'products' ? prodQ.isLoading : storeQ.isLoading;
+  const isLoading = tab === 'products' ? (prodQ.isLoading && rawProds.length === 0) : storeQ.isLoading;
   const resultCount = tab === 'products' ? products.length : tab === 'services' ? services.length : stores.length;
   const activeFilterCount = [
     category, onSale && tab === 'products', isOpenOnly && tab !== 'products',
-    minRating > 0, radius !== 5,
+    minRating > 0, radius !== 5, minPrice > 0, maxPrice > 0,
   ].filter(Boolean).length;
+
+  // Save search to recent when query is non-empty + Enter / tab change
+  const commitSearch = useCallback((q: string) => {
+    if (q.trim()) { saveRecentSearch(q.trim()); setRecentSearches(loadRecentSearches()); }
+  }, []);
 
   return (
     <div>
       {/* ── Top search bar ───────────────────────────────────────────────── */}
       <div className="sticky top-16 z-30 bg-white border-b border-gray-100 shadow-sm px-4 sm:px-6 lg:px-8 py-3 -mx-0">
-        {/* Search input */}
+        {/* Search input + autocomplete + recent searches */}
         <div className="relative mb-3">
           <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
           </svg>
-          <input value={query} onChange={e => setQuery(e.target.value)}
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setTimeout(() => setInputFocused(false), 150)}
+            onKeyDown={e => { if (e.key === 'Enter') commitSearch(query); }}
             placeholder={`Search ${tab}…`}
             className="w-full pl-10 pr-10 py-2.5 bg-gray-100 rounded-2xl text-sm border-0 outline-none focus:ring-2 focus:ring-navy/20 focus:bg-white transition-all"
             autoFocus />
@@ -381,6 +460,39 @@ function Inner({ initTab }: { initTab: Tab }) {
                 <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
               </svg>
             </button>
+          )}
+          {/* Autocomplete suggestions */}
+          {inputFocused && query.length >= 2 && suggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden">
+              {suggestions.map((s, i) => (
+                <button key={i} onMouseDown={() => { setQuery(s); commitSearch(s); setInputFocused(false); }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors border-b border-gray-50 last:border-0">
+                  <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                  </svg>
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Recent searches (shown when focused + empty query) */}
+          {inputFocused && !query && recentSearches.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden">
+              <p className="px-4 pt-2.5 pb-1 text-[10px] font-black text-gray-400 uppercase tracking-widest">Recent searches</p>
+              {recentSearches.map((s, i) => (
+                <button key={i} onMouseDown={() => { setQuery(s); setInputFocused(false); }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors border-b border-gray-50 last:border-0">
+                  <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M13 3a9 9 0 10-9 9h2V9.414l-1.293 1.293-1.414-1.414L6 7.586V12H4A7 7 0 1113 3zm-1 8.414V11h-2V7.586L8.293 9.293 6.879 7.879 11 3.757v7.657z"/>
+                  </svg>
+                  {s}
+                </button>
+              ))}
+              <button onMouseDown={() => { localStorage.removeItem(RECENT_KEY); setRecentSearches([]); setInputFocused(false); }}
+                className="w-full text-center py-2 text-[11px] text-gray-400 hover:text-red-500 transition-colors border-t border-gray-50">
+                Clear recent searches
+              </button>
+            </div>
           )}
         </div>
 
@@ -455,6 +567,7 @@ function Inner({ initTab }: { initTab: Tab }) {
               radius={radius} setRadius={setRadius} onSale={onSale} setOnSale={setOnSale}
               isOpenOnly={isOpenOnly} setIsOpenOnly={setIsOpenOnly}
               minRating={minRating} setMinRating={setMinRating}
+              minPrice={minPrice} setMinPrice={setMinPrice}
               maxPrice={maxPrice} setMaxPrice={setMaxPrice} />
           </div>
         )}
@@ -471,7 +584,7 @@ function Inner({ initTab }: { initTab: Tab }) {
               {activeFilterCount > 0 && (
                 <button onClick={() => {
                   setCategory(null); setOnSale(false); setIsOpenOnly(false);
-                  setMinRating(0); setMaxPrice(0); setRadius(5);
+                  setMinRating(0); setMinPrice(0); setMaxPrice(0); setRadius(5);
                 }} className="text-xs text-red-500 font-bold hover:underline">
                   Clear all
                 </button>
@@ -481,6 +594,7 @@ function Inner({ initTab }: { initTab: Tab }) {
               radius={radius} setRadius={setRadius} onSale={onSale} setOnSale={setOnSale}
               isOpenOnly={isOpenOnly} setIsOpenOnly={setIsOpenOnly}
               minRating={minRating} setMinRating={setMinRating}
+              minPrice={minPrice} setMinPrice={setMinPrice}
               maxPrice={maxPrice} setMaxPrice={setMaxPrice} />
           </div>
         </aside>
@@ -568,28 +682,38 @@ function Inner({ initTab }: { initTab: Tab }) {
               </div>
             </div>
           ) : tab === 'products' ? (
-            view === 'grid' ? (
-              <motion.div
-                className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4"
-                variants={listContainer} initial="hidden" animate="show"
-              >
-                {products.map(p => (
-                  <motion.div key={p.id} variants={listItem}>
-                    <ProductCardGrid product={p}
-                      wishlisted={wishlisted.has(p.id)} onWishlist={() => toggleWishlist(p.id)} />
-                  </motion.div>
-                ))}
-              </motion.div>
-            ) : (
-              <motion.div className="space-y-3" variants={listContainer} initial="hidden" animate="show">
-                {products.map(p => (
-                  <motion.div key={p.id} variants={listItem}>
-                    <ProductCardList product={p}
-                      wishlisted={wishlisted.has(p.id)} onWishlist={() => toggleWishlist(p.id)} />
-                  </motion.div>
-                ))}
-              </motion.div>
-            )
+            <>
+              {view === 'grid' ? (
+                <motion.div
+                  className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4"
+                  variants={listContainer} initial="hidden" animate="show"
+                >
+                  {products.map(p => (
+                    <motion.div key={p.id} variants={listItem}>
+                      <ProductCardGrid product={p}
+                        wishlisted={wishlisted.has(p.id)} onWishlist={() => toggleWishlist(p.id)} />
+                    </motion.div>
+                  ))}
+                </motion.div>
+              ) : (
+                <motion.div className="space-y-3" variants={listContainer} initial="hidden" animate="show">
+                  {products.map(p => (
+                    <motion.div key={p.id} variants={listItem}>
+                      <ProductCardList product={p}
+                        wishlisted={wishlisted.has(p.id)} onWishlist={() => toggleWishlist(p.id)} />
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+              {prodQ.hasNextPage && (
+                <div className="mt-6 text-center">
+                  <Button variant="outline" onClick={() => prodQ.fetchNextPage()}
+                    disabled={prodQ.isFetchingNextPage} className="px-8">
+                    {prodQ.isFetchingNextPage ? 'Loading…' : 'Load more results'}
+                  </Button>
+                </div>
+              )}
+            </>
           ) : (
             <motion.div
               className={`grid gap-4 ${view === 'grid' ? 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}

@@ -4,6 +4,7 @@ import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
+import NoStoreBanner from './NoStoreBanner';
 
 interface Review {
   id: string; user_name: string; rating: number; comment: string;
@@ -84,7 +85,7 @@ function Inner() {
   const [filter, setFilter] = useState<'all' | 'unreplied'>('all');
   const [starFilter, setStarFilter] = useState(0);
 
-  const { data: storeData } = useQuery({
+  const { data: storeData, isError: storeError } = useQuery({
     queryKey: ['vendor-store-id'],
     queryFn: () => api.get('/stores/mine/').then(r => r.data),
   });
@@ -100,6 +101,8 @@ function Inner() {
   const avgRating = reviews.length ? (reviews.reduce((a, r) => a + r.rating, 0) / reviews.length).toFixed(1) : '—';
   let shown = filter === 'unreplied' ? unreplied : reviews;
   if (starFilter > 0) shown = shown.filter(r => r.rating === starFilter);
+
+  if (storeError || !storeId) return <NoStoreBanner feature="reviews" />;
 
   return (
     <div className="space-y-6">

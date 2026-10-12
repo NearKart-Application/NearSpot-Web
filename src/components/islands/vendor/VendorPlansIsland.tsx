@@ -5,6 +5,12 @@ import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
 
+interface Invoice {
+  invoice_number: string; store_name: string; plan: string;
+  amount: string; gst_rate: number; gst_amount: string;
+  started_at: string; expires_at: string;
+}
+
 interface Plan {
   id: string; name: string; display_name: string; price: number | string;
   billing_cycle?: string; duration_days?: number;
@@ -142,6 +148,29 @@ function Inner() {
     },
   });
 
+  const [refundReason,    setRefundReason]    = useState('');
+  const [showRefundForm,  setShowRefundForm]  = useState(false);
+  const [refundMsg,       setRefundMsg]       = useState<string | null>(null);
+  const [showInvoice,     setShowInvoice]     = useState(false);
+
+  const { data: invoiceData } = useQuery<Invoice>({
+    queryKey: ['subscription-invoice'],
+    queryFn: () => api.get('/billing/subscription/invoice/').then(r => r.data),
+    enabled: showInvoice,
+  });
+
+  const refundMut = useMutation({
+    mutationFn: () => api.post('/billing/subscription/refund/', { reason: refundReason }),
+    onSuccess: () => {
+      setRefundMsg('✅ Refund request submitted. We\'ll review within 2–3 business days.');
+      setShowRefundForm(false);
+      setRefundReason('');
+    },
+    onError: (e: any) => {
+      setRefundMsg('❌ ' + (e?.response?.data?.message ?? 'Could not submit refund request.'));
+    },
+  });
+
   const paidPlans = plans.filter(p => parseFloat(String(p.price)) > 0);
 
   // Auto-select the only paid plan so vendors with one plan don't see the dropdown
@@ -264,6 +293,63 @@ function Inner() {
           </div>
         )}
       </div>
+
+      {/* Subscription management actions */}
+      {sub?.is_active && (
+        <div className="card p-5 space-y-3">
+          <h3 className="font-bold text-navy">Subscription Actions</h3>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => setShowInvoice(v => !v)}
+              className="btn-secondary text-sm px-4 py-2"
+            >
+              📄 {showInvoice ? 'Hide' : 'Download'} Invoice
+            </button>
+            <button
+              onClick={() => { setShowRefundForm(v => !v); setRefundMsg(null); }}
+              className="text-sm text-red-500 hover:underline"
+            >
+              Request Refund
+            </button>
+          </div>
+
+          {showInvoice && invoiceData && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm space-y-1">
+              <p className="font-bold text-navy text-base">Tax Invoice — {invoiceData.invoice_number}</p>
+              <p className="text-gray-500">{invoiceData.store_name}</p>
+              <div className="mt-2 space-y-0.5">
+                <div className="flex justify-between"><span className="text-gray-500">Plan</span><span className="font-semibold">{invoiceData.plan}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Amount</span><span className="font-semibold">₹{invoiceData.amount}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">GST ({invoiceData.gst_rate}%)</span><span>₹{invoiceData.gst_amount}</span></div>
+                <div className="flex justify-between border-t border-gray-200 pt-1 mt-1"><span className="font-bold">Total</span><span className="font-bold">₹{(Number(invoiceData.amount) + Number(invoiceData.gst_amount)).toFixed(2)}</span></div>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">Valid: {new Date(invoiceData.started_at).toLocaleDateString('en-IN')} → {new Date(invoiceData.expires_at).toLocaleDateString('en-IN')}</p>
+            </div>
+          )}
+
+          {showRefundForm && (
+            <div className="space-y-2">
+              <textarea
+                value={refundReason}
+                onChange={e => setRefundReason(e.target.value)}
+                placeholder="Reason for refund request…"
+                rows={3}
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40"
+              />
+              <Button
+                onClick={() => refundMut.mutate()}
+                disabled={!refundReason.trim() || refundMut.isPending}
+                variant="destructive" size="sm"
+              >
+                {refundMut.isPending ? 'Submitting…' : 'Submit Refund Request'}
+              </Button>
+            </div>
+          )}
+          {refundMsg && (
+            <p className={`text-sm font-medium ${refundMsg.startsWith('✅') ? 'text-green-700' : 'text-red-600'}`}>{refundMsg}</p>
+          )}
+        </div>
+      )}
 
       {/* Coupon */}
       <div className="card p-5">

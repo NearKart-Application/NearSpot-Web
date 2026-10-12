@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+
+# Keep vendor, admin, and auth flows private
+Disallow: /vendor/
+Disallow: /admin/
+Disallow: /auth/
+
+# Public-facing pages to prioritise
+Allow: /stores/
+Allow: /products/
+Allow: /search
+Allow: /map
+Allow: /about
+Allow: /terms
+Allow: /privacy
+Allow: /video
+
+Sitemap: https://nearspot.in/sitemap.xml

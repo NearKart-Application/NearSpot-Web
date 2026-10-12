@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { auth } from '../../../lib/auth';
 import { Button } from '@/components/ui/button';
 
@@ -6,8 +6,26 @@ const VENDOR_INACTIVITY_MS = 60 * 60 * 1000; // 60 minutes
 const VENDOR_WARNING_MS    = 55 * 60 * 1000; // warn at 55 minutes
 
 export function IslandError({ error, refetch }: { error: unknown; refetch?: () => void }) {
+  const status  = (error as any)?.response?.status;
+  const errCode = (error as any)?.response?.data?.error;
+
+  if (errCode === 'no_store' || (status === 400 && errCode === 'no_store')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
+        <div className="text-5xl mb-4">🏪</div>
+        <h2 className="text-xl font-bold text-navy mb-2">No Store Found</h2>
+        <p className="text-gray-500 mb-6 max-w-sm text-sm">
+          You need to set up your store before you can use this feature.
+        </p>
+        <a href="/vendor/store-setup"
+           className="inline-flex items-center gap-2 bg-navy text-white font-bold px-6 py-3 rounded-2xl hover:bg-navy/90 transition-colors text-sm">
+          🚀 Set Up My Store
+        </a>
+      </div>
+    );
+  }
+
   const msg = (error as any)?.response?.data?.detail ?? (error as any)?.response?.data?.message ?? (error as any)?.message ?? 'Something went wrong';
-  const status = (error as any)?.response?.status;
   return (
     <div className="card p-10 text-center">
       <div className="text-4xl mb-3">⚠️</div>
@@ -28,7 +46,7 @@ export function useVendorAuth() {
   useEffect(() => {
     const token = localStorage.getItem('ns_access');
     const user  = auth.user();
-    if (!token || !user) { setStatus('unauthenticated'); return; }
+    if (!token || !user) { window.location.href = '/auth/login'; setStatus('unauthenticated'); return; }
 
     const role = user.ui_mode ?? (user as any).role ?? '';
     if (role === 'admin' || role === 'master_admin') {
@@ -50,9 +68,11 @@ export function useVendorAuth() {
 export function VendorAuthGuard({ children }: { children: React.ReactNode }) {
   const status                        = useVendorAuth();
   const [showWarning, setShowWarning] = useState(false);
+  const resetRef                      = useRef<() => void>(() => {});
 
   const resetTimers = useCallback(() => {
     setShowWarning(false);
+    resetRef.current();
   }, []);
 
   useEffect(() => {
@@ -68,6 +88,8 @@ export function VendorAuthGuard({ children }: { children: React.ReactNode }) {
       warnTimer   = setTimeout(() => setShowWarning(true),           VENDOR_WARNING_MS);
       logoutTimer = setTimeout(() => { auth.logout(); window.location.href = '/auth/login'; }, VENDOR_INACTIVITY_MS);
     }
+
+    resetRef.current = reset;
 
     const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'] as const;
     events.forEach(ev => document.addEventListener(ev, reset, { passive: true }));

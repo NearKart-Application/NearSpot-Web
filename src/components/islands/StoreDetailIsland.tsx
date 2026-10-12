@@ -5,16 +5,28 @@ import api from '../../lib/api';
 import Img from '../ui/Img';
 import { Button } from '@/components/ui/button';
 
+interface StoreHour {
+  day: number; day_name: string; open_time: string; close_time: string; is_closed: boolean;
+}
+interface StorePhotoItem {
+  id: string; image_url: string; caption: string;
+}
+interface StoreQAItem {
+  id: string; question: string; answer: string; answered_at?: string; user_name: string; created_at: string;
+}
 interface StoreDetail {
   id: string; name: string; avatar?: string; cover_image?: string;
   category: string; location: string; distance_km?: number;
-  is_open: boolean; open_status_label?: string; todays_hours?: string;
+  is_open: boolean; live_is_open?: boolean; open_status_label?: string; todays_hours?: string;
   closes_at?: string; next_open?: string;
+  weekly_hours?: StoreHour[];
   rating: number; review_count: number; follower_count: number; is_followed: boolean;
   is_verified?: boolean; holiday_mode?: boolean;
   active_offer_labels?: string[]; top_offer_label?: string;
   description?: string; phone?: string; address?: string;
-  store_type?: string;
+  store_type?: string; qr_code_url?: string;
+  photos?: StorePhotoItem[];
+  lat?: number; lng?: number;
 }
 interface Product {
   id: string; name: string;
@@ -91,6 +103,64 @@ function ReviewCard({ review }: { review: Review }) {
           <p className="text-xs text-gray-500">{review.vendor_reply}</p>
         </div>
       )}
+    </div>
+  );
+}
+
+function StoreQASection({ storeId }: { storeId: string }) {
+  const [question, setQuestion] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('ns_access');
+
+  const { data, refetch } = useQuery<StoreQAItem[]>({
+    queryKey: ['store-qa', storeId],
+    queryFn: () => api.get(`/stores/${storeId}/qa/`).then(r => Array.isArray(r.data) ? r.data : []),
+    staleTime: 60_000,
+  });
+  const qaList = data ?? [];
+
+  const submit = async () => {
+    if (!question.trim()) return;
+    if (!isLoggedIn) { window.location.href = '/auth/login'; return; }
+    setSubmitting(true);
+    try {
+      await api.post(`/stores/${storeId}/qa/`, { question: question.trim() });
+      setQuestion('');
+      refetch();
+    } catch { /* ignore */ }
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="mt-6 px-4">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-0.5 h-4 bg-gold rounded-full" />
+        <h2 className="text-sm font-bold text-navy">Q&amp;A {qaList.length > 0 ? `(${qaList.length})` : ''}</h2>
+      </div>
+      {qaList.length > 0 && (
+        <div className="space-y-3 mb-3">
+          {qaList.slice(0, 5).map(q => (
+            <div key={q.id} className="bg-white rounded-xl border border-gray-100 p-3.5">
+              <p className="text-xs font-semibold text-navy mb-1">❓ {q.question}</p>
+              <p className="text-[10px] text-gray-400 mb-2">{q.user_name} · {new Date(q.created_at).toLocaleDateString('en-IN')}</p>
+              {q.answer
+                ? <div className="pl-2 border-l-2 border-navy"><p className="text-[10px] font-bold text-navy mb-0.5">Store reply</p><p className="text-xs text-gray-600">{q.answer}</p></div>
+                : <p className="text-[10px] text-gray-400 italic">Awaiting reply from store…</p>
+              }
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <input value={question} onChange={e => setQuestion(e.target.value)}
+          placeholder="Ask a question about this store…"
+          className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-xl outline-none focus:border-navy/40"
+          onKeyDown={e => e.key === 'Enter' && submit()} />
+        <button onClick={submit} disabled={submitting || !question.trim()}
+          className="px-4 py-2 bg-navy text-white text-xs font-bold rounded-xl disabled:opacity-50 hover:bg-navy/90 transition-colors">
+          {submitting ? '…' : 'Ask'}
+        </button>
+      </div>
     </div>
   );
 }
@@ -378,6 +448,68 @@ function Inner({ storeId, initialStore }: { storeId: string; initialStore: Store
             {products.map(p => <ProductCard key={p.id} product={p} />)}
           </div>
         )}
+      </div>
+
+      {/* Photo Gallery */}
+      {(store.photos ?? []).length > 0 && (
+        <div className="mt-6 px-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-0.5 h-4 bg-gold rounded-full" />
+            <h2 className="text-sm font-bold text-navy">Photo Gallery</h2>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+            {store.photos!.map(p => (
+              <div key={p.id} className="shrink-0">
+                <img src={p.image_url} alt={p.caption || store.name}
+                  className="w-28 h-28 object-cover rounded-xl border border-gray-100" />
+                {p.caption && <p className="text-[10px] text-gray-400 mt-1 w-28 truncate">{p.caption}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Business Hours */}
+      {(store.weekly_hours ?? []).length > 0 && (
+        <div className="mt-6 px-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-0.5 h-4 bg-gold rounded-full" />
+            <h2 className="text-sm font-bold text-navy">Business Hours</h2>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            {store.weekly_hours!.map((h, i) => (
+              <div key={h.day} className={`flex items-center justify-between px-4 py-2.5 text-xs ${i < store.weekly_hours!.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                <span className="font-semibold text-navy w-24">{h.day_name}</span>
+                {h.is_closed
+                  ? <span className="text-red-500 font-medium">Closed</span>
+                  : <span className="text-gray-500">{h.open_time} – {h.close_time}</span>
+                }
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Q&A */}
+      <StoreQASection storeId={storeId} />
+
+      {/* Share */}
+      <div className="mt-4 px-4 pb-2">
+        <button
+          onClick={() => {
+            const url = window.location.href;
+            if (navigator.share) {
+              navigator.share({ title: store.name, text: `Check out ${store.name} on NearSpot!`, url });
+            } else {
+              navigator.clipboard.writeText(url).then(() => alert('Link copied!'));
+            }
+          }}
+          className="w-full flex items-center justify-center gap-2 py-2.5 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+          </svg>
+          Share this store
+        </button>
       </div>
 
       {/* Reviews */}

@@ -76,8 +76,11 @@ function SupplierModal({
         : api.post('/inventory/suppliers/', payload);
     },
     onSuccess: () => onSuccess(),
-    onError: (e: any) =>
-      setError(e?.response?.data?.detail ?? JSON.stringify(e?.response?.data) ?? 'Failed to save supplier'),
+    onError: (e: any) => {
+      const d = e?.response?.data;
+      if (d?.plan_limit_reached) setError('Supplier limit reached for your plan. Upgrade your plan to add more suppliers.');
+      else setError(d?.detail ?? JSON.stringify(d) ?? 'Failed to save supplier');
+    },
   });
 
   const set = (key: string, val: string | boolean) => setForm(f => ({ ...f, [key]: val }));

@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-q
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
+import NoStoreBanner from './NoStoreBanner';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -83,6 +84,12 @@ function Inner() {
   const [successMsg,      setSuccessMsg]      = useState('');
   const [submitError,     setSubmitError]     = useState('');
 
+  const { data: storeData, isError: storeError } = useQuery({
+    queryKey: ['vendor-store-id'],
+    queryFn: () => api.get('/stores/mine/').then(r => r.data),
+  });
+  const storeId: string = Array.isArray(storeData) ? ((storeData[0] as any)?.id ?? '') : ((storeData as any)?.id ?? '');
+
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['vendor-invoices-for-returns'],
     queryFn:  () => api.get('/stores/mine/invoices/').then(r => r.data),
@@ -95,6 +102,8 @@ function Inner() {
     queryFn:  () => api.get('/products/vendor/stock-logs/?reason=return_from_customer&page_size=30').then(r => r.data),
   });
   const history: StockLog[] = histData?.results ?? [];
+
+  if (storeError || !storeId) return <NoStoreBanner feature="returns" />;
 
   const filtered = search
     ? invoices.filter(i =>

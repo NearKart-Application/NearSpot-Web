@@ -5,6 +5,7 @@ import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
 import { StepUpOtpDialog } from '@/components/ui/StepUpOtpDialog';
+import NoStoreBanner from './NoStoreBanner';
 
 interface StaffMember {
   id: string; name: string; phone?: string; profile_id?: string;
@@ -22,6 +23,12 @@ function Inner() {
   const [role, setRole]                 = useState('staff');
   const [error, setError]               = useState('');
   const [pending, setPending]           = useState<PendingAction | null>(null);
+
+  const { data: storeData, isError: storeError } = useQuery({
+    queryKey: ['vendor-store-id'],
+    queryFn: () => api.get('/stores/mine/').then(r => r.data),
+  });
+  const storeId: string = Array.isArray(storeData) ? ((storeData[0] as any)?.id ?? '') : ((storeData as any)?.id ?? '');
 
   const { data, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ['vendor-staff'],
@@ -61,6 +68,8 @@ function Inner() {
   const staff: StaffMember[] = Array.isArray(data) ? data : (data?.results ?? []);
 
   const ROLES = ['owner', 'manager', 'staff', 'cashier'];
+
+  if (storeError || !storeId) return <NoStoreBanner feature="staff" />;
 
   return (
     <>
@@ -123,7 +132,9 @@ function Inner() {
           ))}
         </div>
       ) : isError ? (
-        <IslandError error={queryError} refetch={refetch} />
+        (queryError as any)?.response?.data?.error === 'no_store' || (queryError as any)?.response?.status === 404
+          ? <NoStoreBanner feature="staff management" />
+          : <IslandError error={queryError} refetch={refetch} />
       ) : staff.length === 0 ? (
         <div className="card p-12 text-center text-gray-400">
           <div className="text-4xl mb-3">👤</div>

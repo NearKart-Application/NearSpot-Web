@@ -4,6 +4,7 @@ import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
+import NoStoreBanner from './NoStoreBanner';
 
 interface DiscountCode {
   id: string; code: string; discount_type: string;
@@ -119,6 +120,12 @@ function Inner() {
   const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
 
+  const { data: storeData, isError: storeError } = useQuery({
+    queryKey: ['vendor-store-id'],
+    queryFn: () => api.get('/stores/mine/').then(r => r.data),
+  });
+  const storeId: string = Array.isArray(storeData) ? ((storeData[0] as any)?.id ?? '') : ((storeData as any)?.id ?? '');
+
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['vendor-discount-codes'],
     queryFn: () => api.get('/stores/mine/discount-codes/').then(r => r.data),
@@ -136,6 +143,8 @@ function Inner() {
   });
 
   const codes: DiscountCode[] = Array.isArray(data) ? data : (data?.results ?? []);
+
+  if (storeError || !storeId) return <NoStoreBanner feature="discount codes" />;
 
   return (
     <div className="space-y-6">

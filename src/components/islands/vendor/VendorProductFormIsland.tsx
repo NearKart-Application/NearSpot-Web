@@ -1,9 +1,19 @@
-import { useState, useEffect } from 'react';
-import { QueryClientProvider, useQuery, useMutation } from '@tanstack/react-query';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
+
+const FALLBACK_UNITS = [
+  { value: 'piece',  label: 'Piece' },
+  { value: 'kg',     label: 'Kilogram (kg)' },
+  { value: 'gram',   label: 'Gram (g)' },
+  { value: 'litre',  label: 'Litre (L)' },
+  { value: 'dozen',  label: 'Dozen' },
+  { value: 'metre',  label: 'Metre (m)' },
+  { value: 'pair',   label: 'Pair' },
+];
 
 interface ProductFormData {
   name: string;
@@ -12,13 +22,88 @@ interface ProductFormData {
   base_price: string;
   sale_price: string;
   cost_price: string;
+  mrp: string;
   stock: string;
+  unit: string;
   product_code: string;
+  barcode: string;
   status: string;
   is_visible: boolean;
   colors: string;
   hsn_code: string;
   gst_rate: string;
+}
+
+interface ProductImage { id: string; image_url: string; is_primary: boolean; order: number; }
+
+function ImageUploadSection({ productId }: { productId: string }) {
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+
+  const { data: images = [], refetch } = useQuery<ProductImage[]>({
+    queryKey: ['product-images', productId],
+    queryFn: () => api.get(`/products/${productId}/`).then(r => r.data.images ?? []),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (imageId: string) => api.delete(`/products/${productId}/images/${imageId}/`),
+    onSuccess: () => refetch(),
+  });
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || !files.length) return;
+    if (images.length + files.length > 5) {
+      setUploadError(`Max 5 images. You have ${images.length}, tried to add ${files.length}.`);
+      return;
+    }
+    setUploading(true);
+    setUploadError('');
+    const fd = new FormData();
+    Array.from(files).forEach(f => fd.append('images', f));
+    try {
+      await api.post(`/products/${productId}/images/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await refetch();
+    } catch (err: any) {
+      setUploadError(err?.response?.data?.message ?? 'Upload failed. Try again.');
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  return (
+    <div>
+      <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 block">Product Images ({images.length}/5)</label>
+      <div className="flex flex-wrap gap-2 mb-3">
+        {images.map(img => (
+          <div key={img.id} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 group">
+            <img src={img.image_url} alt="" className="w-full h-full object-cover" />
+            {img.is_primary && (
+              <span className="absolute bottom-0 left-0 right-0 bg-navy/80 text-white text-[9px] text-center py-0.5">Primary</span>
+            )}
+            <button onClick={() => deleteMut.mutate(img.id)}
+              className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              ×
+            </button>
+          </div>
+        ))}
+        {images.length < 5 && (
+          <button onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-navy hover:text-navy transition-colors disabled:opacity-60">
+            <span className="text-2xl leading-none">{uploading ? '⏳' : '+'}</span>
+            <span className="text-[9px] mt-0.5">{uploading ? 'Uploading' : 'Add photo'}</span>
+          </button>
+        )}
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleUpload} />
+      {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
+      <p className="text-[10px] text-gray-400">Min 300×300 px · Max 10 MB per image</p>
+    </div>
+  );
 }
 
 const CATEGORIES = [
@@ -31,16 +116,47 @@ const STATUSES = ['active', 'draft', 'inactive'];
 function Inner({ productId }: { productId?: string }) {
   const isEdit = !!productId;
 
+  const { data: uomList = [] } = useQuery<{ symbol: string; name: string; category: string }[]>({
+    queryKey: ['uom-list'],
+    queryFn: () => api.get('/inventory/uom/').then(r => r.data),
+    staleTime: 5 * 60_000,
+  });
+  const unitOptions = uomList.length > 0
+    ? uomList.map(u => ({ value: u.symbol, label: `${u.name} (${u.symbol})` }))
+    : FALLBACK_UNITS;
+
   const [form, setForm] = useState<ProductFormData>({
     name: '', category: 'fashion', description: '',
-    base_price: '', sale_price: '', cost_price: '', stock: '', product_code: '',
+    base_price: '', sale_price: '', cost_price: '', mrp: '', stock: '', unit: 'piece', product_code: '', barcode: '',
     status: 'draft', is_visible: true, colors: '',
     hsn_code: '', gst_rate: '',
   });
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  // Images staged during creation
+  const [pendingImages, setPendingImages] = useState<File[]>([]);
+  const [pendingPreviews, setPendingPreviews] = useState<string[]>([]);
+  const pendingImgRef = useRef<HTMLInputElement>(null);
 
-  const { data: existing } = useQuery({
+  const addPendingImages = useCallback((files: FileList | null) => {
+    if (!files) return;
+    const newFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+    setPendingImages(prev => {
+      const merged = [...prev, ...newFiles].slice(0, 5);
+      setPendingPreviews(merged.map(f => URL.createObjectURL(f)));
+      return merged;
+    });
+  }, []);
+
+  const removePendingImage = useCallback((i: number) => {
+    setPendingImages(prev => {
+      const next = prev.filter((_, j) => j !== i);
+      setPendingPreviews(next.map(f => URL.createObjectURL(f)));
+      return next;
+    });
+  }, []);
+
+  const { data: existing, isError: existingError, error: existingErr, refetch: existingRefetch } = useQuery({
     queryKey: ['vendor-product-detail', productId],
     queryFn: () => api.get(`/products/${productId}/`).then(r => r.data),
     enabled: isEdit,
@@ -55,8 +171,11 @@ function Inner({ productId }: { productId?: string }) {
       base_price: String(existing.base_price ?? existing.price ?? ''),
       sale_price: String(existing.sale_price ?? ''),
       cost_price: String(existing.cost_price ?? ''),
-      stock: String(existing.stock_count ?? existing.stock_total ?? ''),
+      mrp: String(existing.variants?.[0]?.mrp ?? existing.mrp ?? ''),
+      stock: String(existing.total_stock ?? existing.stock_count ?? existing.stock_total ?? ''),
+      unit: existing.variants?.[0]?.unit ?? 'piece',
       product_code: existing.product_code ?? '',
+      barcode: existing.barcode ?? '',
       status: existing.status ?? 'draft',
       is_visible: existing.is_visible ?? true,
       colors: (existing.colors ?? []).join(', '),
@@ -74,8 +193,11 @@ function Inner({ productId }: { productId?: string }) {
         base_price: parseFloat(form.base_price) || 0,
         ...(form.sale_price ? { sale_price: parseFloat(form.sale_price) } : {}),
         ...(form.cost_price ? { cost_price: parseFloat(form.cost_price) } : {}),
+        ...(form.mrp ? { mrp: parseFloat(form.mrp) } : {}),
         stock: parseInt(form.stock) || 0,
+        unit: form.unit,
         product_code: form.product_code.trim(),
+        ...(form.barcode.trim() ? { barcode: form.barcode.trim() } : {}),
         status: form.status,
         is_visible: form.is_visible,
         colors: form.colors.split(',').map(c => c.trim()).filter(Boolean),
@@ -86,7 +208,15 @@ function Inner({ productId }: { productId?: string }) {
         ? api.patch(`/products/${productId}/`, payload)
         : api.post('/products/', payload);
     },
-    onSuccess: () => {
+    onSuccess: async (resp: any) => {
+      const newId = resp?.data?.id;
+      if (!isEdit && newId && pendingImages.length > 0) {
+        try {
+          const fd = new FormData();
+          pendingImages.forEach(f => fd.append('images', f));
+          await api.post(`/products/${newId}/images/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        } catch {}
+      }
       setSaved(true);
       setTimeout(() => { window.location.href = '/vendor/products'; }, 1200);
     },
@@ -101,6 +231,8 @@ function Inner({ productId }: { productId?: string }) {
 
   const set = (key: keyof ProductFormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [key]: e.target.value }));
+
+  if (isEdit && existingError) return <IslandError error={existingErr} refetch={existingRefetch} />;
 
   if (saved) return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -163,6 +295,15 @@ function Inner({ productId }: { productId?: string }) {
           </div>
         </div>
 
+        {/* MRP */}
+        <div>
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">
+            MRP ₹ <span className="font-normal normal-case text-gray-400">(Maximum Retail Price — shown as crossed-out price to customers)</span>
+          </label>
+          <input type="number" min="0" step="0.01" value={form.mrp} onChange={set('mrp')} placeholder="e.g. 699"
+            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+        </div>
+
         {/* Stock + Code */}
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -177,11 +318,18 @@ function Inner({ productId }: { productId?: string }) {
           </div>
         </div>
 
-        {/* Colors */}
-        <div>
-          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Colors</label>
-          <input value={form.colors} onChange={set('colors')} placeholder="Red, Blue, Black (comma-separated)"
-            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+        {/* Colors + Barcode */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Colors</label>
+            <input value={form.colors} onChange={set('colors')} placeholder="Red, Blue, Black"
+              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Barcode / EAN</label>
+            <input value={form.barcode} onChange={set('barcode')} placeholder="8901234567890"
+              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+          </div>
         </div>
 
         {/* GST / Tax fields — P0 legal compliance */}
@@ -199,11 +347,20 @@ function Inner({ productId }: { productId?: string }) {
           </div>
         </div>
 
-        {/* Cost Price — P2 margin analytics */}
-        <div>
-          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Cost Price ₹ <span className="font-normal normal-case text-gray-400">(not visible to customers)</span></label>
-          <input type="number" min="0" step="0.01" value={form.cost_price} onChange={set('cost_price')} placeholder="Your purchase cost"
-            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+        {/* Cost Price + Unit */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Cost Price ₹ <span className="font-normal normal-case text-gray-400">(not shown to customers)</span></label>
+            <input type="number" min="0" step="0.01" value={form.cost_price} onChange={set('cost_price')} placeholder="Your purchase cost"
+              className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Unit of Measure</label>
+            <select value={form.unit} onChange={set('unit')}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-navy/40">
+              {unitOptions.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+            </select>
+          </div>
         </div>
 
         {/* Status + Visible */}
@@ -227,11 +384,37 @@ function Inner({ productId }: { productId?: string }) {
           </div>
         </div>
 
-        {/* Image upload note */}
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
-          <p className="font-semibold mb-0.5">📸 Product Images</p>
-          <p className="text-xs">To add or change product images, please use the NearSpot mobile app.</p>
-        </div>
+        {/* Image upload */}
+        {isEdit && productId ? (
+          <ImageUploadSection productId={productId} />
+        ) : (
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 block">
+              Product Images ({pendingImages.length}/5) <span className="font-normal normal-case text-gray-400">— optional</span>
+            </label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {pendingPreviews.map((src, i) => (
+                <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 group">
+                  <img src={src} alt="" className="w-full h-full object-cover" />
+                  <button type="button" onClick={() => removePendingImage(i)}
+                    className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    ×
+                  </button>
+                </div>
+              ))}
+              {pendingImages.length < 5 && (
+                <button type="button" onClick={() => pendingImgRef.current?.click()}
+                  className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-navy hover:text-navy transition-colors">
+                  <span className="text-2xl leading-none">+</span>
+                  <span className="text-[9px] mt-0.5">Add photo</span>
+                </button>
+              )}
+            </div>
+            <input ref={pendingImgRef} type="file" accept="image/*" multiple className="hidden"
+              onChange={e => { addPendingImages(e.target.files); e.target.value = ''; }} />
+            <p className="text-[10px] text-gray-400">Images will be uploaded after the product is created.</p>
+          </div>
+        )}
 
         {error && <p className="text-sm text-red-500 font-semibold">{error}</p>}
 

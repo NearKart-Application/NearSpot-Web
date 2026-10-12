@@ -38,6 +38,14 @@ import AuthLayout from '../../layouts/AuthLayout.astro';
     </button>
   </div>
 
+  <div id="voice-row" class="hidden text-center mt-2">
+    <button id="voice-btn"
+            class="text-xs text-gray-400 hover:text-navy transition-colors underline-offset-2 hover:underline">
+      📞 Get OTP via phone call instead
+    </button>
+    <p id="voice-sent" class="hidden text-xs text-green-600 mt-1">✅ OTP will be read to you via call</p>
+  </div>
+
   <button onclick="window.location.href='/auth/login'"
           class="mt-5 w-full text-center text-sm text-gray-400 hover:text-navy transition-colors">
     ← Change number
@@ -170,9 +178,34 @@ import AuthLayout from '../../layouts/AuthLayout.astro';
       await fetch('/api/v1/auth/otp/send/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone_number: phone, is_signup: isSignup }),
+        body: JSON.stringify({ phone_number: phone, is_signup: isSignup, delivery_method: 'sms' }),
       });
     } catch { /* silent */ }
+    startResendTimer();
+  });
+
+  // Show voice call option once resend is enabled
+  const voiceRow  = document.getElementById('voice-row')!;
+  const voiceBtn  = document.getElementById('voice-btn') as HTMLButtonElement;
+  const voiceSent = document.getElementById('voice-sent')!;
+
+  function showVoiceOption() { voiceRow.classList.remove('hidden'); }
+
+  resendBtn.addEventListener('click', showVoiceOption);
+
+  voiceBtn.addEventListener('click', async () => {
+    voiceBtn.disabled = true;
+    try {
+      await fetch('/api/v1/auth/otp/send/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: phone, is_signup: isSignup, delivery_method: 'voice' }),
+      });
+      voiceBtn.classList.add('hidden');
+      voiceSent.classList.remove('hidden');
+    } catch {
+      voiceBtn.disabled = false;
+    }
     startResendTimer();
   });
 

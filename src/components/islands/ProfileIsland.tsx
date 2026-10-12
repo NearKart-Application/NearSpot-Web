@@ -53,10 +53,24 @@ function MenuItem({ iconKey, label, sub, href, danger }: {
   );
 }
 
+interface Session {
+  id: string; device_type: string; device_name: string;
+  os: string; browser: string; city: string; created_at: string;
+}
+
+function DeviceIcon({ type }: { type: string }) {
+  if (type === 'mobile') return <span className="text-base">📱</span>;
+  if (type === 'tablet')  return <span className="text-base">📟</span>;
+  return <span className="text-base">💻</span>;
+}
+
 function Inner() {
-  const [editMode, setEditMode] = useState(false);
-  const [name, setName]   = useState('');
-  const [email, setEmail] = useState('');
+  const [editMode,       setEditMode]       = useState(false);
+  const [name,           setName]           = useState('');
+  const [email,          setEmail]          = useState('');
+  const [showSessions,   setShowSessions]   = useState(false);
+  const [deleteConfirm,  setDeleteConfirm]  = useState(false);
+  const [deleteInput,    setDeleteInput]    = useState('');
   const qc = useQueryClient();
   const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('ns_access');
 
@@ -88,11 +102,35 @@ function Inner() {
   const updateError = updateMut.isError ? ((updateMut.error as any)?.response?.data?.detail ?? 'Failed to save changes') : null;
 
   const logoutMut = useMutation({
-    mutationFn: () => api.post('/auth/logout/'),
+    mutationFn: () => api.post('/auth/logout/', { refresh: localStorage.getItem('ns_refresh') }),
     onSettled: () => {
       localStorage.removeItem('ns_access');
       localStorage.removeItem('ns_refresh');
       localStorage.removeItem('ns_user');
+      window.location.href = '/auth/login';
+    },
+  });
+
+  const { data: sessionsData, isLoading: sessionsLoading } = useQuery<{ results: Session[] }>({
+    queryKey: ['my-sessions'],
+    queryFn:  () => api.get('/auth/me/sessions/').then(r => r.data),
+    enabled:  showSessions && isLoggedIn,
+  });
+
+  const signoutAllMut = useMutation({
+    mutationFn: () => api.delete('/auth/me/sessions/', { data: { refresh: localStorage.getItem('ns_refresh') } }),
+    onSuccess: () => {
+      localStorage.removeItem('ns_access');
+      localStorage.removeItem('ns_refresh');
+      localStorage.removeItem('ns_user');
+      window.location.href = '/auth/login';
+    },
+  });
+
+  const deleteAccountMut = useMutation({
+    mutationFn: () => api.delete('/auth/me/delete/', { data: { refresh: localStorage.getItem('ns_refresh') } }),
+    onSuccess: () => {
+      localStorage.clear();
       window.location.href = '/auth/login';
     },
   });
@@ -238,6 +276,55 @@ function Inner() {
         </>
       )}
 
+      {/* Security — Active Sessions */}
+      <motion.div variants={sectionVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <button onClick={() => setShowSessions(s => !s)}
+          className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors text-left">
+          <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+            <svg style={{ width: '18px', height: '18px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" className="text-navy/70">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-navy">Active Sessions</p>
+            <p className="text-xs text-gray-400">Devices logged into your account</p>
+          </div>
+          <svg className={`w-4 h-4 text-gray-300 transition-transform ${showSessions ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
+          </svg>
+        </button>
+
+        {showSessions && (
+          <div className="border-t border-gray-100 px-4 py-3 space-y-2">
+            {sessionsLoading ? (
+              <div className="space-y-2">
+                {[1,2,3].map(i => <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />)}
+              </div>
+            ) : (sessionsData?.results ?? []).length === 0 ? (
+              <p className="text-xs text-gray-400 py-2">No login history found.</p>
+            ) : (
+              <>
+                {(sessionsData?.results ?? []).map(s => (
+                  <div key={s.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+                    <DeviceIcon type={s.device_type} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-navy truncate">{s.device_name || (s.browser || 'Unknown device')}</p>
+                      <p className="text-[11px] text-gray-400">{[s.os, s.city].filter(Boolean).join(' · ')} · {new Date(s.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+                    </div>
+                  </div>
+                ))}
+                <button onClick={() => signoutAllMut.mutate()}
+                  disabled={signoutAllMut.isPending}
+                  className="w-full text-xs text-red-500 font-semibold border border-red-200 rounded-xl py-2 mt-2 hover:bg-red-50 transition-colors">
+                  {signoutAllMut.isPending ? 'Signing out…' : 'Sign Out All Devices'}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </motion.div>
+
+      {/* Sign Out + Delete Account */}
       <motion.div variants={sectionVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
         <button onClick={() => logoutMut.mutate()}
           disabled={logoutMut.isPending}
@@ -253,6 +340,44 @@ function Inner() {
             </p>
           </div>
         </button>
+
+        {!deleteConfirm ? (
+          <button onClick={() => setDeleteConfirm(true)}
+            className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-red-50 transition-colors text-left">
+            <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+              <svg style={{ width: '18px', height: '18px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.75" className="text-red-400">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-red-400">Delete Account</p>
+              <p className="text-xs text-gray-400">Permanently remove your account and data</p>
+            </div>
+          </button>
+        ) : (
+          <div className="px-4 py-4 bg-red-50 space-y-3">
+            <p className="text-sm font-bold text-red-700">Are you sure? This cannot be undone.</p>
+            <p className="text-xs text-red-500">Type <strong>DELETE</strong> to confirm</p>
+            <input value={deleteInput} onChange={e => setDeleteInput(e.target.value.toUpperCase())}
+              placeholder="Type DELETE"
+              className="w-full border border-red-200 rounded-xl px-3 py-2 text-sm font-mono uppercase focus:outline-none focus:border-red-400 bg-white" />
+            {deleteAccountMut.isError && (
+              <p className="text-xs text-red-600">{(deleteAccountMut.error as any)?.response?.data?.message ?? 'Failed to delete account'}</p>
+            )}
+            <div className="flex gap-2">
+              <button onClick={() => { setDeleteConfirm(false); setDeleteInput(''); }}
+                className="flex-1 py-2 text-sm font-semibold text-gray-600 border border-gray-200 rounded-xl hover:bg-white transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteAccountMut.mutate()}
+                disabled={deleteInput !== 'DELETE' || deleteAccountMut.isPending}
+                className="flex-1 py-2 text-sm font-bold text-white bg-red-500 rounded-xl disabled:opacity-40 hover:bg-red-600 transition-colors">
+                {deleteAccountMut.isPending ? 'Deleting…' : 'Delete Forever'}
+              </button>
+            </div>
+          </div>
+        )}
       </motion.div>
     </motion.div>
   );

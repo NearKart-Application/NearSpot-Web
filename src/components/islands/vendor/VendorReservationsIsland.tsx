@@ -10,10 +10,19 @@ interface Reservation {
   id: string;
   customer: { id: string; full_name: string; phone_number: string };
   product: { id: string; name: string; primary_image?: string; base_price: string };
-  variant_name?: string; quantity: number;
+  variant_id?: string; variant_name?: string; quantity: number;
   status: string; expires_at: string; created_at: string;
   note?: string; vendor_note?: string; cancel_reason?: string;
+  payment_method?: string; actual_selling_price?: string; cost_price_at_sale?: string;
+  served_by_id?: string; served_by_name?: string;
 }
+
+const PAYMENT_METHODS = [
+  { value: 'cash',   label: 'Cash',   icon: '💵' },
+  { value: 'upi',    label: 'UPI',    icon: '📱' },
+  { value: 'card',   label: 'Card',   icon: '💳' },
+  { value: 'credit', label: 'Udhar',  icon: '📒' },
+];
 
 const STATUS_META: Record<string, { label: string; icon: string; bg: string; text: string }> = {
   pending:   { label: 'Pending',   icon: '⏳', bg: 'bg-amber-50 border-amber-200',   text: 'text-amber-700' },
@@ -40,12 +49,14 @@ type DialogAction = 'confirm' | 'reject' | 'complete' | 'cancel';
 
 function ActionDialog({ action, customerName, onConfirm, onClose }: {
   action: DialogAction; customerName: string;
-  onConfirm: (note: string) => void; onClose: () => void;
+  onConfirm: (note: string, paymentMethod?: string) => void; onClose: () => void;
 }) {
   const [note, setNote] = useState('');
   const [noteError, setNoteError] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('');
   const needsNote = action === 'reject' || action === 'cancel';
   const isConfirm = action === 'confirm';
+  const isComplete = action === 'complete';
   const QUICK_NOTES = ['Getting ready — come in 10 mins', 'Ready in 15 mins', 'Ready in 20 mins', 'Come anytime, item is ready'];
 
   const titles: Record<DialogAction, string> = {
@@ -81,6 +92,19 @@ function ActionDialog({ action, customerName, onConfirm, onClose }: {
               rows={2} className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm resize-none focus:outline-none focus:border-navy/40" />
           </div>
         )}
+        {isComplete && (
+          <div className="mb-4">
+            <p className="text-xs font-semibold text-gray-500 mb-2">Payment method received:</p>
+            <div className="grid grid-cols-2 gap-2">
+              {PAYMENT_METHODS.map(pm => (
+                <button key={pm.value} onClick={() => setPaymentMethod(pm.value)}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${paymentMethod === pm.value ? 'bg-green-50 border-green-400 text-green-700' : 'border-gray-200 text-gray-600 hover:border-navy/40'}`}>
+                  <span>{pm.icon}</span>{pm.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {needsNote && (
           <div className="mb-4">
             <textarea value={note} onChange={e => { setNote(e.target.value); setNoteError(false); }}
@@ -92,7 +116,7 @@ function ActionDialog({ action, customerName, onConfirm, onClose }: {
         <div className="flex gap-2">
           <Button onClick={() => {
             if (needsNote && !note.trim()) { setNoteError(true); return; }
-            onConfirm(note);
+            onConfirm(note, isComplete ? paymentMethod : undefined);
           }} variant={action === 'reject' || action === 'cancel' ? 'destructive' : 'default'} className="flex-1 py-2.5 rounded-xl text-sm font-bold">
             {action === 'cancel' ? 'Cancel Reservation' : action === 'reject' ? 'Reject' : action === 'complete' ? 'Mark Completed' : 'Confirm'}
           </Button>
@@ -111,9 +135,18 @@ function ReservationCard({ res, onUpdate }: { res: Reservation; onUpdate: () => 
   const meta = STATUS_META[res.status] ?? STATUS_META.pending;
 
   const updateStatus = useMutation({
-    mutationFn: ({ status, vendor_note }: { status: string; vendor_note?: string }) =>
-      api.patch(`/reservations/${res.id}/status/`, { status, ...(vendor_note ? { vendor_note } : {}) }),
+    mutationFn: ({ status, vendor_note, payment_method }: { status: string; vendor_note?: string; payment_method?: string }) =>
+      api.patch(`/reservations/${res.id}/status/`, {
+        status,
+        ...(vendor_note ? { vendor_note } : {}),
+        ...(payment_method ? { payment_method } : {}),
+      }),
     onSuccess: () => { setDialog(null); qc.invalidateQueries({ queryKey: ['vendor-reservations'] }); onUpdate(); },
+  });
+
+  const returnMut = useMutation({
+    mutationFn: () => api.post(`/reservations/${res.id}/return/`, {}),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor-reservations'] }); onUpdate(); },
   });
 
   const price = parseFloat(res.product.base_price ?? '0');
@@ -152,6 +185,17 @@ function ReservationCard({ res, onUpdate }: { res: Reservation; onUpdate: () => 
           </div>
           {res.note && <p className="mt-2 text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">Customer note: {res.note}</p>}
           {res.vendor_note && <p className="mt-2 text-xs text-blue-600 bg-blue-50 rounded-lg px-3 py-2">Your note: {res.vendor_note}</p>}
+          {res.status === 'completed' && (
+            <div className="flex flex-wrap gap-3 mt-2 text-xs">
+              {res.actual_selling_price && <span className="bg-green-50 text-green-700 px-2 py-1 rounded-lg font-semibold">₹{res.actual_selling_price} charged</span>}
+              {res.actual_selling_price && res.cost_price_at_sale && (() => {
+                const margin = (parseFloat(res.actual_selling_price) - parseFloat(res.cost_price_at_sale)) * res.quantity;
+                return <span className={`px-2 py-1 rounded-lg font-semibold ${margin >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>Margin ₹{margin.toFixed(0)}</span>;
+              })()}
+              {res.payment_method && <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-lg font-semibold capitalize">{res.payment_method}</span>}
+              {res.served_by_name && <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-lg">🧑‍💼 {res.served_by_name}</span>}
+            </div>
+          )}
         </div>
       </div>
 
@@ -167,12 +211,28 @@ function ReservationCard({ res, onUpdate }: { res: Reservation; onUpdate: () => 
       )}
       {/* Actions — confirmed */}
       {res.status === 'confirmed' && (
-        <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+        <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100 flex-wrap">
           <Button onClick={() => setDialog('complete')} disabled={updateStatus.isPending}
             size="sm" className="flex-1 py-2">✅ Mark Completed</Button>
+          {res.variant_id && (
+            <Button onClick={() => { if (confirm('Mark as returned? Stock will be restored.')) returnMut.mutate(); }}
+              disabled={returnMut.isPending} variant="outline" size="sm" className="flex-1 py-2 text-orange-600 border-orange-200 hover:bg-orange-50">
+              ↩ Return
+            </Button>
+          )}
           <Button onClick={() => setDialog('cancel')} disabled={updateStatus.isPending}
-            variant="destructive" size="sm" className="flex-1 py-2">⚠️ Emergency Cancel</Button>
+            variant="destructive" size="sm" className="flex-1 py-2">⚠️ Cancel</Button>
           <Button onClick={() => setShowNote(v => !v)} variant="outline" size="sm" className="px-3 py-2">📝</Button>
+        </div>
+      )}
+
+      {/* Actions — completed (allow return) */}
+      {res.status === 'completed' && res.variant_id && (
+        <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+          <Button onClick={() => { if (confirm('Mark as returned? Stock will be restored.')) returnMut.mutate(); }}
+            disabled={returnMut.isPending} variant="outline" size="sm" className="py-2 text-orange-600 border-orange-200 hover:bg-orange-50">
+            ↩ Mark Returned
+          </Button>
         </div>
       )}
 
@@ -194,7 +254,11 @@ function ReservationCard({ res, onUpdate }: { res: Reservation; onUpdate: () => 
       {dialog && (
         <ActionDialog action={dialog} customerName={res.customer?.full_name ?? ''}
           onClose={() => setDialog(null)}
-          onConfirm={note => updateStatus.mutate({ status: statusToSend[dialog], vendor_note: note || undefined })}
+          onConfirm={(note, paymentMethod) => updateStatus.mutate({
+            status: statusToSend[dialog],
+            vendor_note: note || undefined,
+            payment_method: paymentMethod || undefined,
+          })}
         />
       )}
     </div>

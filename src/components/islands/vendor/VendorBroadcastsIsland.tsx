@@ -4,6 +4,7 @@ import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
+import NoStoreBanner from './NoStoreBanner';
 
 interface Channel { id: string; name: string; description?: string; subscriber_count: number; post_count: number; created_at: string; }
 interface Post { id: string; content: string; image_url?: string; created_at: string; view_count?: number; }
@@ -208,6 +209,12 @@ function Inner() {
   const [showCreate, setShowCreate] = useState(false);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
 
+  const { data: storeData, isError: storeError } = useQuery({
+    queryKey: ['vendor-store-id'],
+    queryFn: () => api.get('/stores/mine/').then(r => r.data),
+  });
+  const storeId: string = Array.isArray(storeData) ? ((storeData[0] as any)?.id ?? '') : ((storeData as any)?.id ?? '');
+
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['vendor-channels'],
     queryFn: () => api.get('/stores/mine/broadcast-channels/').then(r => r.data),
@@ -215,6 +222,8 @@ function Inner() {
 
   const channels: Channel[] = Array.isArray(data) ? data : (data?.results ?? []);
   const activeChannel = channels.find(c => c.id === activeChannelId) ?? channels[0] ?? null;
+
+  if (storeError || !storeId) return <NoStoreBanner feature="broadcasts" />;
 
   return (
     <div className="space-y-6">

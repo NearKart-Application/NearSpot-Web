@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
+import { QueryClientProvider, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { queryClient } from '../../lib/queryClient';
 import api from '../../lib/api';
@@ -60,6 +60,28 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
 function timeGreeting() {
   const h = new Date().getHours();
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Recently-viewed helpers (localStorage, capped at 10)
+───────────────────────────────────────────────────────────────────────────── */
+interface RecentProduct { id: string; name: string; price: number; image?: string }
+
+function loadRecentlyViewed(): RecentProduct[] {
+  try {
+    const raw = localStorage.getItem('ns_recently_viewed');
+    if (raw) return JSON.parse(raw) as RecentProduct[];
+  } catch { /* */ }
+  return [];
+}
+
+function trackRecentlyViewed(product: Product) {
+  try {
+    const list = loadRecentlyViewed().filter(p => p.id !== product.id);
+    const price = typeof product.price === 'number' ? product.price : parseFloat(product.base_price ?? '0');
+    list.unshift({ id: product.id, name: product.name, price, image: product.primary_image ?? product.image });
+    localStorage.setItem('ns_recently_viewed', JSON.stringify(list.slice(0, 10)));
+  } catch { /* */ }
 }
 
 const CAT_ICONS: Record<string, string> = {
@@ -420,6 +442,7 @@ function Inner({ initBanners, initCategories }: { initBanners: Banner[]; initCat
   const [category, setCategory]     = useState<string | null>(null);
   const [showRadius, setShowRadius] = useState(false);
   const [wishlisted, setWishlisted] = useState<Set<string>>(new Set());
+  const [recentlyViewed, setRecentlyViewed] = useState<RecentProduct[]>(() => loadRecentlyViewed());
 
   // Reverse geocode saved coords on mount, then upgrade with real GPS
   useEffect(() => {
@@ -482,10 +505,18 @@ function Inner({ initBanners, initCategories }: { initBanners: Banner[]; initCat
     queryFn:  () => api.get('/stores/nearby/', { params: { lat: coords.lat, lng: coords.lng, radius, ...(category ? { category } : {}) } }).then(r => r.data),
     staleTime: 60_000,
   });
-  const prodQ = useQuery({
-    queryKey: ['nearby-products', coords, radius],
-    queryFn:  () => api.get('/products/nearby/', { params: { lat: coords.lat, lng: coords.lng, radius } }).then(r => r.data),
+  const prodQ = useInfiniteQuery({
+    queryKey:  ['nearby-products', coords, radius],
+    queryFn:   ({ pageParam = 1 }) =>
+      api.get('/products/nearby/', { params: { lat: coords.lat, lng: coords.lng, radius, page: pageParam, page_size: 20 } }).then(r => r.data),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage: any) => lastPage.next ?? undefined,
     staleTime: 60_000,
+  });
+  const recQ = useQuery({
+    queryKey: ['recommended-products', coords, radius],
+    queryFn:  () => api.get('/products/recommended/', { params: { lat: coords.lat, lng: coords.lng, radius } }).then(r => r.data),
+    staleTime: 300_000,
   });
   const dealsQ = useQuery({
     queryKey: ['flash-deals', coords, radius],
@@ -506,7 +537,8 @@ function Inner({ initBanners, initCategories }: { initBanners: Banner[]; initCat
   });
 
   const stores:     Store[]    = storeQ.data?.results  ?? (Array.isArray(storeQ.data)  ? storeQ.data  : []);
-  const products:   Product[]  = prodQ.data?.results   ?? (Array.isArray(prodQ.data)   ? prodQ.data   : []);
+  const products:   Product[]  = (prodQ.data?.pages ?? []).flatMap((p: any) => p.results ?? (Array.isArray(p) ? p : []));
+  const recommended: Product[] = recQ.data?.results ?? (Array.isArray(recQ.data) ? recQ.data : []);
   const deals:      Product[]  = (dealsQ.data?.results ?? (Array.isArray(dealsQ.data) ? dealsQ.data : []))
     .filter((p: Product) => {
       const base = typeof p.price === 'number' ? p.price : parseFloat(p.base_price ?? '0');
@@ -733,11 +765,47 @@ function Inner({ initBanners, initCategories }: { initBanners: Banner[]; initCat
             </section>
           )}
 
+          {/* Recently Viewed */}
+          {recentlyViewed.length > 0 && (
+            <section>
+              <SectionHead title="Recently Viewed" />
+              <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
+                {recentlyViewed.map(p => (
+                  <a key={p.id} href={`/products/${p.id}`}
+                    className="w-28 shrink-0 bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                    <div className="h-28 bg-gray-50 overflow-hidden">
+                      {p.image
+                        ? <img src={p.image} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
+                        : <div className="w-full h-full flex items-center justify-center text-2xl">🛍️</div>}
+                    </div>
+                    <div className="p-2">
+                      <p className="text-[11px] font-semibold text-gray-800 line-clamp-2 leading-snug">{p.name}</p>
+                      <p className="text-xs font-black text-gray-900 mt-1">₹{p.price.toLocaleString('en-IN')}</p>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Recommended for You */}
+          {recommended.length > 0 && (
+            <section>
+              <SectionHead title="Recommended for You" subtitle="Based on your interests" />
+              <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
+                {recommended.map(p => (
+                  <FlashDealCard key={p.id} product={p}
+                    wishlisted={wishlisted.has(p.id)} onWishlist={() => toggleWishlist(p.id)} />
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Trending Products — Amazon-style grid */}
           {(prodQ.isLoading || products.length > 0) && (
             <section>
               <SectionHead title="Products near you" subtitle="Explore what's available" href="/products" />
-              {prodQ.isLoading
+              {prodQ.isLoading && products.length === 0
                 ? <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                     {[...Array(8)].map((_, i) => (
                       <div key={i} className="bg-white rounded-2xl border border-gray-100">
@@ -750,20 +818,25 @@ function Inner({ initBanners, initCategories }: { initBanners: Banner[]; initCat
                       </div>
                     ))}
                   </div>
-                : <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {products.slice(0, 20).map(p => (
-                      <ProductCardGrid key={p.id} product={p as ProductData}
-                        wishlisted={wishlisted.has(p.id)} onWishlist={() => toggleWishlist(p.id)} />
-                    ))}
-                  </div>
+                : <>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                      {products.map(p => (
+                        <div key={p.id} onClick={() => { trackRecentlyViewed(p); setRecentlyViewed(loadRecentlyViewed()); }}>
+                          <ProductCardGrid product={p as ProductData}
+                            wishlisted={wishlisted.has(p.id)} onWishlist={() => toggleWishlist(p.id)} />
+                        </div>
+                      ))}
+                    </div>
+                    {prodQ.hasNextPage && (
+                      <div className="mt-5 text-center">
+                        <Button variant="outline" onClick={() => prodQ.fetchNextPage()}
+                          disabled={prodQ.isFetchingNextPage} className="px-8">
+                          {prodQ.isFetchingNextPage ? 'Loading…' : 'Load more products'}
+                        </Button>
+                      </div>
+                    )}
+                  </>
               }
-              {products.length > 20 && (
-                <div className="mt-5 text-center">
-                  <a href="/products" className="btn-outline px-8">
-                    See all {products.length} products →
-                  </a>
-                </div>
-              )}
             </section>
           )}
         </div>

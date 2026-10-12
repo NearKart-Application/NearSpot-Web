@@ -6,7 +6,9 @@ import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import Img from '../../ui/Img';
 import { Button } from '@/components/ui/button';
 
-interface Variant { id: string; name: string; sku: string; price: number; stock_quantity: number; }
+interface Variant { id: string; name: string; sku: string; price: number; stock_quantity: number; mrp?: number; cost_price?: number; reorder_point?: number; low_stock_threshold?: number; unit?: string; }
+interface ValuationItem { variant_id: string; product_name: string; variant_name: string; sku: string; unit: string; qty: number; cost_price: number; total_value: number; }
+interface DeadStockItem { variant_id: string; product_name: string; variant_name: string; sku: string; unit: string; qty: number; cost_price: number; }
 interface StockAlert {
   id: string; name: string; product_code: string; status: string;
   primary_image?: string;
@@ -120,8 +122,9 @@ function AlertCard({ alert }: { alert: StockAlert }) {
           <p className="text-[10px] text-gray-400 mb-1.5 mt-2">Tap to update stock</p>
           <div className="flex gap-1.5 overflow-x-auto pb-1 flex-wrap" style={{ scrollbarWidth: 'none' }}>
             {variants.map(v => {
+              const threshold = v.reorder_point ?? v.low_stock_threshold ?? 5;
               const isEmpty = v.stock_quantity === 0;
-              const isLow = !isEmpty && v.stock_quantity <= 5;
+              const isLow = !isEmpty && v.stock_quantity <= threshold;
               return (
                 <button
                   key={v.id}
@@ -138,6 +141,9 @@ function AlertCard({ alert }: { alert: StockAlert }) {
                   <span className={`font-black ${isEmpty ? 'text-red-600' : isLow ? 'text-orange-600' : 'text-gray-700'}`}>
                     {v.stock_quantity}
                   </span>
+                  {v.reorder_point != null && (
+                    <span className="text-[9px] text-gray-400">/{v.reorder_point}</span>
+                  )}
                   <span className="text-gray-300">·</span>
                   <span className="text-[10px] text-gray-400">edit</span>
                 </button>
@@ -522,6 +528,7 @@ function LogMovementModal({ onClose, onSuccess }: { onClose: () => void; onSucce
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['vendor-stock-logs'] });
       qc.invalidateQueries({ queryKey: ['vendor-stock-alerts'] });
+      qc.invalidateQueries({ queryKey: ['vendor-products-paged'] });
       onSuccess();
     },
     onError: (e: any) => setError(e?.response?.data?.detail ?? 'Failed to log movement'),
@@ -618,9 +625,512 @@ function LogMovementModal({ onClose, onSuccess }: { onClose: () => void; onSucce
   );
 }
 
+// ── Serial Numbers Tab ────────────────────────────────────────────────────────
+
+interface SerialNumber {
+  id: string; serial_number: string; status: string;
+  product?: { id: string; name: string };
+  variant?: { id: string; name: string };
+  notes?: string; created_at: string;
+}
+
+function SerialNumbersTab() {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ serial_number: '', product_id: '', variant_id: '', notes: '', status: 'available' });
+  const [adding, setAdding] = useState(false);
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['serial-numbers'],
+    queryFn: () => api.get('/inventory/serial-numbers/').then(r => r.data),
+  });
+
+  const { data: productsData } = useQuery({
+    queryKey: ['vendor-products-all'],
+    queryFn: () => api.get('/products/vendor/', { params: { page_size: 200 } }).then(r => r.data),
+  });
+
+  const createMut = useMutation({
+    mutationFn: () => api.post('/inventory/serial-numbers/', {
+      serial_number: form.serial_number.trim(),
+      product: form.product_id || undefined,
+      variant: form.variant_id || undefined,
+      notes: form.notes.trim() || undefined,
+      status: form.status,
+    }),
+    onSuccess: () => { refetch(); setAdding(false); setForm({ serial_number: '', product_id: '', variant_id: '', notes: '', status: 'available' }); },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/inventory/serial-numbers/${id}/`),
+    onSuccess: () => refetch(),
+  });
+
+  const serials: SerialNumber[] = data?.results ?? (Array.isArray(data) ? data : []);
+  const products = productsData?.results ?? [];
+
+  const STATUS_COLORS: Record<string, string> = {
+    available: 'bg-green-100 text-green-700',
+    sold:      'bg-gray-100 text-gray-600',
+    returned:  'bg-amber-100 text-amber-700',
+    defective: 'bg-red-100 text-red-700',
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={() => setAdding(true)} className="px-5 py-2.5 rounded-xl font-bold text-sm">+ Add Serial Number</Button>
+      </div>
+
+      {adding && (
+        <div className="card p-5 space-y-3">
+          <h4 className="font-bold text-navy text-sm">New Serial Number</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Serial Number *</label>
+              <input value={form.serial_number} onChange={e => setForm(f => ({ ...f, serial_number: e.target.value }))}
+                placeholder="SN123456789" className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-navy/40" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Status</label>
+              <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none">
+                {['available', 'sold', 'returned', 'defective'].map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Product</label>
+            <select value={form.product_id} onChange={e => setForm(f => ({ ...f, product_id: e.target.value, variant_id: '' }))}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none">
+              <option value="">— Select product —</option>
+              {products.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Notes</label>
+            <input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+              placeholder="IMEI, tag number, etc." className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none" />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button onClick={() => createMut.mutate()} disabled={createMut.isPending || !form.serial_number.trim()} className="flex-1">
+              {createMut.isPending ? 'Saving…' : 'Save'}
+            </Button>
+            <button onClick={() => setAdding(false)} className="flex-1 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="space-y-2">{[...Array(4)].map((_, i) => <div key={i} className="card h-14 animate-pulse" />)}</div>
+      ) : serials.length === 0 ? (
+        <div className="card p-12 text-center text-gray-400">
+          <div className="text-4xl mb-3">🔢</div>
+          <p className="font-semibold text-gray-600">No serial numbers tracked yet</p>
+          <p className="text-sm mt-1">Add IMEI numbers, tag numbers, or any unit-level IDs</p>
+        </div>
+      ) : (
+        <div className="card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                {['Serial #', 'Product', 'Status', 'Notes', ''].map(h => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {serials.map(sn => (
+                <tr key={sn.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 font-mono text-xs text-navy font-semibold">{sn.serial_number}</td>
+                  <td className="px-4 py-3 text-gray-700 text-xs">{sn.product?.name ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold capitalize ${STATUS_COLORS[sn.status] ?? 'bg-gray-100 text-gray-500'}`}>
+                      {sn.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 text-xs max-w-[120px] truncate">{sn.notes ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    <button onClick={() => { if (confirm('Delete this serial number?')) deleteMut.mutate(sn.id); }}
+                      className="text-xs text-red-500 hover:text-red-700 font-semibold">Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Bundles / Composite Products Tab ─────────────────────────────────────────
+
+interface Bundle {
+  id: string; name: string; description?: string;
+  components: { product: { id: string; name: string }; quantity: number }[];
+  created_at: string;
+}
+
+function BundlesTab() {
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name: '', description: '', components: [{ product_id: '', quantity: '1' }] });
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['bundles'],
+    queryFn: () => api.get('/inventory/bundles/').then(r => r.data),
+  });
+
+  const { data: productsData } = useQuery({
+    queryKey: ['vendor-products-all'],
+    queryFn: () => api.get('/products/vendor/', { params: { page_size: 200 } }).then(r => r.data),
+  });
+
+  const createMut = useMutation({
+    mutationFn: () => api.post('/inventory/bundles/', {
+      name: form.name.trim(),
+      description: form.description.trim() || undefined,
+      components: form.components.filter(c => c.product_id).map(c => ({ product: c.product_id, quantity: parseInt(c.quantity) || 1 })),
+    }),
+    onSuccess: () => { refetch(); setShowAdd(false); setForm({ name: '', description: '', components: [{ product_id: '', quantity: '1' }] }); },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/inventory/bundles/${id}/`),
+    onSuccess: () => refetch(),
+  });
+
+  const bundles: Bundle[] = data?.results ?? (Array.isArray(data) ? data : []);
+  const products = productsData?.results ?? [];
+
+  const addComponent = () => setForm(f => ({ ...f, components: [...f.components, { product_id: '', quantity: '1' }] }));
+  const removeComponent = (i: number) => setForm(f => ({ ...f, components: f.components.filter((_, j) => j !== i) }));
+  const setComponent = (i: number, key: 'product_id' | 'quantity', val: string) =>
+    setForm(f => ({ ...f, components: f.components.map((c, j) => j === i ? { ...c, [key]: val } : c) }));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={() => setShowAdd(true)} className="px-5 py-2.5 rounded-xl font-bold text-sm">+ Create Bundle</Button>
+      </div>
+
+      {showAdd && (
+        <div className="card p-5 space-y-4">
+          <h4 className="font-bold text-navy text-sm">New Bundle / Combo</h4>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Bundle Name *</label>
+            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="e.g. Phone + Cover Combo" className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-navy/40" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">Description</label>
+            <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Optional description" className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 block">Components</label>
+            <div className="space-y-2">
+              {form.components.map((comp, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <select value={comp.product_id} onChange={e => setComponent(i, 'product_id', e.target.value)}
+                    className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none">
+                    <option value="">— Select product —</option>
+                    {products.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <input type="number" min="1" value={comp.quantity} onChange={e => setComponent(i, 'quantity', e.target.value)}
+                    className="w-16 rounded-xl border border-gray-200 px-3 py-2 text-sm text-center focus:outline-none" />
+                  {form.components.length > 1 && (
+                    <button onClick={() => removeComponent(i)} className="text-red-400 hover:text-red-600 text-lg">×</button>
+                  )}
+                </div>
+              ))}
+              <button onClick={addComponent} className="text-xs text-navy font-semibold hover:underline">+ Add component</button>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={() => createMut.mutate()} disabled={createMut.isPending || !form.name.trim()} className="flex-1">
+              {createMut.isPending ? 'Creating…' : 'Create Bundle'}
+            </Button>
+            <button onClick={() => setShowAdd(false)} className="flex-1 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="card h-24 animate-pulse" />)}</div>
+      ) : bundles.length === 0 ? (
+        <div className="card p-12 text-center text-gray-400">
+          <div className="text-4xl mb-3">📦</div>
+          <p className="font-semibold text-gray-600">No bundles yet</p>
+          <p className="text-sm mt-1">Group products into bundles or combos</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {bundles.map(b => (
+            <div key={b.id} className="card p-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="font-bold text-navy text-sm">{b.name}</h4>
+                  {b.description && <p className="text-xs text-gray-400 mt-0.5">{b.description}</p>}
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {b.components.map((c, i) => (
+                      <span key={i} className="px-2 py-1 bg-navy/8 text-navy text-[11px] font-semibold rounded-full">
+                        {c.product.name} ×{c.quantity}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={() => { if (confirm('Delete this bundle?')) deleteMut.mutate(b.id); }}
+                  className="text-xs text-red-500 hover:text-red-700 font-semibold shrink-0 ml-4">Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BulkAdjustModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [rows, setRows] = useState<{ variantId: string; name: string; delta: string; note: string }[]>([]);
+  const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
+
+  const { data: allData } = useQuery({
+    queryKey: ['vendor-all-variants-bulk'],
+    queryFn: () => api.get('/products/vendor/', { params: { page: 1, page_size: 200 } }).then(r => r.data),
+  });
+
+  const allVariants: { id: string; name: string; productName: string; qty: number }[] = [];
+  (allData?.results ?? []).forEach((p: any) =>
+    (p.variants ?? []).forEach((v: any) => allVariants.push({ id: v.id, name: v.name, productName: p.name, qty: v.stock_quantity }))
+  );
+
+  const filtered = allVariants.filter(v =>
+    `${v.productName} ${v.name}`.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const toggleRow = (v: typeof allVariants[0]) => {
+    setRows(prev => prev.some(r => r.variantId === v.id)
+      ? prev.filter(r => r.variantId !== v.id)
+      : [...prev, { variantId: v.id, name: `${v.productName} — ${v.name}`, delta: '0', note: '' }]
+    );
+  };
+
+  const updateRow = (id: string, field: 'delta' | 'note', val: string) =>
+    setRows(prev => prev.map(r => r.variantId === id ? { ...r, [field]: val } : r));
+
+  const bulkMut = useMutation({
+    mutationFn: () => api.post('/inventory/bulk-adjust/', {
+      items: rows.map(r => ({ variant_id: r.variantId, delta: parseInt(r.delta) || 0, note: r.note })),
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vendor-stock-alerts'] }); qc.invalidateQueries({ queryKey: ['vendor-stock-logs'] }); qc.invalidateQueries({ queryKey: ['vendor-products-paged'] }); onClose(); },
+    onError: (e: any) => setError(e?.response?.data?.error ?? 'Bulk adjust failed'),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-navy text-lg">Bulk Stock Adjust</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">✕</button>
+        </div>
+
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search variants…"
+          className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm mb-4 focus:outline-none focus:border-navy/40 focus:ring-2 focus:ring-navy/10" />
+
+        <div className="space-y-1 max-h-48 overflow-y-auto mb-4 border rounded-xl divide-y">
+          {filtered.slice(0, 50).map(v => (
+            <button key={v.id} onClick={() => toggleRow(v)}
+              className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-gray-50 ${rows.some(r => r.variantId === v.id) ? 'bg-navy/5' : ''}`}>
+              <span>{v.productName} — <span className="text-gray-500">{v.name}</span></span>
+              <span className={`text-xs font-bold ml-2 ${rows.some(r => r.variantId === v.id) ? 'text-navy' : 'text-gray-300'}`}>
+                {rows.some(r => r.variantId === v.id) ? '✓ Added' : 'Select'}
+              </span>
+            </button>
+          ))}
+          {filtered.length === 0 && <p className="text-center text-gray-400 text-sm py-4">No variants found</p>}
+        </div>
+
+        {rows.length > 0 && (
+          <div className="space-y-2 mb-4">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Adjustments (+/- delta)</p>
+            {rows.map(r => (
+              <div key={r.variantId} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+                <span className="text-xs text-navy font-semibold flex-1 truncate">{r.name}</span>
+                <input type="number" value={r.delta} onChange={e => updateRow(r.variantId, 'delta', e.target.value)}
+                  placeholder="Δ" className="w-20 rounded-lg border border-gray-200 px-2 py-1 text-sm text-center focus:outline-none focus:border-navy/40" />
+                <input value={r.note} onChange={e => updateRow(r.variantId, 'note', e.target.value)}
+                  placeholder="Note" className="w-28 rounded-lg border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:border-navy/40" />
+                <button onClick={() => setRows(prev => prev.filter(x => x.variantId !== r.variantId))} className="text-red-400 hover:text-red-600 text-xs font-bold">✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
+
+        <div className="flex gap-2">
+          <Button onClick={() => bulkMut.mutate()} disabled={bulkMut.isPending || rows.length === 0} className="flex-1">
+            {bulkMut.isPending ? 'Applying…' : `Apply ${rows.length} Adjustment${rows.length !== 1 ? 's' : ''}`}
+          </Button>
+          <button onClick={onClose} className="flex-1 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50">Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReportsTab() {
+  const [deadDays, setDeadDays] = useState(30);
+
+  const { data: valData, isLoading: valLoading } = useQuery({
+    queryKey: ['inventory-valuation'],
+    queryFn: () => api.get('/inventory/valuation/').then(r => r.data),
+  });
+
+  const { data: deadData, isLoading: deadLoading } = useQuery({
+    queryKey: ['inventory-dead-stock', deadDays],
+    queryFn: () => api.get('/inventory/dead-stock/', { params: { days: deadDays } }).then(r => r.data),
+  });
+
+  const valItems: ValuationItem[] = valData?.items ?? [];
+  const grandTotal: number = valData?.grand_total ?? 0;
+  const deadItems: DeadStockItem[] = deadData?.items ?? [];
+
+  const handleExport = () => {
+    const token = localStorage.getItem('ns_access') ?? '';
+    const baseUrl = (api.defaults.baseURL ?? '').replace(/\/$/, '');
+    const url = `${baseUrl}/inventory/export/`;
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.blob())
+      .then(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'inventory_export.csv';
+        a.click();
+      });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Stock Valuation */}
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-bold text-navy">Stock Valuation</h3>
+            <p className="text-xs text-gray-400">Total inventory value at cost price</p>
+          </div>
+          <button onClick={handleExport}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-navy text-white text-xs font-bold hover:bg-navy/90 transition-colors">
+            ↓ Export CSV
+          </button>
+        </div>
+
+        {valLoading ? (
+          <div className="h-24 animate-pulse bg-gray-100 rounded-xl" />
+        ) : (
+          <>
+            <div className="bg-navy/5 rounded-xl p-4 mb-4 text-center">
+              <p className="text-xs text-gray-500 mb-1">Grand Total Inventory Value</p>
+              <p className="text-3xl font-bold text-navy">₹{grandTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+              <p className="text-xs text-gray-400 mt-1">{valItems.length} variants</p>
+            </div>
+            {valItems.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-gray-400 uppercase tracking-wide border-b">
+                      <th className="text-left pb-2">Product</th>
+                      <th className="text-right pb-2">Qty</th>
+                      <th className="text-right pb-2">Unit</th>
+                      <th className="text-right pb-2">Cost</th>
+                      <th className="text-right pb-2">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {valItems.slice(0, 20).map(v => (
+                      <tr key={v.variant_id} className="text-gray-600">
+                        <td className="py-2 pr-2">
+                          <p className="font-semibold text-navy truncate max-w-[160px]">{v.product_name}</p>
+                          <p className="text-gray-400">{v.variant_name}</p>
+                        </td>
+                        <td className="text-right py-2">{v.qty}</td>
+                        <td className="text-right py-2">{v.unit}</td>
+                        <td className="text-right py-2">₹{v.cost_price.toFixed(2)}</td>
+                        <td className="text-right py-2 font-bold text-navy">₹{v.total_value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {valItems.length > 20 && (
+                  <p className="text-center text-xs text-gray-400 mt-3">+{valItems.length - 20} more — export CSV for full list</p>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Dead Stock */}
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-bold text-navy">Dead Stock</h3>
+            <p className="text-xs text-gray-400">Items with no outbound movement in the period</p>
+          </div>
+          <select value={deadDays} onChange={e => setDeadDays(Number(e.target.value))}
+            className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-semibold text-navy focus:outline-none focus:border-navy/40">
+            {[7, 14, 30, 60, 90].map(d => <option key={d} value={d}>{d} days</option>)}
+          </select>
+        </div>
+
+        {deadLoading ? (
+          <div className="h-24 animate-pulse bg-gray-100 rounded-xl" />
+        ) : deadItems.length === 0 ? (
+          <div className="text-center py-8 text-gray-400">
+            <div className="text-3xl mb-2">✅</div>
+            <p className="font-semibold text-gray-600">No dead stock in {deadDays} days!</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-gray-400 uppercase tracking-wide border-b">
+                  <th className="text-left pb-2">Product</th>
+                  <th className="text-right pb-2">Qty</th>
+                  <th className="text-right pb-2">Unit</th>
+                  <th className="text-right pb-2">Tied-up Value</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {deadItems.map(v => (
+                  <tr key={v.variant_id} className="text-gray-600">
+                    <td className="py-2 pr-2">
+                      <p className="font-semibold text-navy truncate max-w-[160px]">{v.product_name}</p>
+                      <p className="text-gray-400">{v.variant_name} · {v.sku}</p>
+                    </td>
+                    <td className="text-right py-2">{v.qty}</td>
+                    <td className="text-right py-2">{v.unit}</td>
+                    <td className="text-right py-2 font-bold text-orange-500">
+                      {v.cost_price > 0 ? `₹${(v.qty * v.cost_price).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Inner() {
-  const [tab, setTab] = useState<'alerts' | 'all' | 'history'>('alerts');
+  const [tab, setTab] = useState<'alerts' | 'all' | 'history' | 'serials' | 'bundles' | 'reports'>('alerts');
   const [showLogMovement, setShowLogMovement] = useState(false);
+  const [showBulkAdjust, setShowBulkAdjust] = useState(false);
 
   const { data: alertsData, isLoading: alertsLoading, isError, error, refetch } = useQuery({
     queryKey: ['vendor-stock-alerts'],
@@ -660,16 +1170,19 @@ function Inner() {
       </div>
 
       {/* Tab switcher */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 flex-wrap">
         {([
-          { key: 'alerts' as const, label: alerts.length > 0 ? `Stock Alerts (${alerts.length})` : 'Stock Alerts' },
-          { key: 'all' as const, label: totalProducts > 0 ? `All Products (${totalProducts})` : 'All Products' },
-          { key: 'history' as const, label: 'Change Log' },
+          { key: 'alerts' as const, label: alerts.length > 0 ? `Alerts (${alerts.length})` : 'Alerts' },
+          { key: 'all' as const, label: 'Products' },
+          { key: 'history' as const, label: 'History' },
+          { key: 'serials' as const, label: 'Serials' },
+          { key: 'bundles' as const, label: 'Bundles' },
+          { key: 'reports' as const, label: 'Reports' },
         ]).map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all min-w-[60px] ${
               tab === t.key
                 ? 'bg-white text-navy shadow-sm'
                 : 'text-gray-500 hover:text-gray-700'
@@ -700,7 +1213,16 @@ function Inner() {
       )}
 
       {/* All products tab */}
-      {tab === 'all' && <AllProductsTab />}
+      {tab === 'all' && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <Button onClick={() => setShowBulkAdjust(true)} className="px-5 py-2.5 rounded-xl font-bold text-sm">
+              Bulk Adjust Stock
+            </Button>
+          </div>
+          <AllProductsTab />
+        </div>
+      )}
 
       {/* Change log tab */}
       {tab === 'history' && (
@@ -714,11 +1236,19 @@ function Inner() {
         </div>
       )}
 
+      {tab === 'serials' && <SerialNumbersTab />}
+      {tab === 'bundles' && <BundlesTab />}
+      {tab === 'reports' && <ReportsTab />}
+
       {showLogMovement && (
         <LogMovementModal
           onClose={() => setShowLogMovement(false)}
           onSuccess={() => setShowLogMovement(false)}
         />
+      )}
+
+      {showBulkAdjust && (
+        <BulkAdjustModal onClose={() => setShowBulkAdjust(false)} />
       )}
     </div>
   );

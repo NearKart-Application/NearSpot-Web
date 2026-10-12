@@ -4,6 +4,7 @@ import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
+import NoStoreBanner from './NoStoreBanner';
 
 interface Service {
   id: string;
@@ -252,6 +253,12 @@ function Inner() {
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<Service | null>(null);
 
+  const { data: storeData, isError: storeError } = useQuery({
+    queryKey: ['vendor-store-id'],
+    queryFn: () => api.get('/stores/mine/').then(r => r.data),
+  });
+  const storeId: string = Array.isArray(storeData) ? ((storeData[0] as any)?.id ?? '') : ((storeData as any)?.id ?? '');
+
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['vendor-services'],
     queryFn: () => api.get('/stores/mine/services/').then(r => r.data),
@@ -274,6 +281,8 @@ function Inner() {
   });
 
   const services: Service[] = data?.results ?? (Array.isArray(data) ? data : []);
+
+  if (storeError || !storeId) return <NoStoreBanner feature="services" />;
 
   const handleSuccess = () => {
     setShowAdd(false);
@@ -314,7 +323,9 @@ function Inner() {
           {[...Array(3)].map((_, i) => <div key={i} className="card h-48 animate-pulse" />)}
         </div>
       ) : isError ? (
-        <IslandError error={error} refetch={refetch} />
+        (error as any)?.response?.data?.error === 'no_store' || (error as any)?.response?.status === 404
+          ? <NoStoreBanner feature="service catalogue" />
+          : <IslandError error={error} refetch={refetch} />
       ) : services.length === 0 ? (
         <div className="card p-12 text-center text-gray-400">
           <div className="text-4xl mb-3">💆</div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
@@ -9,9 +9,112 @@ import { Button } from '@/components/ui/button';
 interface VendorStore {
   id: string; name: string; description: string; category: string; phone: string;
   address: string; locality: string; area: string; city: string;
+  district?: string; state?: string;
   is_open: boolean; holiday_mode: boolean; privacy_mode: boolean;
-  store_type?: string;
+  store_type?: string; gst_mode?: string;
   logo_url?: string; banner_url?: string; lat?: number; lng?: number;
+}
+interface StorePhoto { id: string; image_url: string; caption: string; order: number; }
+
+function PhotoGallerySection({ storeId }: { storeId: string }) {
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+
+  const { data: photos = [], refetch } = useQuery<StorePhoto[]>({
+    queryKey: ['store-photos', storeId],
+    queryFn: () => api.get(`/stores/${storeId}/photos/`).then(r => Array.isArray(r.data) ? r.data : r.data.results ?? []),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (photoId: string) => api.delete(`/stores/${storeId}/photos/${photoId}/`),
+    onSuccess: () => refetch(),
+  });
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || !files.length) return;
+    if (photos.length + files.length > 10) {
+      setUploadError(`Max 10 gallery photos. You have ${photos.length}.`);
+      return;
+    }
+    setUploading(true);
+    setUploadError('');
+    const fd = new FormData();
+    Array.from(files).forEach(f => fd.append('images', f));
+    try {
+      await api.post(`/stores/${storeId}/photos/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await refetch();
+    } catch (err: any) {
+      setUploadError(err?.response?.data?.message ?? 'Upload failed. Try again.');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  return (
+    <div className="card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="font-bold text-navy">Photo Gallery</h2>
+          <p className="text-xs text-gray-400">{photos.length}/10 photos — shown on your store page</p>
+        </div>
+        <button onClick={() => fileRef.current?.click()}
+          disabled={uploading || photos.length >= 10}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-navy text-white text-xs font-bold hover:bg-navy/90 transition-colors disabled:opacity-50">
+          {uploading ? 'Uploading…' : '+ Add Photos'}
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handleUpload} />
+      </div>
+
+      {uploadError && <p className="text-xs text-red-500 mb-3">{uploadError}</p>}
+
+      {photos.length === 0 ? (
+        <div className="border-2 border-dashed border-gray-200 rounded-xl py-10 text-center text-gray-400 cursor-pointer hover:border-navy/30 hover:bg-navy/3 transition-all"
+          onClick={() => fileRef.current?.click()}>
+          <div className="text-3xl mb-2">🖼️</div>
+          <p className="text-sm font-semibold text-gray-500">No gallery photos yet</p>
+          <p className="text-xs mt-1">Click to upload photos of your store</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+          {photos.map(p => (
+            <div key={p.id} className="relative group aspect-square rounded-xl overflow-hidden border border-gray-100">
+              <img src={p.image_url} alt={p.caption || 'Gallery'} className="w-full h-full object-cover" />
+              <button onClick={() => { if (confirm('Remove this photo?')) deleteMut.mutate(p.id); }}
+                className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                ✕
+              </button>
+            </div>
+          ))}
+          {photos.length < 10 && (
+            <button onClick={() => fileRef.current?.click()}
+              className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 hover:border-navy hover:text-navy transition-colors text-xs gap-1">
+              <span className="text-xl leading-none">+</span>
+              Add
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function useLocationOptions(field: 'state' | 'district' | 'city', state = '', district = '') {
+  return useQuery<string[]>({
+    queryKey: ['location-options', field, state, district],
+    queryFn: async () => {
+      const params = new URLSearchParams({ field });
+      if (state)    params.set('state', state);
+      if (district) params.set('district', district);
+      const r = await api.get(`/locations/?${params}`);
+      return r.data.options as string[];
+    },
+    enabled: field === 'state' || (field === 'district' && !!state) || (field === 'city' && !!state && !!district),
+    staleTime: 10 * 60 * 1000,
+  });
 }
 
 interface DayHours { open: string; close: string; isOpen: boolean; }
@@ -72,9 +175,9 @@ function Inner() {
 
   const [form, setForm] = useState({
     name: '', description: '', category: '', phone: '',
-    address: '', locality: '', area: '', city: '',
+    address: '', locality: '', area: '', city: '', district: '', state: '',
     is_open: true, holiday_mode: false, privacy_mode: false,
-    store_type: savedBusinessType,
+    store_type: savedBusinessType, gst_mode: 'unregistered',
   });
 
   useEffect(() => {
@@ -88,13 +191,20 @@ function Inner() {
         locality: store.locality ?? '',
         area: store.area ?? '',
         city: store.city ?? '',
+        district: store.district ?? '',
+        state: store.state ?? '',
         is_open: store.is_open,
         holiday_mode: store.holiday_mode,
         privacy_mode: store.privacy_mode,
         store_type: store.store_type ?? savedBusinessType,
+        gst_mode: store.gst_mode ?? 'unregistered',
       });
     }
   }, [store]);
+
+  const { data: states = [] }    = useLocationOptions('state');
+  const { data: districts = [] } = useLocationOptions('district', form.state);
+  const { data: cities = [] }    = useLocationOptions('city', form.state, form.district);
 
   const updateMut = useMutation({
     mutationFn: () => api.patch(`/stores/${store!.id}/`, form),
@@ -151,6 +261,9 @@ function Inner() {
           </div>
         </div>
       )}
+
+      {/* Photo Gallery */}
+      {store?.id && <PhotoGallerySection storeId={store.id} />}
 
       {/* Basic info */}
       <div className="card p-6 space-y-4">
@@ -221,14 +334,82 @@ function Inner() {
             <input {...field('locality')} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
           </div>
           <div>
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Area</label>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Area / Landmark</label>
             <input {...field('area')} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
           </div>
+          {/* Cascading State → District → City */}
           <div>
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">City</label>
-            <input {...field('city')} className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">State</label>
+            <select
+              value={form.state}
+              onChange={e => setForm(f => ({ ...f, state: e.target.value, district: '', city: '' }))}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-navy/40"
+            >
+              <option value="">Select state…</option>
+              {states.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">District</label>
+            <select
+              value={form.district}
+              onChange={e => setForm(f => ({ ...f, district: e.target.value, city: '' }))}
+              disabled={!form.state}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-navy/40 disabled:opacity-50"
+            >
+              <option value="">{form.state ? 'Select district…' : 'Select state first'}</option>
+              {districts.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">City / Area</label>
+            <select
+              value={form.city}
+              onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+              disabled={!form.district}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-navy/40 disabled:opacity-50"
+            >
+              <option value="">{form.district ? 'Select city…' : 'Select district first'}</option>
+              {cities.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
         </div>
+      </div>
+
+      {/* GST Mode */}
+      <div className="card p-6 space-y-4">
+        <div className="border-b border-gray-100 pb-3">
+          <h2 className="font-bold text-navy">GST Registration</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Affects how invoices are generated for your customers</p>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { val: 'unregistered', label: 'Unregistered', sub: 'No GST charged', icon: '🏪' },
+            { val: 'composition',  label: 'Composition',  sub: '1–5% flat turnover', icon: '📋' },
+            { val: 'regular',      label: 'Regular GST',  sub: '18% + ITC eligible', icon: '🧾' },
+          ].map(({ val, label, sub, icon }) => (
+            <button key={val} type="button"
+              onClick={() => setForm(f => ({ ...f, gst_mode: val }))}
+              className={`flex flex-col items-center gap-1 py-3 px-2 rounded-xl border text-center transition-all ${
+                form.gst_mode === val
+                  ? 'bg-navy text-white border-navy shadow-sm'
+                  : 'border-gray-200 text-gray-600 hover:border-navy/40'
+              }`}>
+              <span className="text-lg">{icon}</span>
+              <span className="text-xs font-bold leading-tight">{label}</span>
+              <span className={`text-[10px] leading-tight ${form.gst_mode === val ? 'text-white/70' : 'text-gray-400'}`}>{sub}</span>
+            </button>
+          ))}
+        </div>
+        {form.gst_mode === 'unregistered' && (
+          <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">Most Tier-2/3 vendors are unregistered. No GSTIN needed. Invoices will not include GST charges.</p>
+        )}
+        {form.gst_mode === 'composition' && (
+          <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">Composition vendors cannot collect GST from customers. A flat turnover tax (1–5%) is paid directly to the government.</p>
+        )}
+        {form.gst_mode === 'regular' && (
+          <p className="text-xs text-blue-700 bg-blue-50 rounded-lg px-3 py-2">Regular GST vendors charge 18% (or applicable rate) and can claim Input Tax Credit (ITC). GSTIN required.</p>
+        )}
       </div>
 
       {/* Toggles */}
@@ -289,10 +470,22 @@ function Inner() {
         ))}
       </div>
 
-      <Button onClick={() => updateMut.mutate()} disabled={updateMut.isPending}
-        className="w-full py-3.5 rounded-xl font-bold text-sm">
-        {updateMut.isPending ? 'Saving…' : 'Save Store Info'}
-      </Button>
+      <div className="flex gap-3">
+        <Button onClick={() => updateMut.mutate()} disabled={updateMut.isPending}
+          className="flex-1 py-3.5 rounded-xl font-bold text-sm">
+          {updateMut.isPending ? 'Saving…' : 'Save Store Info'}
+        </Button>
+        {store?.id && (
+          <a href={`/stores/${store.id}`} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-4 py-3.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:border-navy hover:text-navy transition-colors whitespace-nowrap">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+            View as Customer
+          </a>
+        )}
+      </div>
     </div>
   );
 }

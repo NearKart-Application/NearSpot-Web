@@ -110,6 +110,100 @@ function SuspendDialog({
   );
 }
 
+function LoyaltyAdjustDialog({
+  user,
+  onClose,
+}: {
+  user: AdminUser;
+  onClose: () => void;
+}) {
+  const [accountId, setAccountId] = useState<string | null>(null);
+  const [balance,   setBalance]   = useState<number | null>(null);
+  const [points,    setPoints]    = useState('');
+  const [reason,    setReason]    = useState('');
+  const [loading,   setLoading]   = useState(false);
+  const [fetching,  setFetching]  = useState(true);
+  const [success,   setSuccess]   = useState<number | null>(null);
+  const [error,     setError]     = useState('');
+
+  useEffect(() => {
+    api.get('/admin-panel/loyalty/', { params: { search: user.phone_number, page_size: 1 } })
+      .then(r => {
+        const acc = r.data?.results?.[0];
+        if (acc) { setAccountId(acc.id); setBalance(acc.balance); }
+        else setError('No loyalty account found for this user.');
+      })
+      .catch(() => setError('Failed to load loyalty account.'))
+      .finally(() => setFetching(false));
+  }, []);
+
+  const submit = async () => {
+    if (!accountId) return;
+    const pts = parseInt(points);
+    if (!pts || pts === 0) { setError('Enter a non-zero integer.'); return; }
+    if (!reason.trim()) { setError('Reason is required.'); return; }
+    setLoading(true);
+    setError('');
+    try {
+      const r = await api.post(`/admin-panel/loyalty/${accountId}/adjust/`, { points: pts, reason: reason.trim() });
+      setBalance(r.data.balance);
+      setSuccess(r.data.adjusted);
+      setPoints('');
+      setReason('');
+    } catch (e: any) {
+      setError(e?.response?.data?.message ?? 'Adjustment failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="card p-6 w-full max-w-sm mx-4">
+        <h3 className="font-bold text-sm mb-1 text-gray-900">Loyalty Adjust</h3>
+        <p className="text-xs text-gray-400 mb-4">{user.full_name || user.phone_number} · {user.phone_number}</p>
+
+        {fetching ? (
+          <div className="text-sm text-gray-400 py-4 text-center">Loading account…</div>
+        ) : error && !accountId ? (
+          <p className="text-sm text-red-500 mb-4">{error}</p>
+        ) : (
+          <>
+            {balance !== null && (
+              <p className="text-xs font-semibold text-gray-500 mb-3">
+                Current balance: <span className="text-navy font-bold">{balance.toLocaleString()} pts</span>
+                {success !== null && <span className="text-green-600 ml-2">(adjusted {success > 0 ? '+' : ''}{success})</span>}
+              </p>
+            )}
+            <div className="space-y-3">
+              <div>
+                <label className="label">Points (use − to deduct)</label>
+                <input type="number" value={points} onChange={e => setPoints(e.target.value)}
+                  placeholder="e.g. 500 or -200" className="input" />
+              </div>
+              <div>
+                <label className="label">Reason *</label>
+                <input value={reason} onChange={e => setReason(e.target.value)}
+                  placeholder="Compensation, correction, etc." className="input" />
+              </div>
+              {error && <p className="text-xs text-red-500">{error}</p>}
+            </div>
+          </>
+        )}
+
+        <div className="flex gap-2 justify-end mt-4">
+          <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
+          {accountId && (
+            <Button size="sm" onClick={submit} disabled={loading || !points || !reason.trim()}>
+              {loading ? 'Saving…' : 'Adjust'}
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Inner() {
   const qc = useQueryClient();
 
@@ -120,10 +214,12 @@ function Inner() {
   const [page,            setPage]            = useState(1);
   const [pageSize,        setPageSize]        = useState<20 | 50 | 100>(20);
   const [suspendTarget,   setSuspendTarget]   = useState<AdminUser | null>(null);
+  const [loyaltyTarget,   setLoyaltyTarget]   = useState<AdminUser | null>(null);
+  const [selectedIds,     setSelectedIds]     = useState<Set<string>>(new Set());
 
   const dSearch = useDebounce(search, 400);
 
-  useEffect(() => { setPage(1); }, [dSearch, roleFilter, activeFilter, suspendedFilter, pageSize]);
+  useEffect(() => { setPage(1); setSelectedIds(new Set()); }, [dSearch, roleFilter, activeFilter, suspendedFilter, pageSize]);
 
   const { data, isLoading, error, refetch } = useQuery<{ count: number; results: AdminUser[] }>({
     queryKey: ['admin-users', dSearch, roleFilter, activeFilter, suspendedFilter, page, pageSize],
@@ -156,6 +252,15 @@ function Inner() {
     },
   });
 
+  const bulkMut = useMutation({
+    mutationFn: (payload: { action: string; ids: string[] }) =>
+      api.post('/admin-panel/users/bulk/', payload).then((r) => r.data),
+    onSuccess: () => {
+      setSelectedIds(new Set());
+      qc.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+  });
+
   const users      = data?.results ?? [];
   const totalCount = data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -175,6 +280,9 @@ function Inner() {
 
   return (
     <div className="space-y-4">
+      {loyaltyTarget && (
+        <LoyaltyAdjustDialog user={loyaltyTarget} onClose={() => setLoyaltyTarget(null)} />
+      )}
       {suspendTarget && (
         <SuspendDialog
           user={suspendTarget}
@@ -246,12 +354,52 @@ function Inner() {
         </div>
       </div>
 
+      {/* ── Bulk action bar ── */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-navy/5 border border-navy/20">
+          <span className="text-xs font-semibold text-navy">{selectedIds.size} selected</span>
+          <div className="flex gap-2 ml-auto">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => bulkMut.mutate({ action: 'activate', ids: [...selectedIds] })}
+              disabled={bulkMut.isPending}
+            >
+              Activate
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => bulkMut.mutate({ action: 'deactivate', ids: [...selectedIds] })}
+              disabled={bulkMut.isPending}
+            >
+              Deactivate
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+              Clear
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* ── User list ── */}
       <div className={`space-y-2 transition-opacity ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
         {isLoading && users.length === 0
           ? [...Array(8)].map((_, i) => <div key={i} className="h-20 bg-gray-200 rounded-2xl animate-pulse" />)
           : users.map((user) => (
             <div key={user.id} className="card p-4 flex items-center justify-between gap-4 flex-wrap">
+              <input
+                type="checkbox"
+                className="w-4 h-4 shrink-0 accent-navy cursor-pointer"
+                checked={selectedIds.has(user.id)}
+                onChange={(e) => {
+                  setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    e.target.checked ? next.add(user.id) : next.delete(user.id);
+                    return next;
+                  });
+                }}
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold text-sm text-gray-900">
@@ -294,6 +442,14 @@ function Inner() {
                   onClick={() => setSuspendTarget(user)}
                 >
                   {user.is_suspended ? 'Unsuspend' : 'Suspend'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLoyaltyTarget(user)}
+                  title="Adjust loyalty points"
+                >
+                  Pts
                 </Button>
               </div>
             </div>
