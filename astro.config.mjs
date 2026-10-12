@@ -13,7 +13,8 @@ export default defineConfig({
   ],
   vite: {
     define: {
-      'process.env.API_BASE': JSON.stringify(process.env.API_BASE ?? 'http://localhost/api/v1'),
+      // 'process.env.API_BASE': JSON.stringify(process.env.API_BASE ?? 'http://localhost/api/v1'),
+      'process.env.API_BASE': JSON.stringify(process.env.API_BASE ?? 'http://localhost:8000/api/v1'),
     },
     server: {
       proxy: {
