@@ -497,7 +497,7 @@ function EarningsTab() {
     setDownloading(true);
     setError('');
     try {
-      const token = localStorage.getItem('access_token') ?? '';
+      const token = localStorage.getItem('ns_access') ?? '';
       const baseUrl = (api.defaults.baseURL ?? '').replace(/\/$/, '');
       const resp = await fetch(`${baseUrl}/stores/mine/earnings/pdf/?month=${month}`, {
         headers: { Authorization: `Bearer ${token}` },

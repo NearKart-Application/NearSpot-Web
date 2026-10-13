@@ -21,8 +21,10 @@ export const auth = {
     localStorage.setItem('ns_user', JSON.stringify(user));
   },
   user(): AuthUser | null {
-    const raw = localStorage.getItem('ns_user');
-    return raw ? JSON.parse(raw) : null;
+    try {
+      const raw = localStorage.getItem('ns_user');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
   },
   access: () => localStorage.getItem('ns_access'),
   isLoggedIn: () => !!localStorage.getItem('ns_access'),
