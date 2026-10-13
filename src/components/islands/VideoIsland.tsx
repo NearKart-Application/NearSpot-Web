@@ -299,7 +299,7 @@ function VideoCard({ video }: { video: Video }) {
 
         <button className="flex flex-col items-center gap-1"
           onClick={() => {
-            const url = `${window.location.origin}/videos/${video.id}`;
+            const url = `${window.location.origin}/video`;
             if (navigator.share) {
               navigator.share({ url, title: video.title ?? 'Check this out on NearSpot' }).catch(() => {});
             } else {
