@@ -197,6 +197,8 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
   }
 
   async function handleNotify() {
+    const token = localStorage.getItem('ns_access');
+    if (!token) { window.location.href = '/auth/login'; return; }
     try {
       await api.post(`/products/${productId}/watch/`);
       setNotifyDone(true);
@@ -643,48 +645,50 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
       </div>
 
       {/* Sticky CTA */}
-      <div className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 px-4 py-3 flex gap-3 z-30">
-        <a href={`/customer/chat?store=${product.store.id}&product=${product.id}&productName=${encodeURIComponent(product.name)}`}
-           className="w-12 h-12 shrink-0 flex items-center justify-center rounded-xl border border-gray-200 text-gray-700 hover:border-navy hover:text-navy transition-colors"
-           title="Chat with store">
-          💬
-        </a>
-        {!storeIsOpen ? (
-          <div className="flex-1 flex flex-col items-center justify-center py-2.5 rounded-xl bg-red-50 border border-red-200">
-            <p className="text-sm font-bold text-red-600">Store Closed</p>
-            {storeOpenLabel && (
-              <p className="text-[11px] text-red-400">🕐 {storeOpenLabel}</p>
-            )}
+      <div className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 px-4 py-3 flex flex-col gap-2 z-30">
+        {reserveError && (
+          <div className="px-3 py-2 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600 font-medium">
+            {reserveError}
           </div>
-        ) : inStock ? (
-          <>
-            {/* Add to Cart */}
-            <button onClick={addToCart}
-              className={`w-12 h-12 shrink-0 flex items-center justify-center rounded-xl border transition-colors ${cartAdded ? 'border-green-400 bg-green-50 text-green-600' : 'border-gray-200 hover:border-navy hover:text-navy'}`}
-              title="Add to cart">
-              {cartAdded ? '✓' : '🛒'}
-            </button>
-            <button onClick={handleReserve} disabled={reserving || !!reserved}
-              className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors disabled:opacity-60 ${reserved ? 'bg-green-600 text-white' : product.stock_count <= 5 && !reserved ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-navy text-white hover:bg-navy/90'}`}>
-              {reserving ? 'Reserving…' : reserved ? '✓ Reserved' : product.stock_count <= 5 ? `Reserve Now · ₹${(finalPrice * qty).toLocaleString()}` : `Reserve · ₹${(finalPrice * qty).toLocaleString()}`}
-            </button>
-          </>
-        ) : notifyDone ? (
-          <div className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm text-center">
-            ✓ We'll notify you!
-          </div>
-        ) : (
-          <button onClick={handleNotify}
-            className="flex-1 py-3 rounded-xl bg-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-300 transition-colors">
-            🔔 Notify Me When In Stock
-          </button>
         )}
-      </div>
-      {reserveError && (
-        <div className="mx-4 mt-2 px-4 py-2.5 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600 font-medium">
-          {reserveError}
+        <div className="flex gap-3">
+          <a href={`/customer/chat?store=${product.store.id}&product=${product.id}&productName=${encodeURIComponent(product.name)}`}
+             className="w-12 h-12 shrink-0 flex items-center justify-center rounded-xl border border-gray-200 text-gray-700 hover:border-navy hover:text-navy transition-colors"
+             title="Chat with store">
+            💬
+          </a>
+          {!storeIsOpen ? (
+            <div className="flex-1 flex flex-col items-center justify-center py-2.5 rounded-xl bg-red-50 border border-red-200">
+              <p className="text-sm font-bold text-red-600">Store Closed</p>
+              {storeOpenLabel && (
+                <p className="text-[11px] text-red-400">🕐 {storeOpenLabel}</p>
+              )}
+            </div>
+          ) : inStock ? (
+            <>
+              {/* Add to Cart */}
+              <button onClick={addToCart}
+                className={`w-12 h-12 shrink-0 flex items-center justify-center rounded-xl border transition-colors ${cartAdded ? 'border-green-400 bg-green-50 text-green-600' : 'border-gray-200 hover:border-navy hover:text-navy'}`}
+                title="Add to cart">
+                {cartAdded ? '✓' : '🛒'}
+              </button>
+              <button onClick={handleReserve} disabled={reserving || !!reserved}
+                className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors disabled:opacity-60 ${reserved ? 'bg-green-600 text-white' : product.stock_count <= 5 && !reserved ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-navy text-white hover:bg-navy/90'}`}>
+                {reserving ? 'Reserving…' : reserved ? '✓ Reserved' : product.stock_count <= 5 ? `Reserve Now · ₹${(finalPrice * qty).toLocaleString()}` : `Reserve · ₹${(finalPrice * qty).toLocaleString()}`}
+              </button>
+            </>
+          ) : notifyDone ? (
+            <div className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm text-center">
+              ✓ We'll notify you!
+            </div>
+          ) : (
+            <button onClick={handleNotify}
+              className="flex-1 py-3 rounded-xl bg-gray-200 text-gray-700 font-bold text-sm hover:bg-gray-300 transition-colors">
+              🔔 Notify Me When In Stock
+            </button>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
