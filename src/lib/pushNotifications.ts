@@ -54,7 +54,10 @@ export async function registerWebPush(): Promise<void> {
     }
 
     // Load Firebase dynamically so it doesn't bloat the initial bundle
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore firebase package installed when PUBLIC_FIREBASE_* env vars are configured
     const { initializeApp, getApps } = await import('firebase/app');
+    // @ts-ignore
     const { getMessaging, getToken } = await import('firebase/messaging');
 
     const app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG);

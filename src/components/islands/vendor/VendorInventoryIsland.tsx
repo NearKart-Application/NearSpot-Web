@@ -271,7 +271,7 @@ function AllProductsTab() {
                       <span className="text-sm font-bold text-gray-700">{p.total_stock ?? '—'}</span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <a href={`/vendor/products/${p.id}`}
+                      <a href={`/vendor/products/${p.id}/edit`}
                         className="text-xs font-bold text-navy hover:underline whitespace-nowrap">View →</a>
                     </td>
                   </tr>

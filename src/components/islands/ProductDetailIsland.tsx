@@ -222,7 +222,7 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
     }
     const selSizeObj = selSize ? product.sizes.find(s => s.size === selSize) : null;
     const cartRaw = localStorage.getItem('nk_cart') ?? '[]';
-    const cart: any[] = JSON.parse(cartRaw);
+    const cart: any[] = (() => { try { const p = JSON.parse(cartRaw); return Array.isArray(p) ? p : []; } catch { return []; } })();
     const item = {
       product_id:  productId,
       store_id:    product.store.id,

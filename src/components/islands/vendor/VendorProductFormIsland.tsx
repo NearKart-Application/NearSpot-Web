@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
-import { VendorAuthGuard } from './VendorAuthGuard';
+import { VendorAuthGuard, IslandError } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
 
 const FALLBACK_UNITS = [

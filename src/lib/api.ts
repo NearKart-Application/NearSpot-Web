@@ -7,7 +7,11 @@ const BASE: string =
   (typeof process !== 'undefined' ? process.env?.API_BASE : undefined) ||
   '/api/v1';
 
-export const api = axios.create({ baseURL: BASE, timeout: 15_000 });
+export const api = axios.create({
+  baseURL: BASE,
+  timeout: 15_000,
+  headers: { 'ngrok-skip-browser-warning': 'true' },
+});
 
 // Attach JWT from localStorage on every request
 api.interceptors.request.use((cfg) => {

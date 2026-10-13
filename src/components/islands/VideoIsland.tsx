@@ -19,7 +19,7 @@ function VideoCommentsDrawer({ videoId, onClose }: { videoId: string; onClose: (
   const qc = useQueryClient();
   const [text, setText] = useState('');
   const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('ns_access');
-  const userId: string = (() => { try { return String(JSON.parse(localStorage.getItem('ns_user') ?? '{}').id ?? ''); } catch { return ''; } })();
+  const userId: string = typeof window !== 'undefined' ? (() => { try { return String(JSON.parse(localStorage.getItem('ns_user') ?? '{}').id ?? ''); } catch { return ''; } })() : '';
 
   const commentsQ = useQuery<{ results: VideoComment[] }>({
     queryKey: ['video-comments', videoId],
@@ -480,7 +480,7 @@ function Inner() {
   const containerRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
   const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('ns_access');
-  const userRole: string = (() => { try { return JSON.parse(localStorage.getItem('ns_user') ?? '{}').role ?? ''; } catch { return ''; } })();
+  const userRole: string = typeof window !== 'undefined' ? (() => { try { return JSON.parse(localStorage.getItem('ns_user') ?? '{}').role ?? ''; } catch { return ''; } })() : '';
   const isVendor = userRole === 'vendor';
 
   const { data: trendData, isLoading: trendLoading } = useQuery({
