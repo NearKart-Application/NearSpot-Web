@@ -640,7 +640,7 @@ function SerialNumbersTab() {
   const [adding, setAdding] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['serial-numbers'],
+    queryKey: ['serial-numbers-tab'],
     queryFn: () => api.get('/inventory/serial-numbers/').then(r => r.data),
   });
 
@@ -776,7 +776,7 @@ function BundlesTab() {
   const [form, setForm] = useState({ name: '', description: '', components: [{ product_id: '', quantity: '1' }] });
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['bundles'],
+    queryKey: ['bundles-tab'],
     queryFn: () => api.get('/inventory/bundles/').then(r => r.data),
   });
 

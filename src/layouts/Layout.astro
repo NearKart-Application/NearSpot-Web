@@ -71,8 +71,10 @@ const orgJsonLd = JSON.stringify({
         if (window.location.pathname.startsWith('/auth')) return;
         if (e.key !== 'ns_user') return;
 
-        const prev = e.oldValue ? (JSON.parse(e.oldValue) as { ui_mode?: string }) : null;
-        const next = e.newValue ? (JSON.parse(e.newValue) as { ui_mode?: string }) : null;
+        let prev: { ui_mode?: string } | null = null;
+        let next: { ui_mode?: string } | null = null;
+        try { prev = e.oldValue ? JSON.parse(e.oldValue) : null; } catch { prev = null; }
+        try { next = e.newValue ? JSON.parse(e.newValue) : null; } catch { next = null; }
 
         if (!next || !localStorage.getItem('ns_access')) {
           // Logged out in another tab — go to login
