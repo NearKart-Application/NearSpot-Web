@@ -22,7 +22,7 @@ export const auth = {
   },
   user(): AuthUser | null {
     const raw = localStorage.getItem('ns_user');
-    return raw ? JSON.parse(raw) : null;
+    try { return raw ? JSON.parse(raw) : null; } catch { return null; }
   },
   access: () => localStorage.getItem('ns_access'),
   isLoggedIn: () => !!localStorage.getItem('ns_access'),

@@ -150,7 +150,8 @@ import AuthLayout from '../../layouts/AuthLayout.astro';
       });
       if (!res.ok) throw new Error('Failed to set role');
 
-      const user = JSON.parse(localStorage.getItem('ns_user') ?? '{}');
+      let user: Record<string, any> = {};
+      try { user = JSON.parse(localStorage.getItem('ns_user') ?? '{}'); } catch { user = {}; }
       user.ui_mode    = role;
       user.role       = role;
       user.is_vendor  = role === 'vendor';
