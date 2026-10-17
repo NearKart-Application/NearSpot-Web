@@ -93,9 +93,8 @@ function LoginModalInner() {
       if (isAdmin) { window.location.href = '/admin/dashboard'; return; }
       if (role === 'vendor') { window.location.href = '/vendor/dashboard'; return; }
 
-      // Customer login success — close modal and notify islands to retry their action
-      close();
-      window.dispatchEvent(new CustomEvent('ns:login-success', { detail: { user: normalizedUser } }));
+      // Customer login success — reload so all islands pick up the new auth state
+      window.location.reload();
     } catch (e: any) {
       setError(e.message ?? 'Something went wrong');
     } finally {
