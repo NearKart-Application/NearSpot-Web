@@ -153,7 +153,7 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
 
   async function toggleWishlist() {
     const token = localStorage.getItem('ns_access');
-    if (!token) { window.location.href = '/auth/login'; return; }
+    if (!token) { window.dispatchEvent(new CustomEvent('ns:require-login')); return; }
     setWishloading(true);
     try {
       await api.post(`/products/${productId}/wishlist/`);
@@ -163,7 +163,7 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
 
   async function handleReserve() {
     const token = localStorage.getItem('ns_access');
-    if (!token) { window.location.href = '/auth/login'; return; }
+    if (!token) { window.dispatchEvent(new CustomEvent('ns:require-login')); return; }
     if (!product) return;
     if (!storeIsOpen) {
       setReserveError(
@@ -205,7 +205,7 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
 
   async function handleJoinWaitlist() {
     const token = localStorage.getItem('ns_access');
-    if (!token) { window.location.href = '/auth/login'; return; }
+    if (!token) { window.dispatchEvent(new CustomEvent('ns:require-login')); return; }
     try {
       await api.post('/reservations/waitlist/', { product_id: productId });
       setWaitlistDone(true);
@@ -214,7 +214,7 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
 
   function addToCart() {
     const token = localStorage.getItem('ns_access');
-    if (!token) { window.location.href = '/auth/login'; return; }
+    if (!token) { window.dispatchEvent(new CustomEvent('ns:require-login')); return; }
     if (!product) return;
     if (product.sizes.length > 0 && !selSize) {
       setReserveError('Please select a size before adding to cart');
@@ -594,7 +594,7 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
             <button disabled={qaSubmitting || !qaQuestion.trim()}
               onClick={async () => {
                 const token = localStorage.getItem('ns_access');
-                if (!token) { window.location.href = '/auth/login'; return; }
+                if (!token) { window.dispatchEvent(new CustomEvent('ns:require-login')); return; }
                 setQaSubmitting(true);
                 try {
                   await api.post(`/products/${productId}/qa/`, { question: qaQuestion.trim() });

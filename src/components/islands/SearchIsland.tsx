@@ -364,7 +364,7 @@ function Inner({ initTab }: { initTab: Tab }) {
   const suggestions: string[] = acQ.data?.suggestions ?? [];
 
   const toggleWishlist = useCallback((id: string) => {
-    if (!isLoggedIn) { window.location.href = '/auth/login'; return; }
+    if (!isLoggedIn) { window.dispatchEvent(new CustomEvent('ns:require-login')); return; }
     const wasIn = wishlisted.has(id);
     setWishlisted(prev => { const s = new Set(prev); wasIn ? s.delete(id) : s.add(id); return s; });
     api.post(`/products/${id}/wishlist/`).catch(() =>

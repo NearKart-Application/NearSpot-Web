@@ -121,7 +121,7 @@ function StoreQASection({ storeId }: { storeId: string }) {
 
   const submit = async () => {
     if (!question.trim()) return;
-    if (!isLoggedIn) { window.location.href = '/auth/login'; return; }
+    if (!isLoggedIn) { window.dispatchEvent(new CustomEvent('ns:require-login')); return; }
     setSubmitting(true);
     try {
       await api.post(`/stores/${storeId}/qa/`, { question: question.trim() });
@@ -293,7 +293,7 @@ function Inner({ storeId, initialStore }: { storeId: string; initialStore: Store
 
   async function toggleFollow() {
     const token = localStorage.getItem('ns_access');
-    if (!token) { window.location.href = '/auth/login'; return; }
+    if (!token) { window.dispatchEvent(new CustomEvent('ns:require-login')); return; }
     setFollowLoading(true);
     try {
       await api.post(`/stores/${storeId}/follow/`);
@@ -542,7 +542,7 @@ function Inner({ storeId, initialStore }: { storeId: string; initialStore: Store
             <div className="text-3xl mb-2">💬</div>
             <p className="text-sm">No reviews yet. Be the first!</p>
             {typeof window !== 'undefined' && !localStorage.getItem('ns_access') && (
-              <a href="/auth/login" className="mt-3 inline-block text-navy text-sm font-bold underline">Login to review</a>
+              <button onClick={() => window.dispatchEvent(new CustomEvent('ns:require-login'))} className="mt-3 inline-block text-navy text-sm font-bold underline">Login to review</button>
             )}
           </div>
         ) : (

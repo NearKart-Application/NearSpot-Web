@@ -54,7 +54,7 @@ function ProductCard({ product }: { product: Product }) {
 
   const handleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!isLoggedIn) { window.location.href = '/auth/login'; return; }
+    if (!isLoggedIn) { window.dispatchEvent(new CustomEvent('ns:require-login')); return; }
     wishMut.mutate();
   };
 
