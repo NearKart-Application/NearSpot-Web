@@ -28,7 +28,7 @@ export const auth = {
   isLoggedIn: () => !!localStorage.getItem('ns_access'),
   logout() {
     ['ns_access', 'ns_refresh', 'ns_user'].forEach((k) => localStorage.removeItem(k));
-    window.location.href = '/auth/login';
+    window.location.href = '/';
   },
   redirectAfterLogin(mode: UiMode) {
     const map: Record<UiMode, string> = {

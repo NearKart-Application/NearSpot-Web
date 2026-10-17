@@ -107,7 +107,7 @@ function Inner() {
       localStorage.removeItem('ns_access');
       localStorage.removeItem('ns_refresh');
       localStorage.removeItem('ns_user');
-      window.location.href = '/auth/login';
+      window.location.href = '/';
     },
   });
 
@@ -123,7 +123,7 @@ function Inner() {
       localStorage.removeItem('ns_access');
       localStorage.removeItem('ns_refresh');
       localStorage.removeItem('ns_user');
-      window.location.href = '/auth/login';
+      window.location.href = '/';
     },
   });
 
@@ -131,7 +131,7 @@ function Inner() {
     mutationFn: () => api.delete('/auth/me/delete/', { data: { refresh: localStorage.getItem('ns_refresh') } }),
     onSuccess: () => {
       localStorage.clear();
-      window.location.href = '/auth/login';
+      window.location.href = '/';
     },
   });
 
@@ -140,7 +140,7 @@ function Inner() {
       <div className="w-24 h-24 rounded-full bg-navy/10 flex items-center justify-center mb-5 text-5xl">👤</div>
       <h2 className="text-xl font-black text-navy">Sign in to view profile</h2>
       <p className="text-gray-400 text-sm mt-2">Manage your account, reservations, and preferences.</p>
-      <a href="/auth/login" className="mt-6 btn-primary px-10 py-3">Sign In</a>
+      <button onClick={() => window.dispatchEvent(new CustomEvent('ns:require-login'))} className="mt-6 btn-primary px-10 py-3">Sign In</button>
     </div>
   );
 

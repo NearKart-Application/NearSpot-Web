@@ -68,9 +68,9 @@ function Inner() {
         <div className="text-6xl mb-4">💳</div>
         <h2 className="text-xl font-bold text-navy mb-2">Sign in to view your wallet</h2>
         <p className="text-gray-500 text-sm mb-6">Track your purchases and loyalty points</p>
-        <a href="/auth/login" className="px-6 py-3 bg-navy text-white rounded-xl font-bold text-sm hover:bg-navy/90 transition-colors">
+        <button onClick={() => window.dispatchEvent(new CustomEvent('ns:require-login'))} className="px-6 py-3 bg-navy text-white rounded-xl font-bold text-sm hover:bg-navy/90 transition-colors">
           Sign In
-        </a>
+        </button>
       </div>
     );
   }

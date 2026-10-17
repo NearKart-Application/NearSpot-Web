@@ -9,7 +9,7 @@ export function CustomerAuthGuard({ children }: { children: React.ReactNode }) {
     const user  = auth.user();
 
     if (!token || !user) {
-      window.location.href = '/auth/login';
+      window.dispatchEvent(new CustomEvent('ns:require-login'));
       setStatus('redirect');
       return;
     }

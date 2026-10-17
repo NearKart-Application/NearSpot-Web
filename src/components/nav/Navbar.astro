@@ -167,6 +167,10 @@ const desktopLinks = [
     } catch { loginBtn!.classList.remove('hidden'); }
   } else {
     loginBtn!.classList.remove('hidden');
+    loginBtn!.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.dispatchEvent(new CustomEvent('ns:require-login'));
+    });
   }
 
   // Role-aware links
