@@ -375,7 +375,7 @@ function FollowingTab({ wishlisted, onWishlist }: { wishlisted: Set<string>; onW
       <div className="w-20 h-20 rounded-full bg-navy/10 flex items-center justify-center mb-4 text-4xl">🏪</div>
       <h3 className="font-bold text-navy text-lg">Sign in to see your feed</h3>
       <p className="text-sm text-gray-400 mt-2 max-w-xs">Follow stores to see their latest products, offers, and updates here.</p>
-      <a href="/auth/login" className="mt-5 btn-primary px-8">Sign In</a>
+      <button onClick={() => window.dispatchEvent(new CustomEvent('ns:require-login'))} className="mt-5 btn-primary px-8">Sign In</button>
     </div>
   );
 
@@ -478,7 +478,7 @@ function Inner({ initBanners, initCategories }: { initBanners: Banner[]; initCat
 
   const toggleWishlist = useCallback((id: string) => {
     const token = localStorage.getItem('ns_access');
-    if (!token) { window.location.href = '/auth/login'; return; }
+    if (!token) { window.dispatchEvent(new CustomEvent('ns:require-login')); return; }
     const wasIn = wishlisted.has(id);
     setWishlisted(prev => { const s = new Set(prev); wasIn ? s.delete(id) : s.add(id); return s; });
     api.post(`/products/${id}/wishlist/`).catch(() =>

@@ -40,7 +40,7 @@ api.interceptors.response.use(
           if (typeof window !== 'undefined') {
             localStorage.removeItem('ns_access');
             localStorage.removeItem('ns_refresh');
-            window.location.href = '/auth/login';
+            window.dispatchEvent(new CustomEvent('ns:require-login'));
           }
         }
       }

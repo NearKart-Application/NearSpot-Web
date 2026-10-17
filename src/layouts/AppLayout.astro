@@ -2,6 +2,7 @@
 import Layout from './Layout.astro';
 import Navbar from '../components/nav/Navbar.astro';
 import LocationPickerIsland from '../components/islands/LocationPickerIsland';
+import LoginModal from '../components/islands/LoginModal';
 interface Props { title?: string; fullWidth?: boolean; noFooter?: boolean; noPad?: boolean }
 const { title, fullWidth = false, noFooter = false, noPad = false } = Astro.props;
 ---
@@ -10,6 +11,7 @@ const { title, fullWidth = false, noFooter = false, noPad = false } = Astro.prop
   <div class="min-h-screen flex flex-col">
     <Navbar />
     <LocationPickerIsland client:load />
+    <LoginModal client:load />
     <main class:list={[
       'flex-1 pt-16 animate-slide-up',
       !noPad && 'pb-20 md:pb-0',

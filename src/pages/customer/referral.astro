@@ -78,7 +78,7 @@ import api from '../../lib/api';
       </div>
       <h2 class="text-xl font-black text-navy">Sign in to refer friends</h2>
       <p class="text-gray-400 text-sm mt-2">Get your referral code and start earning together.</p>
-      <a href="/auth/login" class="mt-6 btn-primary px-10 py-3 inline-block">Sign In</a>
+      <button id="referral-login-btn" class="mt-6 btn-primary px-10 py-3">Sign In</button>
     </div>
   </div>
 </AppLayout>
@@ -87,6 +87,11 @@ import api from '../../lib/api';
   const token = localStorage.getItem('ns_access');
   const section = document.getElementById('referral-section')!;
   const loginPrompt = document.getElementById('login-prompt')!;
+
+  const referralLoginBtn = document.getElementById('referral-login-btn');
+  if (referralLoginBtn) {
+    referralLoginBtn.addEventListener('click', () => window.dispatchEvent(new CustomEvent('ns:require-login')));
+  }
 
   if (!token) {
     section.classList.add('hidden');

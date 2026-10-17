@@ -225,12 +225,12 @@ function VideoCard({ video }: { video: Video }) {
   });
 
   const handleLike = () => {
-    if (!isLoggedIn) { window.location.href = '/auth/login'; return; }
+    if (!isLoggedIn) { window.dispatchEvent(new CustomEvent('ns:require-login')); return; }
     likeMut.mutate();
   };
 
   const handleSave = () => {
-    if (!isLoggedIn) { window.location.href = '/auth/login'; return; }
+    if (!isLoggedIn) { window.dispatchEvent(new CustomEvent('ns:require-login')); return; }
     saveMut.mutate();
   };
 
@@ -600,7 +600,7 @@ function Inner() {
               {tab === 'following' ? 'Follow stores to see their video content here.' : 'Check back soon for new videos from local stores.'}
             </p>
             {tab === 'following' && !isLoggedIn && (
-              <a href="/auth/login" className="mt-4 inline-block px-6 py-2.5 bg-white text-navy text-sm font-bold rounded-xl hover:bg-white/90 transition-colors">Sign In</a>
+              <button onClick={() => window.dispatchEvent(new CustomEvent('ns:require-login'))} className="mt-4 inline-block px-6 py-2.5 bg-white text-navy text-sm font-bold rounded-xl hover:bg-white/90 transition-colors">Sign In</button>
             )}
           </div>
         </div>

@@ -77,8 +77,8 @@ const orgJsonLd = JSON.stringify({
         try { next = e.newValue ? JSON.parse(e.newValue) : null; } catch { next = null; }
 
         if (!next || !localStorage.getItem('ns_access')) {
-          // Logged out in another tab — go to login
-          window.location.href = '/auth/login';
+          // Logged out in another tab — go home (browse mode, no login required)
+          window.location.href = '/';
           return;
         }
 

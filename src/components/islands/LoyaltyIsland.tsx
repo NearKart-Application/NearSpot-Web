@@ -191,7 +191,7 @@ function Inner() {
       <div className="w-24 h-24 rounded-full bg-amber-50 flex items-center justify-center mb-5 text-5xl">⭐</div>
       <h2 className="text-xl font-black text-navy">Sign in to view loyalty points</h2>
       <p className="text-gray-400 text-sm mt-2 max-w-xs">Earn points on every reservation and redeem them for discounts.</p>
-      <a href="/auth/login" className="mt-6 btn-primary px-10 py-3">Sign In</a>
+      <button onClick={() => window.dispatchEvent(new CustomEvent('ns:require-login'))} className="mt-6 btn-primary px-10 py-3">Sign In</button>
     </div>
   );
 

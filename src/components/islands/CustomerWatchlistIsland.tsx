@@ -28,7 +28,7 @@ function Inner() {
         <p className="text-gray-400 text-sm mt-2 max-w-xs">
           Your watchlist tracks out-of-stock products you want to be notified about when they come back.
         </p>
-        <a href="/auth/login" className="mt-6 btn-primary px-10 py-3">Sign In</a>
+        <button onClick={() => window.dispatchEvent(new CustomEvent('ns:require-login'))} className="mt-6 btn-primary px-10 py-3">Sign In</button>
       </div>
     );
   }
