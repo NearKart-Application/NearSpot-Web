@@ -4,6 +4,27 @@ import { queryClient } from '../../lib/queryClient';
 
 type Step = 'phone' | 'otp';
 
+// Dev-only quick-login accounts (same set as the /auth/login page). All use OTP 123456.
+const DEV_ACCOUNTS: { role: string; accounts: { name: string; phone: string; icon: string }[] }[] = [
+  { role: 'Customers', accounts: [
+    { name: 'Dev Customer', phone: '8888888888', icon: '👤' },
+    { name: 'Arjun Kumar',  phone: '9000000001', icon: '👤' },
+    { name: 'Priya Sharma', phone: '9000000002', icon: '👤' },
+    { name: 'Rahul Verma',  phone: '9000000003', icon: '👤' },
+  ]},
+  { role: 'Vendors', accounts: [
+    { name: 'Dev Vendor',  phone: '9999999999', icon: '🏪' },
+    { name: 'Sneha Reddy', phone: '9000000004', icon: '🏪' },
+    { name: 'Vikram Iyer', phone: '9000000005', icon: '🏪' },
+    { name: 'Kiran Naidu', phone: '9000000007', icon: '🏪' },
+    { name: 'Divya Mehta', phone: '9000000008', icon: '🏪' },
+  ]},
+  { role: 'Admins', accounts: [
+    { name: 'Dev Admin',  phone: '7000000001', icon: '🛡️' },
+    { name: 'Dev Master', phone: '7000000002', icon: '🛡️' },
+  ]},
+];
+
 function LoginModalInner() {
   const [open, setOpen]       = useState(false);
   const [step, setStep]       = useState<Step>('phone');
@@ -37,9 +58,9 @@ function LoginModalInner() {
     setLoading(false);
   }, []);
 
-  const sendOtp = useCallback(async () => {
-    const digits = phone.trim().replace(/\D/g, '');
-    if (digits.length < 6 || digits.length > 13) { setError('Enter a valid phone number'); return; }
+  const sendOtp = useCallback(async (overridePhone?: string) => {
+    const digits = (overridePhone ?? phone).trim().replace(/\D/g, '');
+    if (digits.length !== 10) { setError('Enter a valid 10-digit mobile number'); return; }
     setLoading(true);
     setError('');
     try {
@@ -58,6 +79,14 @@ function LoginModalInner() {
       setLoading(false);
     }
   }, [phone, cc]);
+
+  // Dev quick-login: fill the number, pre-fill the fixed dev OTP, and send.
+  const devLogin = useCallback((num: string) => {
+    setError('');
+    setPhone(num);
+    setOtp('123456');
+    sendOtp(num);
+  }, [sendOtp]);
 
   const verifyOtp = useCallback(async () => {
     const digits = phone.trim().replace(/\D/g, '');
@@ -129,24 +158,22 @@ function LoginModalInner() {
             </div>
 
             <div className="flex gap-2 mb-3">
-              <select value={cc} onChange={e => setCc(e.target.value)}
-                className="input w-24 shrink-0 bg-gray-50 text-sm font-semibold text-gray-700 cursor-pointer">
-                {['+91','+1','+44','+61','+971','+966','+65','+60'].map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+              <span className="input w-16 shrink-0 bg-gray-50 text-sm font-semibold text-gray-700 flex items-center justify-center">
+                +91
+              </span>
               <input
                 type="tel" inputMode="numeric" placeholder="9876543210"
-                value={phone} onChange={e => setPhone(e.target.value)}
+                value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                 onKeyDown={e => e.key === 'Enter' && sendOtp()}
                 className="input flex-1 text-base font-medium tracking-wide"
+                maxLength={10}
                 autoFocus
               />
             </div>
 
             {error && <p className="text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 mb-3">{error}</p>}
 
-            <button onClick={sendOtp} disabled={loading}
+            <button onClick={() => sendOtp()} disabled={loading}
               className="btn-primary w-full py-3 text-base mt-1 flex items-center justify-center gap-2">
               {loading ? <><span className="spinner w-4 h-4" />Sending OTP…</> : 'Get OTP'}
             </button>
@@ -155,6 +182,34 @@ function LoginModalInner() {
               New here?{' '}
               <a href="/auth/signup" className="text-navy font-semibold hover:underline">Create account</a>
             </p>
+
+            {import.meta.env.DEV && (
+              <div className="mt-5 border-t border-dashed border-gray-200 pt-4">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">🧪 Dev Test Accounts</p>
+                <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 mb-2">
+                  Tap any account — OTP <strong>123456</strong> is pre-filled.
+                </p>
+                <div className="max-h-44 overflow-y-auto space-y-2 pr-1">
+                  {DEV_ACCOUNTS.map(group => (
+                    <div key={group.role}>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{group.role}</p>
+                      <div className="grid grid-cols-2 gap-1.5 mt-1">
+                        {group.accounts.map(a => (
+                          <button key={a.phone} type="button" onClick={() => devLogin(a.phone)}
+                            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-gray-100 hover:border-navy hover:bg-navy/5 transition-colors text-left">
+                            <span className="text-sm shrink-0">{a.icon}</span>
+                            <span className="min-w-0">
+                              <span className="block text-[11px] font-semibold text-navy truncate">{a.name}</span>
+                              <span className="block text-[10px] text-gray-400">+91 {a.phone}</span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <>

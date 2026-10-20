@@ -123,7 +123,7 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 const CATEGORIES = [
   'fashion', 'footwear', 'jewellery', 'beauty', 'electronics',
   'food', 'gifts', 'decor', 'furniture', 'books', 'sports',
-  'grocery', 'pharmacy', 'others',
+  'grocery', 'pharmacy', 'other',
 ];
 
 function Inner() {

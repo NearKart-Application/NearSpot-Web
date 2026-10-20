@@ -26,7 +26,16 @@ api.interceptors.request.use((cfg) => {
 api.interceptors.response.use(
   (res) => res,
   async (err) => {
-    const original = err.config;
+    const original = err.config ?? {};
+
+    // Backend unreachable: no response at all (network/DNS/connection refused) or a
+    // gateway/service-unavailable status. Surface the global "Server Unavailable" screen.
+    const status = err.response?.status;
+    const backendDown = !err.response || status === 502 || status === 503 || status === 504;
+    if (backendDown && typeof window !== 'undefined' && !original._nsNoDownScreen) {
+      window.dispatchEvent(new CustomEvent('ns:server-unavailable'));
+    }
+
     if (err.response?.status === 401 && !original._retry) {
       original._retry = true;
       const refresh = typeof window !== 'undefined' ? localStorage.getItem('ns_refresh') : null;

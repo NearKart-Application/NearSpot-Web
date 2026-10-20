@@ -68,6 +68,28 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
     staleTime: 30_000,
   });
 
+  // Bug #10 — record this product view for the home "Recently Viewed" rail.
+  // Uses the same localStorage key + shape that HomeIsland reads (id/name/price/image),
+  // newest first, deduped by id, capped at 10.
+  useEffect(() => {
+    if (!product?.id) return;
+    try {
+      const KEY = 'ns_recently_viewed';
+      const imgs = product.images as (ProductImage[] | string[]) | undefined;
+      let image: string | undefined;
+      if (Array.isArray(imgs) && imgs.length) {
+        const first: any = imgs[0];
+        image = typeof first === 'string' ? first : first?.url;
+      }
+      const entry = { id: product.id, name: product.name, price: product.price, image };
+      let list: any[] = [];
+      try { list = JSON.parse(localStorage.getItem(KEY) ?? '[]'); } catch { list = []; }
+      list = list.filter((p: any) => p && p.id !== product.id);
+      list.unshift(entry);
+      localStorage.setItem(KEY, JSON.stringify(list.slice(0, 10)));
+    } catch { /* non-fatal */ }
+  }, [product?.id]);
+
   // Must be before any conditional return (React rules of hooks)
   const { data: reviewsData } = useQuery({
     queryKey: ['product-reviews', productId],

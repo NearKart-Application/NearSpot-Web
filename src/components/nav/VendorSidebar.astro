@@ -63,19 +63,19 @@ const groups = [
     label: 'Catalogue',
     links: [
       { href: '/vendor/products',          icon: 'products',   label: 'Products'         },
-      { href: '/vendor/inventory',          icon: 'inventory',  label: 'Inventory'        },
-      { href: '/vendor/grocery-inventory',     icon: 'grocery',     label: 'Grocery / Perishable'   },
-      { href: '/vendor/restaurant-inventory', icon: 'restaurant', label: 'Restaurant Inventory' },
-      { href: '/vendor/jewelry-inventory',    icon: 'jewelry',    label: 'Jewelry Inventory'    },
-      { href: '/vendor/home-decor-inventory',  icon: 'homedecor', label: 'Home Decor Inventory'  },
-      { href: '/vendor/services-inventory',   icon: 'services',  label: 'Services Inventory'    },
+      { href: '/vendor/inventory',          icon: 'inventory',  label: 'Inventory',        inv: 'general'    },
+      { href: '/vendor/grocery-inventory',     icon: 'grocery',     label: 'Grocery / Perishable',   inv: 'grocery'    },
+      { href: '/vendor/restaurant-inventory', icon: 'restaurant', label: 'Restaurant Inventory', inv: 'restaurant' },
+      { href: '/vendor/jewelry-inventory',    icon: 'jewelry',    label: 'Jewelry Inventory',    inv: 'jewelry'    },
+      { href: '/vendor/home-decor-inventory',  icon: 'homedecor', label: 'Home Decor Inventory',  inv: 'homedecor'  },
+      { href: '/vendor/services-inventory',   icon: 'services',  label: 'Services Inventory',    inv: 'services'   },
       { href: '/vendor/service-catalogue', icon: 'catalogue',  label: 'Service Catalogue'},
       { href: '/vendor/offers',            icon: 'offers',     label: 'Offers'           },
       { href: '/vendor/videos',            icon: 'videos',     label: 'Videos'           },
       { href: '/vendor/units',          icon: 'units',      label: 'Units (UoM)'    },
-      { href: '/vendor/serial-numbers', icon: 'serials',    label: 'Serial Numbers' },
+      { href: '/vendor/serial-numbers', icon: 'serials',    label: 'Serial Numbers', cats: 'electronics,jewellery' },
       { href: '/vendor/bundles',         icon: 'bundles',    label: 'Bundles'        },
-      { href: '/vendor/near-expiry',     icon: 'nearexpiry', label: 'Near Expiry'    },
+      { href: '/vendor/near-expiry',     icon: 'nearexpiry', label: 'Near Expiry',    cats: 'grocery,pharmacy,food,beauty' },
     ],
   },
   {
@@ -147,6 +147,8 @@ function isActive(href: string) {
         <div class="space-y-0.5">
           {group.links.map(link => (
             <a href={link.href}
+               data-inv={(link as any).inv}
+               data-cats={(link as any).cats}
                class:list={['sidebar-link', isActive(link.href) && 'active']}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -186,8 +188,41 @@ function isActive(href: string) {
 </aside>
 
 <script>
+  import api from '../../lib/api';
+
   document.getElementById('sidebar-logout')?.addEventListener('click', () => {
     ['ns_access','ns_refresh','ns_user'].forEach(k => localStorage.removeItem(k));
     window.location.href = '/auth/login';
   });
+
+  // Show only the inventory system that matches the vendor's selected store category/type.
+  // Categories map to one specialised inventory; everything else uses the general one.
+  // Service stores → services inventory. Fail-open: if the store can't be read, show all.
+  // Uses the shared api client (correct base URL + auth + token refresh) so the fetch is reliable.
+  (async function gateInventory() {
+    const invLinks = Array.from(document.querySelectorAll('[data-inv]')) as HTMLElement[];
+    const catLinks = Array.from(document.querySelectorAll('[data-cats]')) as HTMLElement[];
+    if (!invLinks.length && !catLinks.length) return;
+    const CAT_TO_INV: Record<string, string> = {
+      jewellery: 'jewelry',
+      decor: 'homedecor', furniture: 'homedecor',
+      grocery: 'grocery', pharmacy: 'grocery',
+      food: 'restaurant',
+    };
+    try {
+      const { data } = await api.get('/stores/mine/');
+      const cat   = (data?.category ?? '').toString();
+      const stype = (data?.store_type ?? '').toString();
+      // One matching inventory system
+      const allowed = stype === 'service' ? 'services' : (CAT_TO_INV[cat] ?? 'general');
+      invLinks.forEach(el => {
+        if (el.getAttribute('data-inv') !== allowed) el.remove();   // remove = bulletproof vs any CSS
+      });
+      // Category-specific extras (Near Expiry, Serial Numbers): show only for listed categories
+      catLinks.forEach(el => {
+        const cats = (el.getAttribute('data-cats') || '').split(',');
+        if (!cats.includes(cat)) el.remove();
+      });
+    } catch { /* fail-open — leave all links visible */ }
+  })();
 </script>

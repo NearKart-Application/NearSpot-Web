@@ -64,7 +64,9 @@ function ImageUploadSection({ productId }: { productId: string }) {
     const fd = new FormData();
     Array.from(files).forEach(f => fd.append('images', f));
     try {
-      await api.post(`/products/${productId}/images/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      // Let axios set multipart/form-data WITH its boundary — hard-coding the header strips the
+      // boundary so the server can't parse the files (request.FILES ends up empty → 400 no_files).
+      await api.post(`/products/${productId}/images/`, fd);
       await refetch();
     } catch (err: any) {
       setUploadError(err?.response?.data?.message ?? 'Upload failed. Try again.');
@@ -128,7 +130,7 @@ function Inner({ productId }: { productId?: string }) {
   const [form, setForm] = useState<ProductFormData>({
     name: '', category: 'fashion', description: '',
     base_price: '', sale_price: '', cost_price: '', mrp: '', stock: '', unit: 'piece', product_code: '', barcode: '',
-    status: 'draft', is_visible: true, colors: '',
+    status: 'active', is_visible: true, colors: '',
     hsn_code: '', gst_rate: '',
   });
   const [error, setError] = useState('');
@@ -204,9 +206,23 @@ function Inner({ productId }: { productId?: string }) {
         ...(form.hsn_code.trim() ? { hsn_code: form.hsn_code.trim() } : {}),
         ...(form.gst_rate ? { gst_rate: parseFloat(form.gst_rate) } : {}),
       };
-      return isEdit
-        ? api.patch(`/products/${productId}/`, payload)
-        : api.post('/products/', payload);
+      if (isEdit) return api.patch(`/products/${productId}/`, payload);
+      // New product: attach a default stocked variant (mirrors the mobile create) so the product
+      // actually has stock — otherwise the customer list's has_stock filter hides it.
+      const skuBase = form.product_code.trim() ||
+        `${form.name.trim().slice(0, 6).toUpperCase().replace(/\s/g, '')}-${Date.now() % 100000}`;
+      return api.post('/products/', {
+        ...payload,
+        variants: [{
+          name: 'One Size',
+          sku: `${skuBase}-OS`,
+          price: parseFloat(form.base_price) || 0,
+          stock_quantity: parseInt(form.stock) || 0,
+          unit: form.unit,
+          ...(form.mrp ? { mrp: parseFloat(form.mrp) } : {}),
+          ...(form.cost_price ? { cost_price: parseFloat(form.cost_price) } : {}),
+        }],
+      });
     },
     onSuccess: async (resp: any) => {
       const newId = resp?.data?.id;
@@ -214,8 +230,14 @@ function Inner({ productId }: { productId?: string }) {
         try {
           const fd = new FormData();
           pendingImages.forEach(f => fd.append('images', f));
-          await api.post(`/products/${newId}/images/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-        } catch {}
+          // No manual Content-Type — axios sets multipart/form-data with the required boundary.
+          await api.post(`/products/${newId}/images/`, fd);
+        } catch (err: any) {
+          // Product was created but the image upload failed — surface it instead of silently
+          // succeeding (that was why "created but image not loaded" went unnoticed).
+          setError(err?.response?.data?.message ?? 'Product saved, but image upload failed — open the product to add images.');
+          return;
+        }
       }
       setSaved(true);
       setTimeout(() => { window.location.href = '/vendor/products'; }, 1200);

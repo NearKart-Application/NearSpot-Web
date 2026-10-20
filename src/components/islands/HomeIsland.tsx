@@ -14,7 +14,7 @@ interface Coords { lat: number; lng: number }
 interface Store {
   id: string; name: string; category: string; location: string;
   avatar?: string; cover_image?: string;
-  is_open: boolean; is_verified: boolean; holiday_mode?: boolean;
+  is_open: boolean; live_is_open?: boolean; is_verified: boolean; holiday_mode?: boolean;
   rating?: number; avg_rating?: number; review_count?: number;
   distance_km?: number; follower_count?: number;
   active_offer_labels?: string[]; top_offer_label?: string; has_offer?: boolean;
@@ -116,6 +116,8 @@ function StoreCard({ store }: { store: Store }) {
   const dist   = store.distance_km;
   const distTxt = dist == null ? '' : dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)} km`;
   const offers  = store.active_offer_labels ?? (store.top_offer_label ? [store.top_offer_label] : []);
+  // Live open status (reflects holiday mode + closed days + hours); fall back to the manual flag.
+  const isOpen = store.live_is_open ?? store.is_open;
 
   return (
     <motion.a
@@ -131,10 +133,10 @@ function StoreCard({ store }: { store: Store }) {
         <Img src={store.cover_image} alt={store.name} fallback="store" loading="lazy"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
         {/* Dim overlay for closed stores */}
-        {!store.is_open && <div className="absolute inset-0 bg-black/25 z-[1]" />}
+        {!isOpen && <div className="absolute inset-0 bg-black/25 z-[1]" />}
         {/* Open/Closed pill */}
         <div className="absolute top-2.5 right-2.5 z-[2]">
-          {store.is_open ? (
+          {isOpen ? (
             <span className="bg-emerald-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">OPEN</span>
           ) : (
             <span className="bg-red-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">CLOSED</span>
@@ -190,7 +192,7 @@ function StoreCard({ store }: { store: Store }) {
         {store.holiday_mode && (
           <div className="mt-1.5 text-[11px] font-semibold text-orange-600 bg-orange-50 rounded-lg px-2 py-0.5 w-fit">🌴 On Holiday</div>
         )}
-        {!store.is_open && !store.holiday_mode && store.open_status_label && (
+        {!isOpen && !store.holiday_mode && store.open_status_label && (
           <p className="text-[11px] text-gray-400 mt-1">🕐 {store.open_status_label}</p>
         )}
       </div>

@@ -21,11 +21,12 @@ export default defineConfig({
     server: {
       allowedHosts: process.env.EXTRA_HOST ? [process.env.EXTRA_HOST, 'localhost'] : true,
       proxy: {
-        // In dev: bypass nginx, hit Django directly on its exposed port
-        '/api':    { target: 'http://localhost:8000', changeOrigin: true },
-        '/static': { target: 'http://localhost:8000', changeOrigin: true },
-        '/media':  { target: 'http://localhost:8000', changeOrigin: true },
-        '/ws':     { target: 'ws://localhost:8001',   changeOrigin: true, ws: true },
+        // DJANGO_HOST: localhost (native), host.docker.internal (standalone Docker), django (full Docker stack)
+        // WS_HOST: same as DJANGO_HOST unless overridden (daphne is a separate service in full Docker stack)
+        '/api':    { target: `http://${process.env.DJANGO_HOST ?? 'localhost'}:8000`, changeOrigin: true },
+        '/static': { target: `http://${process.env.DJANGO_HOST ?? 'localhost'}:8000`, changeOrigin: true },
+        '/media':  { target: `http://${process.env.DJANGO_HOST ?? 'localhost'}:8000`, changeOrigin: true },
+        '/ws':     { target: `ws://${process.env.WS_HOST ?? process.env.DJANGO_HOST ?? 'localhost'}:8001`, changeOrigin: true, ws: true },
       },
     },
   },

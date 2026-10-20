@@ -1,0 +1,13 @@
+---
+import AppLayout from '../layouts/AppLayout.astro';
+---
+<AppLayout title="Deal or Skip" fullWidth noFooter noPad>
+  <!-- The game is a self-contained, offline-capable artifact so the same file powers
+       the web page, the mobile WebView, and the service-worker offline screen. -->
+  <iframe
+    src="/games/deal-or-skip.html"
+    title="Deal or Skip"
+    style="position:fixed;inset:0;width:100%;height:100%;border:0;display:block;background:#070f1c"
+    allow="fullscreen"
+  ></iframe>
+</AppLayout>

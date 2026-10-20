@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<title>NearSpot — Deal or Skip (Prototype)</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:radial-gradient(1200px 820px at 22% 8%, #16304f 0%, #0b1b30 52%, #070f1c 100%);
+    min-height:100vh;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;padding:20px 16px;color:#fff;
+  }
+
+  /* animated aurora: drifting blurred colour orbs give the background depth + life */
+  #bgfx{position:fixed;inset:0;z-index:-2;overflow:hidden;pointer-events:none}
+  .orb{position:absolute;border-radius:50%;filter:blur(72px);mix-blend-mode:screen;will-change:transform}
+  .orb.a{width:360px;height:360px;background:#f5a623;left:-70px;top:-50px;opacity:.40;animation:drA 26s ease-in-out infinite}
+  .orb.b{width:320px;height:320px;background:#2d6ad1;right:-60px;top:26%;opacity:.42;animation:drB 31s ease-in-out infinite}
+  .orb.c{width:380px;height:380px;background:#7c3aed;left:18%;bottom:-110px;opacity:.34;animation:drC 35s ease-in-out infinite}
+  .orb.d{width:280px;height:280px;background:#22c55e;right:12%;bottom:8%;opacity:.26;animation:drD 29s ease-in-out infinite}
+  @keyframes drA{0%,100%{transform:translate(0,0)}50%{transform:translate(90px,70px)}}
+  @keyframes drB{0%,100%{transform:translate(0,0)}50%{transform:translate(-80px,50px)}}
+  @keyframes drC{0%,100%{transform:translate(0,0)}50%{transform:translate(70px,-60px)}}
+  @keyframes drD{0%,100%{transform:translate(0,0)}50%{transform:translate(-60px,-45px)}}
+  @media (prefers-reduced-motion: reduce){ .orb{animation:none} }
+  /* playful floating emoji in the background */
+  .femoji{position:absolute;opacity:.16;will-change:transform;user-select:none}
+  @keyframes floaty{0%{transform:translateY(0) rotate(-10deg)}50%{transform:translateY(-22px) rotate(10deg)}100%{transform:translateY(0) rotate(-10deg)}}
+  @media (prefers-reduced-motion: reduce){ .femoji{animation:none!important} }
+  .ghead{text-align:center;margin-bottom:8px}
+  .proto-tag{display:inline-block;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#f5a623;border:1px dashed #5a4a24;border-radius:20px;padding:4px 12px;margin-bottom:12px}
+  .logo{font-size:21px;font-weight:900;margin-bottom:2px}
+  .logo span{color:#f5a623}
+  .status{font-size:11px;color:#64748b;margin-bottom:4px;display:flex;align-items:center;justify-content:center;gap:5px}
+  .dot{width:6px;height:6px;background:#ef4444;border-radius:50%;animation:pulse 1.5s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .card{background:#13263f;border-radius:22px;padding:18px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.5);position:relative;z-index:2}
+
+  /* background "deal wall" — decided offers stamped behind the card */
+  #dealWall{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+  .wallchip{position:absolute;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;
+    padding:7px 12px;border-radius:13px;white-space:nowrap;color:#e7eef7;
+    background:rgba(255,255,255,.07);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+    border:1px solid rgba(255,255,255,.16);box-shadow:0 6px 20px rgba(0,0,0,.28);
+    opacity:0;transform:scale(.8);transition:opacity .45s,transform .45s}
+  .wallchip.show{opacity:.92;transform:scale(1)}
+  .wallchip.ok{border-color:rgba(74,222,128,.55);box-shadow:0 6px 22px rgba(34,197,94,.22)}
+  .wallchip.bad{border-color:rgba(248,113,113,.55);box-shadow:0 6px 22px rgba(239,68,68,.22)}
+  .wallchip .ws{color:#aebfd4;font-weight:700}
+  .wallchip.ok .gl{color:#4ade80}
+  .wallchip.bad .gl{color:#f87171}
+
+  /* fly layer: the decided card flies over everything, then lands on the wall */
+  #flyLayer{position:fixed;inset:0;z-index:50;pointer-events:none;overflow:hidden}
+  .flyer{position:absolute;display:flex;align-items:center;justify-content:center;gap:6px;
+    font-weight:800;border-radius:16px;white-space:nowrap;overflow:hidden;color:#fff;
+    background:rgba(255,255,255,.12);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px);
+    border:1px solid rgba(255,255,255,.22);box-shadow:0 16px 36px rgba(0,0,0,.5)}
+  .flyer.ok{border-color:rgba(74,222,128,.6)}
+  .flyer.bad{border-color:rgba(248,113,113,.6)}
+  .flyer.ok .gl{color:#4ade80}
+  .flyer.bad .gl{color:#f87171}
+  .flyer .ws{color:#dbe4f0;font-weight:700}
+  .flyer.flying{transition:left .5s cubic-bezier(.33,0,.1,1),top .5s cubic-bezier(.33,0,.1,1),
+    width .5s cubic-bezier(.33,0,.1,1),height .5s cubic-bezier(.33,0,.1,1),font-size .5s,border-radius .5s,box-shadow .5s,opacity .5s}
+
+  /* mobile deal strip: compact auto-scrolling ticker (used on narrow screens) */
+  #dealStrip{position:fixed;left:0;right:0;bottom:0;height:46px;z-index:40;display:none;
+    align-items:center;gap:8px;padding:0 10px;overflow-x:auto;scrollbar-width:none;
+    background:linear-gradient(to top, rgba(7,15,28,.92), rgba(7,15,28,0))}
+  #dealStrip::-webkit-scrollbar{display:none}
+  .stripchip{flex:0 0 auto;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:800;
+    padding:6px 10px;border-radius:11px;color:#e7eef7;white-space:nowrap;
+    background:rgba(255,255,255,.08);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.16);box-shadow:0 4px 14px rgba(0,0,0,.3);
+    opacity:0;transform:translateY(8px) scale(.9);transition:opacity .3s,transform .3s}
+  .stripchip.show{opacity:1;transform:translateY(0) scale(1)}
+  .stripchip.ok{border-color:rgba(74,222,128,.55)} .stripchip.ok .gl{color:#4ade80}
+  .stripchip.bad{border-color:rgba(248,113,113,.55)} .stripchip.bad .gl{color:#f87171}
+  .stripchip .ws{color:#aebfd4;font-weight:700}
+  @media (max-width:640px){ #dealStrip{display:flex} #dealWall{display:none} body{padding-bottom:58px} }
+
+  .hud{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .hud .blk{text-align:center;min-width:52px}
+  .hud .v{font-size:20px;font-weight:900;line-height:1}
+  .hud .l{font-size:9px;color:#546b8a;text-transform:uppercase;letter-spacing:.5px}
+  .v.score{color:#f5a623}.v.combo{color:#4ade80}.v.best{color:#94a3b8}
+  .lives{font-size:18px;letter-spacing:2px}
+
+  .target{background:linear-gradient(135deg,#f5a623,#e8890b);color:#0c1a2e;border-radius:12px;padding:8px;text-align:center;margin-bottom:12px;font-weight:900}
+  .target.flash{animation:tflash .55s}
+  @keyframes tflash{0%{transform:scale(1)}40%{transform:scale(1.07);box-shadow:0 0 0 3px rgba(245,166,35,.55)}100%{transform:scale(1)}}
+  .target.flip{background:linear-gradient(135deg,#a855f7,#7c3aed);color:#fff}
+  .target.flip .small{opacity:.85}
+  .target .big{font-size:17px;line-height:1.1}
+  .target .small{font-size:10px;font-weight:700;opacity:.8;margin-top:1px}
+
+  .cardbar{height:6px;background:#0c1a2e;border-radius:6px;overflow:hidden;margin-bottom:8px}
+  .cardfill{height:100%;width:100%;background:linear-gradient(90deg,#4ade80,#22c55e);border-radius:6px}
+  .shieldhint{text-align:center;font-size:10px;color:#60a5fa;font-weight:700;margin-bottom:8px;height:12px}
+
+  .mute{position:absolute;top:12px;right:12px;z-index:4;background:#0c1a2e;border:1px solid #24405f;color:#94a3b8;
+    width:30px;height:30px;border-radius:9px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+  .combopop{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.6);z-index:6;
+    font-size:24px;font-weight:900;color:#f5a623;text-shadow:0 2px 12px rgba(0,0,0,.6);opacity:0;pointer-events:none;white-space:nowrap}
+  .combopop.pop{animation:cpop .75s ease-out}
+  @keyframes cpop{0%{opacity:0;transform:translate(-50%,-50%) scale(.6)}25%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}60%{opacity:1;transform:translate(-50%,-70%) scale(1)}100%{opacity:0;transform:translate(-50%,-110%) scale(1)}}
+
+  .stage{position:relative;height:222px;margin-bottom:14px}
+  .offer{
+    position:absolute;inset:0;background:linear-gradient(160deg,#1c3454,#152a45);
+    border:2px solid #24405f;border-radius:20px;padding:20px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;cursor:grab;will-change:transform;
+  }
+  .offer .tag{position:absolute;top:10px;right:10px;font-size:9px;font-weight:800;padding:3px 9px;border-radius:20px;letter-spacing:.3px}
+  .tag.app{background:#f5a623;color:#0c1a2e}
+  .tag.vendor{background:#2d5a8e;color:#fff}
+  .offer .e{font-size:46px;line-height:1}
+  .offer .hype{font-size:12px;font-weight:900;color:#fb7185;letter-spacing:.3px;margin-top:8px;height:14px;text-transform:uppercase}
+  .offer .store{font-size:15px;color:#e2e8f0;font-weight:800;margin-top:4px}
+  .offer .deal{font-size:28px;font-weight:900;color:#f5a623;margin-top:6px;line-height:1.1}
+  .offer .deal .sub{font-size:13px;color:#94a3b8;font-weight:700}
+  .offer .meta{font-size:11px;color:#94a3b8;margin-top:8px}
+  .fb.shield{background:rgba(56,189,248,.26)}
+
+  .stamp{position:absolute;top:18px;font-size:22px;font-weight:900;padding:4px 12px;border-radius:10px;border:3px solid;opacity:0;transition:opacity .1s;z-index:3}
+  .stamp.grab{left:16px;color:#4ade80;border-color:#4ade80;transform:rotate(-12deg)}
+  .stamp.skip{right:16px;color:#f87171;border-color:#f87171;transform:rotate(12deg)}
+
+  .offer.wrong{border-color:#ef4444!important;animation:shakeX .4s}
+  @keyframes shakeX{0%,100%{transform:translateX(0)}20%{transform:translateX(-11px)}40%{transform:translateX(11px)}60%{transform:translateX(-7px)}80%{transform:translateX(7px)}}
+
+  /* answer feedback overlay */
+  .fb{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:20px;opacity:0;pointer-events:none;transition:opacity .12s;z-index:4}
+  .fb.show{opacity:1}
+  .fb.ok{background:rgba(34,197,94,.20)}
+  .fb.bad{background:rgba(239,68,68,.30)}
+  .fb .ic{font-size:46px;line-height:1}
+  .fb .msg{font-size:15px;font-weight:900;margin-top:6px}
+  .fb.ok .msg{color:#4ade80}
+  .fb.bad .msg{color:#fecaca}
+  .fb .why{font-size:11px;color:#fca5a5;margin-top:3px;font-weight:700}
+
+  .btns{display:flex;gap:12px}
+  .big-btn{flex:1;padding:16px;border-radius:16px;font-size:16px;font-weight:900;cursor:pointer;border:none;transition:transform .1s}
+  .big-btn:active{transform:scale(.95)}
+  .b-skip{background:#24405f;color:#f87171}
+  .b-grab{background:#f5a623;color:#0c1a2e}
+  .hint{text-align:center;font-size:10px;color:#3d5a7a;margin-top:8px}
+
+  /* opaque, self-contained overlay — never lets the game board show through */
+  .screen{position:absolute;inset:0;background:radial-gradient(620px 520px at 50% 34%, #163252 0%, #0c1a2e 70%);border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:22px;text-align:center;overflow-y:auto}
+  .screen > :not(.screen-fx){position:relative;z-index:1}
+  .screen-fx{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+  .wrap{position:relative}
+  .screen h2{font-size:21px;font-weight:900;margin-bottom:6px}
+  .screen h2 span{color:#f5a623}
+  .screen p{font-size:12.5px;color:#94a3b8;line-height:1.6;margin-bottom:4px}
+  .rule{background:#172a44;border-left:3px solid #f5a623;border-radius:8px;padding:9px 12px;font-size:12px;color:#cbd5e1;text-align:left;margin:10px 0 16px;line-height:1.55}
+  .bigscore{font-size:38px;font-weight:900;color:#f5a623;line-height:1}
+  .newbest{font-size:12px;color:#4ade80;font-weight:700;margin-top:3px}
+
+  .deal-scroll{width:100%;max-height:168px;overflow-y:auto;margin:12px 0;text-align:left;padding-right:4px}
+  .grabbed-t{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#4ade80;font-weight:800;margin-bottom:7px}
+  .grabbed-t.miss{color:#f87171;margin-top:12px}
+  .grabbed-row{display:flex;align-items:center;gap:8px;background:#0c1a2e;border:1px solid #1e3a5a;border-radius:10px;padding:7px 10px;margin-bottom:6px;font-size:12px}
+  .grabbed-row .gd{font-weight:900;color:#f5a623;margin-left:auto}
+  .grabbed-row.miss{border-color:#5a2a2a;background:#1f1313}
+  .grabbed-row.miss .store{color:#fca5a5}
+  .grabbed-row.miss .gd{color:#f87171}
+  .grabbed-empty{font-size:11px;color:#546b8a;font-style:italic}
+
+  .btn{width:100%;padding:13px;border-radius:13px;font-size:14px;font-weight:800;cursor:pointer;border:none;margin-top:8px}
+  .btn-go{background:#f5a623;color:#0c1a2e}
+  .btn-ghost{background:transparent;color:#94a3b8;border:2px solid #24405f}
+  .foot{font-size:10px;color:#3d5a7a;text-align:center;margin-top:14px;line-height:1.5}
+</style>
+</head>
+<body>
+  <!-- gameplay background: just the soft orbs (no emoji here — they'd clash with the header text;
+       the fun emoji live on the opaque start screen instead) -->
+  <div id="bgfx">
+    <div class="orb a"></div><div class="orb b"></div><div class="orb c"></div><div class="orb d"></div>
+  </div>
+  <div id="dealWall"></div>
+  <div id="dealStrip"></div>
+  <div id="flyLayer"></div>
+  <div class="card">
+    <button class="mute" id="muteBtn" title="Sound on/off">🔊</button>
+    <div class="ghead">
+      <div class="proto-tag">🛍️ NearSpot Mini-Game</div>
+      <div class="logo">Near<span>Spot</span></div>
+      <div class="status"><span class="dot" style="background:#4ade80"></span>Grab the deals above the target — beat your best!</div>
+    </div>
+    <div class="wrap">
+      <div class="hud">
+        <div class="blk"><div class="v score" id="scoreEl">0</div><div class="l">Score</div></div>
+        <div class="blk"><div class="v combo" id="comboEl">x1</div><div class="l">Combo</div></div>
+        <div class="blk"><div class="lives" id="livesEl">❤️❤️❤️</div><div class="l">Lives</div></div>
+        <div class="blk"><div class="v best" id="bestEl">0</div><div class="l">Best</div></div>
+      </div>
+
+      <div class="target" id="targetBox">
+        <div class="big" id="targetEl">GRAB deals 30% &amp; above</div>
+        <div class="small" id="levelEl">Level 1 · 3.0s per deal</div>
+      </div>
+
+      <div class="cardbar"><div class="cardfill" id="cardfill"></div></div>
+      <div class="shieldhint" id="shieldHint"></div>
+
+      <div class="stage" id="stage">
+        <div class="combopop" id="comboPop"></div>
+        <div class="offer" id="offer">
+          <div class="stamp grab" id="stampGrab">GRAB</div>
+          <div class="stamp skip" id="stampSkip">SKIP</div>
+          <div class="fb" id="fb"></div>
+          <div class="tag vendor" id="oTag">SHOP</div>
+          <div class="e" id="oEmoji">👗</div>
+          <div class="hype" id="oHype"></div>
+          <div class="store" id="oStore">Sneha's Fashion</div>
+          <div class="deal" id="oDeal">40% OFF</div>
+          <div class="meta" id="oMeta">📍 Bhagya Nagar</div>
+        </div>
+      </div>
+
+      <div class="btns">
+        <button class="big-btn b-skip" id="skipBtn">✕ Skip</button>
+        <button class="big-btn b-grab" id="grabBtn">✓ Grab</button>
+      </div>
+      <div class="hint">Swipe the card, tap a button, or use ← → keys</div>
+
+      <div class="screen" id="startScreen">
+        <div class="screen-fx">
+          <span class="femoji" style="left:8%;top:12%;font-size:34px;animation:floaty 7s ease-in-out infinite">🛍️</span>
+          <span class="femoji" style="left:82%;top:10%;font-size:28px;animation:floaty 9s ease-in-out infinite .5s">🏷️</span>
+          <span class="femoji" style="left:12%;top:76%;font-size:32px;animation:floaty 8s ease-in-out infinite 1.2s">🤑</span>
+          <span class="femoji" style="left:80%;top:74%;font-size:36px;animation:floaty 10s ease-in-out infinite .3s">🎁</span>
+          <span class="femoji" style="left:50%;top:5%;font-size:24px;animation:floaty 6.5s ease-in-out infinite .8s">⭐</span>
+          <span class="femoji" style="left:6%;top:46%;font-size:26px;animation:floaty 9.5s ease-in-out infinite 1.6s">👟</span>
+          <span class="femoji" style="left:86%;top:42%;font-size:26px;animation:floaty 7.5s ease-in-out infinite 2s">💍</span>
+          <span class="femoji" style="left:48%;top:90%;font-size:30px;animation:floaty 8.5s ease-in-out infinite 1s">🔥</span>
+        </div>
+        <h2>Deal or <span>Skip</span> 🛍️</h2>
+        <div class="rule">
+          One real offer shows at a time.<br>
+          ✅ <b style="color:#4ade80">GRAB</b> if it meets the target · ✕ <b style="color:#f87171">SKIP</b> if not<br>
+          Wrong call <b>or</b> running out of time = <b style="color:#f87171">lose a life</b> ❤️. <b>3 lost = game over.</b><br>
+          10 correct in a row earns a 🛡️ <b>shield</b> (absorbs one mistake).<br>
+          Each level: <b style="color:#f5a623">new target + less time</b>. Level 4+ can <b style="color:#c084fc">FLIP</b> the rule — watch closely!
+        </div>
+        <button class="btn btn-go" id="startBtn">▶ Start</button>
+      </div>
+
+      <div class="screen" id="endScreen" style="display:none">
+        <p>💔 Out of lives! You scored</p>
+        <div class="bigscore" id="finalScore">0</div>
+        <div class="newbest" id="newBest" style="display:none">🏆 New personal best!</div>
+        <div class="deal-scroll">
+          <div class="grabbed-t">🛍️ Deals you grabbed — use when NearSpot is back</div>
+          <div id="grabbedList"></div>
+          <div class="grabbed-t miss" id="missedTitle" style="display:none">❌ Deals you missed</div>
+          <div id="missedList"></div>
+        </div>
+        <button class="btn btn-go" id="againBtn">↻ Play again</button>
+        <button class="btn btn-ghost" id="reconnectBtn">🔄 Back to NearSpot</button>
+      </div>
+    </div>
+    <div class="foot">No timer — accuracy wins. Online this feeds the daily per-city leaderboard; offline it's just practice.</div>
+  </div>
+
+<script>
+  // ---- offers: real nearby offers (API) + NearSpot's own promos, with offline cache ----
+  var CAT_EMOJI={fashion:'👗',jewellery:'💍',footwear:'👟',decor:'🛋️',furniture:'🪑',gifts:'🎁',beauty:'💄',food:'🍕',electronics:'📱',other:'🛍️'};
+  var APP_OFFERS=[
+    {t:'app',e:'🎁',store:'NearSpot',area:'App Reward',pct:35,kind:'label',label:'₹100 Cashback'},
+    {t:'app',e:'🪙',store:'NearSpot',area:'App Reward',pct:40,kind:'label',label:'2x Loyalty Pts'},
+    {t:'app',e:'🚚',store:'NearSpot',area:'App Reward',pct:30,kind:'label',label:'Free Delivery'},
+    {t:'app',e:'🎉',store:'NearSpot',area:'App Reward',pct:10,kind:'pct',  label:'10% OFF'}
+  ];
+  // fallback when offline with no cache yet, so the game always has cards
+  var SAMPLE=[
+    {t:'vendor',e:'👗',store:"Sneha's Fashion",area:'Bhagya Nagar',pct:40,kind:'pct',label:'40% OFF'},
+    {t:'vendor',e:'📱',store:'Vikram Electronics',area:'Gandhi Nagar',pct:30,kind:'pct',label:'30% OFF'},
+    {t:'vendor',e:'👟',store:'Kiran Footwear',area:'Budhwarpet',pct:50,kind:'pct',label:'50% OFF'},
+    {t:'vendor',e:'💍',store:'Divya Jewellery',area:'Park Road',pct:25,kind:'pct',label:'25% OFF'},
+    {t:'vendor',e:'⌚',store:'Raju Watches',area:'Osman Nagar',pct:45,kind:'pct',label:'45% OFF'},
+    {t:'vendor',e:'🧴',store:'Glow Cosmetics',area:'C-Camp',pct:15,kind:'pct',label:'15% OFF'}
+  ];
+  var VENDOR_OFFERS=[];                                     // filled from API / cache
+  function offerPool(){ return (VENDOR_OFFERS.length?VENDOR_OFFERS:SAMPLE).concat(APP_OFFERS); }
+  function mapApiOffer(o){ return {t:'vendor',e:(CAT_EMOJI[o.category]||'🛍️'),store:o.store,area:o.area||'Nearby',pct:o.pct,kind:'pct',label:o.label||(o.pct+'% OFF')}; }
+
+  var OFFERS_CACHE_KEY='ns_game_offers_v1';
+  function loadCachedOffers(){
+    try{ var c=JSON.parse(localStorage.getItem(OFFERS_CACHE_KEY)||'null'); if(c&&c.offers&&c.offers.length) VENDOR_OFFERS=c.offers; }catch(e){}
+  }
+  function fetchOffers(){
+    function go(lat,lng){
+      var base=(window.NS_API_BASE||'/api/v1');
+      fetch(base+'/stores/game-offers/?lat='+lat+'&lng='+lng,{headers:{'ngrok-skip-browser-warning':'true'}})
+        .then(function(r){ return r.ok?r.json():null; })
+        .then(function(d){
+          if(d&&d.results&&d.results.length){
+            VENDOR_OFFERS=d.results.map(mapApiOffer);
+            try{ localStorage.setItem(OFFERS_CACHE_KEY,JSON.stringify({ts:Date.now(),offers:VENDOR_OFFERS})); }catch(e){}
+          }
+        }).catch(function(){ /* offline → keep cached/sample */ });
+    }
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(function(p){ go(p.coords.latitude,p.coords.longitude); }, function(){ go(17.385,78.4867); }, {timeout:4000});
+    } else { go(17.385,78.4867); }
+  }
+
+  var HYPES=['🔥 MEGA SALE','💥 BLOWOUT','🎊 FESTIVE OFFER','⚡ FLASH DEAL','🤑 LOOT'];
+  var score,combo,lives,target,running,best,grabbed,missed,current,busy;
+  var level,timePerCard,cardTimer,cardStart,shields,streak,mode;
+
+  var $=function(id){return document.getElementById(id);};
+  var rnd=function(a,b){return Math.floor(Math.random()*(b-a+1))+a;};
+  var clamp=function(v,a,b){return Math.max(a,Math.min(b,v));};
+
+  /* ---- #1 sound + vibration (with mute toggle) ---- */
+  var AC=null;
+  var muted = localStorage.getItem('ns_muted')==='1';
+  function beep(freq,dur,type){
+    if(muted) return;
+    try{
+      AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+      var o=AC.createOscillator(), g=AC.createGain();
+      o.type=type||'sine'; o.frequency.value=freq;
+      o.connect(g); g.connect(AC.destination);
+      g.gain.setValueAtTime(0.14,AC.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+dur);
+      o.start(); o.stop(AC.currentTime+dur);
+    }catch(e){}
+  }
+  function buzz(ms){ if(!muted && navigator.vibrate) navigator.vibrate(ms); }
+  function fxCorrect(){ beep(880,0.12,'triangle'); buzz(18); }
+  function fxWrong(){ beep(150,0.22,'sawtooth'); buzz([30,40,30]); }
+  function fxShield(){ beep(520,0.18,'square'); buzz([15,30,15]); }
+
+  /* ---- #2 count-up on the discount number ---- */
+  function countUp(el,to,prefix,suffix){
+    var start=performance.now(),dur=360;
+    (function step(now){
+      var p=Math.min(1,(now-start)/dur);
+      el.textContent=(prefix||'')+Math.round(to*p)+(suffix||'');
+      if(p<1) requestAnimationFrame(step);
+    })(start);
+  }
+
+  best=parseInt(localStorage.getItem('ns_dos_best')||'0',10);
+  $('bestEl').textContent=best;
+
+  // seconds allowed per card by level: L1 relaxed 3s, L2 2s, L3 1s, then keep shrinking (floor 0.4s)
+  function levelTime(lvl){ return lvl<=3 ? [3,2,1][lvl-1] : Math.max(0.4, 1 - (lvl-3)*0.15); }
+
+  function updateLevel(){
+    var lvl=Math.floor(score/500)+1;
+    if(lvl!==level){
+      level=lvl; timePerCard=levelTime(level);
+      if(running) newTarget();   // new question every level
+    }
+    // Level 1 = learn-the-rule zone: generous 3s, no red crunch. Timer "bites" from Level 2.
+    $('levelEl').textContent = level===1
+      ? 'Level 1 · learn the rule (3.0s)'
+      : 'Level '+level+' · '+timePerCard.toFixed(1)+'s per deal';
+  }
+
+  // does THIS offer deserve a grab, under the current rule?
+  function shouldGrab(pct){ return mode==='under' ? pct<target : pct>=target; }
+
+  function newTarget(){
+    var opts=[20,25,30,35,40,45], nt;
+    do { nt=opts[rnd(0,opts.length-1)]; } while(nt===target);
+    target=nt;
+    // Level 4+: occasionally FLIP the rule (clearance hunt) — the ultimate autopilot-breaker
+    mode = (level>=4 && Math.random()<0.4) ? 'under' : 'above';
+    var box=$('targetBox');
+    if(mode==='under'){
+      $('targetEl').textContent='⚠ FLIP! GRAB deals UNDER '+target+'%';
+      box.classList.add('flip');
+    }else{
+      $('targetEl').textContent='GRAB deals '+target+'% & above';
+      box.classList.remove('flip');
+    }
+    // flash so the player NOTICES the rule changed (else unfair mistakes)
+    box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash');
+  }
+
+  function genOffer(){
+    // draw a REAL nearby offer (or app promo) — shown honestly with its real %/label.
+    // Difficulty comes from the changing target + tightening timer + flip rule, not from faking %s.
+    var pool=offerPool();
+    var o=pool[rnd(0,pool.length-1)];
+    // #3 hype-trap: flashy wording occasionally (the real number is still shown — read it!)
+    var hype = Math.random()<0.22 ? HYPES[rnd(0,HYPES.length-1)] : '';
+    return {t:o.t,e:o.e,store:o.store,area:o.area,pct:o.pct,kind:o.kind||'pct',hype:hype,
+            flatBase:o.flatBase||0,flatAmt:o.flatAmt||0,label:o.label||(o.pct+'% OFF')};
+  }
+
+  function showOffer(){
+    updateLevel();
+    current=genOffer();
+    $('oTag').className='tag '+current.t; $('oTag').textContent=current.t==='app'?'NEARSPOT':'SHOP';
+    $('oEmoji').textContent=current.e;
+    $('oHype').textContent=current.hype||'';
+    $('oStore').textContent=current.store;
+    $('oMeta').textContent='📍 '+current.area;
+
+    // #2 count-up on the number (draws the eye to what they must judge)
+    var d=$('oDeal');
+    if(current.kind==='flat'){
+      d.innerHTML='Flat ₹<span id="oNum">0</span> <span class="sub">off (on ₹'+current.flatBase+')</span>';
+      countUp($('oNum'), current.flatAmt, '', '');
+    } else if(current.kind==='pct'){
+      d.innerHTML='<span id="oNum">0</span>% OFF';
+      countUp($('oNum'), current.pct, '', '');
+    } else {
+      d.textContent=current.label;   // 'label' type (Free Delivery, Cashback, BOGO…) shown as-is
+    }
+
+    var o=$('offer');
+    // ease the next card in (scale + fade) so it feels like a fresh deal arriving
+    o.style.transition='none'; o.style.transform='scale(.9)'; o.style.opacity='0';
+    $('stampGrab').style.opacity='0'; $('stampSkip').style.opacity='0';
+    requestAnimationFrame(function(){
+      o.style.transition='transform .24s cubic-bezier(.34,1.3,.64,1), opacity .24s';
+      o.style.transform='scale(1)'; o.style.opacity='1';
+    });
+    busy=false;
+    startCardTimer();
+  }
+
+  function startCardTimer(){
+    clearInterval(cardTimer);
+    cardStart=Date.now();
+    var fill=$('cardfill');
+    fill.style.width='100%';
+    cardTimer=setInterval(function(){
+      var elapsed=(Date.now()-cardStart)/1000;
+      var pct=Math.max(0,(1-elapsed/timePerCard)*100);
+      fill.style.width=pct+'%';
+      fill.style.background = pct<30 ? 'linear-gradient(90deg,#f87171,#ef4444)' : pct<60 ? 'linear-gradient(90deg,#fbbf24,#f59e0b)' : 'linear-gradient(90deg,#4ade80,#22c55e)';
+      if(elapsed>=timePerCard){ clearInterval(cardTimer); timeExpired(); }
+    },50);
+  }
+
+  function showFeedback(state){
+    // highlight only — green=correct, red=wrong, blue=shield saved
+    var cls = state===true ? 'ok' : state==='shield' ? 'shield' : 'bad';
+    $('fb').className='fb show '+cls;
+  }
+  // feedback has been shown on the current card — now fly it to the wall and bring the next
+  function finishCard(decided, ok){
+    flyToWall(decided, ok);
+    $('fb').className='fb'; $('offer').classList.remove('wrong');
+    if(lives<=0){ end(); } else { showOffer(); }
+  }
+
+  function timeExpired(){
+    if(!running||busy) return;
+    busy=true;
+    var decided=current;
+    combo=1; $('comboEl').textContent='x1';
+    var saved=loseLifeOrShield();
+    updateShieldHint();
+    missed.push(decided);
+    $('offer').classList.add('wrong');
+    showFeedback(saved?'shield':false);
+    setTimeout(function(){ finishCard(decided,false); }, 560);
+  }
+
+  function renderLives(){
+    $('livesEl').textContent = '❤️'.repeat(lives) + '🖤'.repeat(3-lives) + (shields>0 ? ' '+'🛡️'.repeat(shields) : '');
+  }
+
+  // #2 shield-progress hint (goal-gradient: show the next shield coming)
+  function updateShieldHint(){
+    $('shieldHint').textContent = shields>=3 ? '🛡️ shields maxed out'
+      : '🛡️ next shield in '+(10-(streak%10))+' correct';
+  }
+
+  // #3 combo milestone pop at every x5
+  function comboPop(n){
+    var p=$('comboPop'); p.textContent='🔥 x'+n+' combo!';
+    p.classList.remove('pop'); void p.offsetWidth; p.classList.add('pop');
+    beep(1046,0.14,'triangle'); buzz([10,20,10]);
+  }
+
+  // mute toggle
+  function applyMute(){ $('muteBtn').textContent = muted ? '🔇' : '🔊'; }
+  $('muteBtn').addEventListener('click', function(){
+    muted=!muted; localStorage.setItem('ns_muted', muted?'1':'0'); applyMute();
+  });
+  applyMute();
+
+  /* background "deal wall": stamp each decided offer into the empty space,
+     never overlapping another chip or the card; chips shrink as the count grows */
+  var wallChips=[]; // each: {el, rect:{x,y,w,h}}
+  var WALL_CAP=26;
+
+  function overlaps(a,b,gap){
+    return !(a.x+a.w+gap < b.x || b.x+b.w+gap < a.x || a.y+a.h+gap < b.y || b.y+b.h+gap < a.y);
+  }
+  function cardRect(){
+    var r=document.querySelector('.card').getBoundingClientRect();
+    return {x:r.left-10,y:r.top-10,w:r.width+20,h:r.height+20};
+  }
+  function freeSpot(w,h){
+    var vw=window.innerWidth, vh=window.innerHeight, cr=cardRect();
+    // keep chips out of the top header band (logo/status/title) so they never sit behind that text
+    var headerBand={x:0,y:0,w:vw,h:Math.max(0,cr.y)};
+    for(var i=0;i<80;i++){
+      var x=rnd(2, Math.max(2,vw-w-2)), y=rnd(2, Math.max(2,vh-h-2));
+      var cand={x:x,y:y,w:w,h:h};
+      if(overlaps(cand,cr,0)) continue;                 // keep off the card
+      if(overlaps(cand,headerBand,0)) continue;         // keep out of the header zone
+      var clash=false;
+      for(var j=0;j<wallChips.length;j++){ if(overlaps(cand,wallChips[j].rect,8)){clash=true;break;} }
+      if(!clash) return cand;
+    }
+    return null; // no room found
+  }
+
+  function removeOldest(){
+    if(!wallChips.length) return;
+    var o=wallChips.shift();
+    o.el.classList.remove('show');
+    setTimeout(function(){ if(o.el.parentNode) o.el.parentNode.removeChild(o.el); },450);
+  }
+
+  function chipHTML(o){ return '<span>'+o.e+'</span><span class="ws">'+o.store+'</span><span class="gl">'+o.label+'</span>'; }
+
+  var stripChips=[];
+  function isMobile(){ return window.matchMedia('(max-width:640px)').matches; }
+
+  // dispatcher: narrow screens → scrolling strip, wide screens → scatter wall
+  function flyToWall(offer, ok){ if(isMobile()) flyToStrip(offer,ok); else flyToScatter(offer,ok); }
+
+  // mobile: fly into the compact auto-scrolling strip at the bottom
+  function flyToStrip(offer, ok){
+    var strip=$('dealStrip'), sr=strip.getBoundingClientRect();
+    var probe=document.createElement('div'); probe.className='stripchip '+(ok?'ok':'bad');
+    probe.style.visibility='hidden'; probe.innerHTML=chipHTML(offer);
+    strip.appendChild(probe); var cw=probe.offsetWidth, ch=probe.offsetHeight; strip.removeChild(probe);
+    var tx=sr.right-cw-12, ty=sr.top+(sr.height-ch)/2;
+
+    var src=$('offer').getBoundingClientRect();
+    var fly=document.createElement('div'); fly.className='flyer '+(ok?'ok':'bad');
+    fly.innerHTML=chipHTML(offer);
+    fly.style.left=src.left+'px'; fly.style.top=src.top+'px';
+    fly.style.width=src.width+'px'; fly.style.height=src.height+'px'; fly.style.fontSize='18px';
+    $('flyLayer').appendChild(fly);
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){
+      fly.classList.add('flying');
+      fly.style.left=tx+'px'; fly.style.top=ty+'px'; fly.style.width=cw+'px'; fly.style.height=ch+'px'; fly.style.fontSize='11px';
+    }); });
+
+    var settled=false;
+    function land(){
+      if(settled) return; settled=true;
+      if(fly.parentNode) fly.parentNode.removeChild(fly);
+      var c=document.createElement('div'); c.className='stripchip '+(ok?'ok':'bad'); c.innerHTML=chipHTML(offer);
+      strip.appendChild(c);
+      requestAnimationFrame(function(){ c.classList.add('show'); strip.scrollLeft=strip.scrollWidth; });
+      stripChips.push(c);
+      if(stripChips.length>40){ var o=stripChips.shift(); if(o.parentNode) o.parentNode.removeChild(o); }
+    }
+    fly.addEventListener('transitionend', land); setTimeout(land, 650);
+  }
+
+  // web: the decided card flies from its spot and shrinks into a free slot on the scatter wall
+  function flyToScatter(offer, ok){
+    var f=clamp(1 - wallChips.length*0.02, 0.6, 1);
+    // measure the final chip size with a hidden probe
+    var probe=document.createElement('div');
+    probe.className='wallchip '+(ok?'ok':'bad');
+    probe.style.fontSize=(11*f)+'px'; probe.style.padding=(6*f)+'px '+(11*f)+'px';
+    probe.style.visibility='hidden'; probe.innerHTML=chipHTML(offer);
+    $('dealWall').appendChild(probe);
+    var cw=probe.offsetWidth, ch=probe.offsetHeight;
+    $('dealWall').removeChild(probe);
+
+    var spot=freeSpot(cw,ch);
+    var tries=0; while(!spot && wallChips.length && tries<WALL_CAP){ removeOldest(); spot=freeSpot(cw,ch); tries++; }
+    if(!spot) return; // genuinely no room — skip (rare)
+
+    var src=$('offer').getBoundingClientRect();
+    var fly=document.createElement('div');
+    fly.className='flyer '+(ok?'ok':'bad');
+    fly.innerHTML=chipHTML(offer);
+    fly.style.left=src.left+'px'; fly.style.top=src.top+'px';
+    fly.style.width=src.width+'px'; fly.style.height=src.height+'px'; fly.style.fontSize='18px';
+    $('flyLayer').appendChild(fly);
+
+    // next frames: transition to the wall slot + chip size
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){
+      fly.classList.add('flying');
+      fly.style.left=spot.x+'px'; fly.style.top=spot.y+'px';
+      fly.style.width=cw+'px'; fly.style.height=ch+'px'; fly.style.fontSize=(11*f)+'px';
+    }); });
+
+    var settled=false;
+    function land(){
+      if(settled) return; settled=true;
+      fly.className='wallchip show '+(ok?'ok':'bad');
+      fly.style.transition=''; fly.style.fontSize=(11*f)+'px'; fly.style.padding=(6*f)+'px '+(11*f)+'px';
+      fly.style.width=''; fly.style.height='';
+      fly.style.left=spot.x+'px'; fly.style.top=spot.y+'px';
+      $('dealWall').appendChild(fly);              // move behind the card to rest
+      wallChips.push({el:fly, rect:spot});
+      if(wallChips.length>WALL_CAP) removeOldest();
+    }
+    fly.addEventListener('transitionend', land);
+    setTimeout(land, 650); // fallback
+  }
+  function clearWall(){ $('dealWall').innerHTML=''; $('dealStrip').innerHTML=''; $('flyLayer').innerHTML=''; wallChips=[]; stripChips=[]; }
+
+  // returns true if a shield absorbed the hit (no life lost)
+  function loseLifeOrShield(){
+    streak=0;
+    if(shields>0){ shields--; renderLives(); fxShield(); return true; }
+    lives--; renderLives(); fxWrong(); return false;
+  }
+
+  function decide(grab){
+    if(!running||busy) return;
+    busy=true;
+    clearInterval(cardTimer);
+    var decided=current;
+    var correct=(grab===shouldGrab(decided.pct));
+
+    if(correct){
+      combo++; score+=10*combo; streak++;
+      if(grab) grabbed.push(decided);
+      // #5 earn a shield every 10 correct in a row (max 3)
+      if(streak%10===0 && shields<3){ shields++; renderLives(); fxShield(); }
+      else fxCorrect();
+      if(combo>=5 && combo%5===0) comboPop(combo);
+      updateShieldHint();
+      $('scoreEl').textContent=score; $('comboEl').textContent='x'+combo;
+      showFeedback(true);
+      setTimeout(function(){ finishCard(decided,true); }, 240);
+    }else{
+      combo=1; $('comboEl').textContent='x1';
+      var saved=loseLifeOrShield();
+      updateShieldHint();
+      missed.push(decided);
+      $('offer').classList.add('wrong');
+      showFeedback(saved?'shield':false);
+      setTimeout(function(){ finishCard(decided,false); }, 560);
+    }
+  }
+
+  /* drag / swipe */
+  var sx=0,dragging=false;
+  var offerEl=$('offer');
+  function onDown(x){ if(!running||busy)return; dragging=true; sx=x; offerEl.style.transition='none'; }
+  function onMove(x){
+    if(!dragging)return;
+    var dx=x-sx;
+    offerEl.style.transform='translateX('+dx+'px) rotate('+(dx/20)+'deg)';
+    $('stampGrab').style.opacity = dx>40 ? Math.min(1,dx/120) : 0;
+    $('stampSkip').style.opacity = dx<-40 ? Math.min(1,-dx/120) : 0;
+  }
+  function onUp(x){
+    if(!dragging)return; dragging=false;
+    var dx=x-sx;
+    if(dx>90){ decide(true); }
+    else if(dx<-90){ decide(false); }
+    else { offerEl.style.transition='transform .2s'; offerEl.style.transform='translateX(0) rotate(0)'; $('stampGrab').style.opacity='0'; $('stampSkip').style.opacity='0'; }
+  }
+  offerEl.addEventListener('mousedown',function(e){onDown(e.clientX);});
+  window.addEventListener('mousemove',function(e){onMove(e.clientX);});
+  window.addEventListener('mouseup',function(e){onUp(e.clientX);});
+  offerEl.addEventListener('touchstart',function(e){onDown(e.touches[0].clientX);},{passive:true});
+  offerEl.addEventListener('touchmove',function(e){onMove(e.touches[0].clientX);},{passive:true});
+  offerEl.addEventListener('touchend',function(e){onUp(e.changedTouches[0].clientX);});
+  document.addEventListener('keydown',function(e){ if(e.key==='ArrowRight')decide(true); if(e.key==='ArrowLeft')decide(false); });
+
+  $('grabBtn').addEventListener('click',function(){decide(true);});
+  $('skipBtn').addEventListener('click',function(){decide(false);});
+
+  function start(){
+    score=0;combo=1;lives=3;running=true;grabbed=[];missed=[];busy=false;
+    shields=0;streak=0;mode='above';
+    clearWall();
+    level=0; updateLevel();
+    $('scoreEl').textContent='0';$('comboEl').textContent='x1';renderLives();updateShieldHint();
+    $('startScreen').style.display='none'; $('endScreen').style.display='none';
+    newTarget(); showOffer();
+  }
+
+  function end(){
+    running=false;
+    clearInterval(cardTimer);
+    $('finalScore').textContent=score;
+    var nb=false;
+    if(score>best){ best=score; localStorage.setItem('ns_dos_best',best); nb=true; }
+    $('bestEl').textContent=best; $('newBest').style.display=nb?'block':'none';
+    function dedupe(arr){ var seen={},u=[]; arr.forEach(function(g){var k=g.store+g.label; if(!seen[k]){seen[k]=1;u.push(g);}}); return u; }
+    function rowsHtml(arr,cls){ return arr.map(function(g){
+      return '<div class="grabbed-row '+cls+'"><span>'+g.e+'</span><span class="store">'+g.store+'</span><span class="gd">'+g.label+'</span></div>';
+    }).join(''); }
+
+    var gUniq=dedupe(grabbed), mUniq=dedupe(missed);
+    $('grabbedList').innerHTML = gUniq.length ? rowsHtml(gUniq,'')
+      : '<div class="grabbed-empty">No deals grabbed — swipe right on the good ones!</div>';
+    if(mUniq.length){
+      $('missedTitle').style.display='block';
+      $('missedList').innerHTML = rowsHtml(mUniq,'miss');
+    } else {
+      $('missedTitle').style.display='none';
+      $('missedList').innerHTML='';
+    }
+    $('endScreen').style.display='flex';
+  }
+
+  $('startBtn').addEventListener('click',start);
+  $('againBtn').addEventListener('click',start);
+
+  // "Back to NearSpot": leave the game (break out of the /play iframe) and go to the app home.
+  // The navigation itself validates the server — if it's up you land in the app, if still down
+  // the Server Unavailable page shows. Never keeps you stuck on the game.
+  $('reconnectBtn').addEventListener('click', function(){
+    try { (window.top || window).location.href = '/'; }
+    catch (e) { window.location.href = '/'; }
+  });
+
+  // load offers: cached first (instant), then refresh from the API in the background
+  loadCachedOffers();
+  fetchOffers();
+</script>
+</body>
+</html>
