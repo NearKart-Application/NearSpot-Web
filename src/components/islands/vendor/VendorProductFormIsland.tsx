@@ -52,6 +52,11 @@ function ImageUploadSection({ productId }: { productId: string }) {
     onSuccess: () => refetch(),
   });
 
+  const setPrimaryMut = useMutation({
+    mutationFn: (imageId: string) => api.patch(`/products/${productId}/images/${imageId}/`),
+    onSuccess: () => refetch(),
+  });
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || !files.length) return;
@@ -83,8 +88,14 @@ function ImageUploadSection({ productId }: { productId: string }) {
         {images.map(img => (
           <div key={img.id} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 group">
             <img src={img.image_url} alt="" className="w-full h-full object-cover" />
-            {img.is_primary && (
-              <span className="absolute bottom-0 left-0 right-0 bg-navy/80 text-white text-[9px] text-center py-0.5">Primary</span>
+            {img.is_primary ? (
+              <span className="absolute bottom-0 left-0 right-0 bg-navy/80 text-white text-[9px] text-center py-0.5">Cover</span>
+            ) : (
+              <button onClick={() => setPrimaryMut.mutate(img.id)}
+                disabled={setPrimaryMut.isPending}
+                className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] text-center py-0.5 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-60">
+                Set cover
+              </button>
             )}
             <button onClick={() => deleteMut.mutate(img.id)}
               className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
