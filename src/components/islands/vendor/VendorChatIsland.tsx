@@ -16,13 +16,18 @@ interface Conversation {
   is_active?: boolean;
 }
 
+interface MessageReaction { emoji: string; count: number; reacted_by_me: boolean; }
+
 interface Message {
   id: string;
   sender_role: 'customer' | 'vendor';
   content: string;
   created_at: string;
   is_read?: boolean;
+  reactions?: MessageReaction[];
 }
+
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
 
 function timeAgo(dateStr?: string) {
   if (!dateStr) return '';
@@ -55,6 +60,21 @@ function ChatThread({ conv, onBack }: { conv: Conversation; onBack: () => void }
       qc.invalidateQueries({ queryKey: ['vendor-messages', conv.id] });
       qc.invalidateQueries({ queryKey: ['vendor-conversations'] });
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    },
+  });
+
+  const [reactionPickerFor, setReactionPickerFor] = useState<string | null>(null);
+  const reactMut = useMutation({
+    mutationFn: ({ msgId, emoji }: { msgId: string; emoji: string }) =>
+      api.post(`/conversations/${conv.id}/messages/${msgId}/react/`, { emoji }).then(r => r.data),
+    onSuccess: (data, { msgId }) => {
+      qc.setQueryData(['vendor-messages', conv.id], (old: any) => {
+        if (!old) return old;
+        const update = (m: Message) => (m.id === msgId ? { ...m, reactions: data.reactions } : m);
+        if (Array.isArray(old)) return old.map(update);
+        if (old.results) return { ...old, results: old.results.map(update) };
+        return old;
+      });
     },
   });
 
@@ -113,22 +133,59 @@ function ChatThread({ conv, onBack }: { conv: Conversation; onBack: () => void }
         {msgs.map(msg => {
           const isMe = msg.sender_role === 'vendor';
           return (
-            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+            <div key={msg.id} className={`group flex ${isMe ? 'justify-end' : 'justify-start'}`}>
               {!isMe && (
                 <div className="w-7 h-7 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 text-[10px] font-bold mr-1.5 mt-auto shrink-0">
                   {displayName.slice(0, 1).toUpperCase()}
                 </div>
               )}
-              <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
-                isMe
-                  ? 'bg-navy text-white rounded-br-md'
-                  : 'bg-white text-navy border border-gray-100 rounded-bl-md shadow-sm'
-              }`}>
-                <p className="text-sm">{msg.content}</p>
-                <p className={`text-[10px] mt-1 ${isMe ? 'text-white/60 text-right' : 'text-gray-400'}`}>
-                  {new Date(msg.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                  {isMe && msg.is_read && <span className="ml-1">✓✓</span>}
-                </p>
+              <div className="max-w-[75%] flex flex-col">
+                <div className={`relative rounded-2xl px-4 py-2.5 ${
+                  isMe
+                    ? 'bg-navy text-white rounded-br-md'
+                    : 'bg-white text-navy border border-gray-100 rounded-bl-md shadow-sm'
+                }`}>
+                  {/* Reaction picker trigger */}
+                  {!msg.id.startsWith('tmp_') && (
+                    <button
+                      onClick={() => setReactionPickerFor(p => (p === msg.id ? null : msg.id))}
+                      className={`absolute -top-3 ${isMe ? 'left-0' : 'right-0'} opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-xs z-10`}
+                      title="React">
+                      😊
+                    </button>
+                  )}
+                  {/* Reaction emoji picker */}
+                  {reactionPickerFor === msg.id && (
+                    <div className={`absolute -top-10 ${isMe ? 'right-0' : 'left-0'} flex gap-1 bg-white border border-gray-200 rounded-full px-2 py-1 shadow-lg z-20`}>
+                      {REACTION_EMOJIS.map(emoji => (
+                        <button key={emoji} onClick={() => { reactMut.mutate({ msgId: msg.id, emoji }); setReactionPickerFor(null); }}
+                          className="text-lg hover:scale-125 transition-transform">{emoji}</button>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-sm">{msg.content}</p>
+                  <p className={`text-[10px] mt-1 ${isMe ? 'text-white/60 text-right' : 'text-gray-400'}`}>
+                    {new Date(msg.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                    {isMe && msg.is_read && <span className="ml-1">✓✓</span>}
+                  </p>
+                </div>
+                {/* Reactions display */}
+                {(msg.reactions?.length ?? 0) > 0 && (
+                  <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    {msg.reactions!.map(r => (
+                      <button key={r.emoji}
+                        onClick={() => reactMut.mutate({ msgId: msg.id, emoji: r.emoji })}
+                        className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors ${
+                          r.reacted_by_me
+                            ? 'bg-navy/10 border-navy/30 text-navy'
+                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}>
+                        <span>{r.emoji}</span>
+                        <span className="font-semibold">{r.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           );
