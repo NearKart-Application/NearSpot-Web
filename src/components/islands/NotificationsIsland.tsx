@@ -110,6 +110,7 @@ function NotifCard({ notif, onRead }: { notif: Notification; onRead: () => void 
   const icon  = TYPE_ICONS[notif.notification_type] ?? '🔔';
   const color = TYPE_COLORS[notif.notification_type] ?? 'bg-gray-100';
   const link  = notif.data?.reservation_id ? `/customer/reservations`
+               : notif.notification_type === 'new_question' ? `/vendor/questions`
                : notif.data?.store_id ? `/stores/${notif.data.store_id}`
                : notif.data?.product_id ? `/products/${notif.data.product_id}`
                : notif.data?.conversation_id ? `/customer/chat?conversation=${notif.data.conversation_id}`
