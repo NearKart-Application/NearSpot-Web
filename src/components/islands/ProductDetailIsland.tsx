@@ -10,7 +10,7 @@ interface ProductImage  { url: string; variant_id?: string | null; }
 interface ProductDetail {
   id: string; name: string; description?: string;
   category: string; subcategory?: string;
-  price: number; sale_price?: number;
+  price: number; sale_price?: number; mrp?: number;
   images: ProductImage[] | string[];
   barcode?: string;
   store: { id: string; name: string; avatar?: string; rating: number; review_count: number; is_verified?: boolean; is_open?: boolean; open_status_label?: string; };
@@ -169,6 +169,9 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
   const sale  = product.is_on_sale && product.sale_price != null ? parseFloat(String(product.sale_price)) : null;
   const finalPrice = sale ?? orig;
   const discount = sale ? Math.round((1 - sale / orig) * 100) : 0;
+  // MRP strikethrough (shown when there's no sale and MRP is above the selling price)
+  const mrp = product.mrp != null ? parseFloat(String(product.mrp)) : null;
+  const showMrp = !sale && mrp != null && mrp > finalPrice;
   const inStock = product.stock_count > 0;
 
   const isWishlisted = product.is_wishlisted;
@@ -329,6 +332,8 @@ function Inner({ productId, initialProduct }: { productId: string; initialProduc
             <span className="text-2xl font-black text-navy">₹{finalPrice.toLocaleString()}</span>
             {sale && <span className="text-base text-gray-400 line-through">₹{orig.toLocaleString()}</span>}
             {sale && <span className="text-sm font-bold text-green-600">Save ₹{(orig - sale).toLocaleString()}</span>}
+            {showMrp && <span className="text-base text-gray-400 line-through">₹{mrp!.toLocaleString()}</span>}
+            {showMrp && <span className="text-sm font-bold text-green-600">Save ₹{(mrp! - finalPrice).toLocaleString()}</span>}
           </div>
           {!inStock && (
             <div className="mt-2 flex items-center gap-2 flex-wrap">
