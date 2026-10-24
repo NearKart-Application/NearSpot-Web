@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { QueryClientProvider, useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { queryClient } from '../../lib/queryClient';
 import { CustomerAuthGuard } from './CustomerAuthGuard';
@@ -216,21 +216,37 @@ function Inner() {
   const qc = useQueryClient();
   const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('ns_access');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['notifications'],
-    queryFn:  () => api.get('/notifications/').then(r => r.data),
+    queryFn:  ({ pageParam }) => api.get(`/notifications/?page=${pageParam}&page_size=20`).then(r => r.data),
     enabled:  isLoggedIn,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, pages) => (lastPage?.has_next ? pages.length + 1 : undefined),
     refetchInterval: 30_000,
   });
 
+  // True unread total (same source as the home badge) so the inbox count matches it.
+  const { data: unreadData } = useQuery({
+    queryKey: ['notifications-unread-count'],
+    queryFn:  () => api.get('/notifications/unread-count/').then(r => r.data),
+    enabled:  isLoggedIn,
+    refetchInterval: 30_000,
+  });
+  const unreadCount: number = unreadData?.unread_count ?? 0;
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['notifications'] });
+    qc.invalidateQueries({ queryKey: ['notifications-unread-count'] });
+  };
+
   const markReadMut = useMutation({
     mutationFn: (id: string) => api.post(`/notifications/${id}/read/`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    onSuccess: invalidate,
   });
 
   const markAllMut = useMutation({
     mutationFn: () => api.post('/notifications/read-all/'),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    onSuccess: invalidate,
   });
 
   if (!isLoggedIn) return (
@@ -242,7 +258,8 @@ function Inner() {
     </div>
   );
 
-  const allNotifs: Notification[] = data?.results ?? (Array.isArray(data) ? data : []);
+  const allNotifs: Notification[] = data?.pages.flatMap(p => p.results ?? []) ?? [];
+  const totalCount: number = data?.pages?.[0]?.count ?? allNotifs.length;
   const filtered  = allNotifs.filter(n => notifMatchesPref(n, prefs));
   const unread    = filtered.filter(n => !n.is_read);
   const shown     = filter === 'unread' ? unread : filtered;
@@ -253,11 +270,11 @@ function Inner() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-black text-navy">Notifications</h1>
-          {unread.length > 0 && tab === 'notifications' && (
-            <p className="text-sm text-gray-400">{unread.length} unread</p>
+          {unreadCount > 0 && tab === 'notifications' && (
+            <p className="text-sm text-gray-400">{unreadCount} unread</p>
           )}
         </div>
-        {tab === 'notifications' && unread.length > 0 && (
+        {tab === 'notifications' && unreadCount > 0 && (
           <button onClick={() => markAllMut.mutate()} disabled={markAllMut.isPending}
             className="text-xs font-bold text-navy hover:underline transition-colors">
             Mark all read
@@ -286,7 +303,7 @@ function Inner() {
                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all capitalize ${
                   filter === f ? 'bg-gold text-navy' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}>
-                {f === 'unread' ? `Unread (${unread.length})` : `All (${filtered.length})`}
+                {f === 'unread' ? `Unread (${unreadCount})` : `All (${totalCount})`}
               </button>
             ))}
           </div>
@@ -325,6 +342,15 @@ function Inner() {
                 </motion.div>
               ))}
             </motion.div>
+          )}
+
+          {/* Load more — the list is paginated; the home badge counts ALL unread, so load the rest here */}
+          {filter === 'all' && hasNextPage && (
+            <div className="flex justify-center mt-4">
+              <Button variant="outline" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+                {isFetchingNextPage ? 'Loading…' : 'Load more'}
+              </Button>
+            </div>
           )}
         </>
       )}
