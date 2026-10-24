@@ -217,7 +217,7 @@ function Inner({ productId }: { productId?: string }) {
         ...(form.hsn_code.trim() ? { hsn_code: form.hsn_code.trim() } : {}),
         ...(form.gst_rate ? { gst_rate: parseFloat(form.gst_rate) } : {}),
       };
-      if (isEdit) return api.patch(`/products/${productId}/`, payload);
+      if (isEdit) return api.put(`/products/${productId}/update/`, payload);
       // New product: attach a default stocked variant (mirrors the mobile create) so the product
       // actually has stock — otherwise the customer list's has_stock filter hides it.
       const skuBase = form.product_code.trim() ||
