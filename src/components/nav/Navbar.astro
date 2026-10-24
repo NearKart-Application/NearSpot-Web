@@ -252,19 +252,29 @@ const desktopLinks = [
   // Notification badge
   const token = localStorage.getItem('ns_access');
   if (token) {
-    fetch('/api/v1/notifications/unread-count/', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        const count = data?.unread_count ?? 0;
-        const badge = document.getElementById('notif-badge');
-        if (badge && count > 0) {
-          badge.textContent = count > 99 ? '99+' : String(count);
-          badge.classList.remove('hidden');
-        }
+    const refreshNotifBadge = () => {
+      const t = localStorage.getItem('ns_access');
+      if (!t) return;
+      fetch('/api/v1/notifications/unread-count/', {
+        headers: { Authorization: `Bearer ${t}` },
       })
-      .catch(() => {});
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          const count = data?.unread_count ?? 0;
+          const badge = document.getElementById('notif-badge');
+          if (!badge) return;
+          if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : String(count);
+            badge.classList.remove('hidden');
+          } else {
+            badge.classList.add('hidden');   // hide once everything is read
+          }
+        })
+        .catch(() => {});
+    };
+    refreshNotifBadge();
+    // Re-sync the badge when notifications are read in the inbox island (no page reload)
+    window.addEventListener('ns:notifications-read', refreshNotifBadge);
 
     fetch('/api/v1/conversations/', {
       headers: { Authorization: `Bearer ${token}` },

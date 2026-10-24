@@ -237,6 +237,8 @@ function Inner() {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['notifications'] });
     qc.invalidateQueries({ queryKey: ['notifications-unread-count'] });
+    // Tell the global header badge to re-sync (it only fetched once on page load)
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('ns:notifications-read'));
   };
 
   const markReadMut = useMutation({
