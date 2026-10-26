@@ -56,15 +56,20 @@ function Inner() {
       setImportResult(r.data);
       qc.invalidateQueries({ queryKey: ['vendor-products'] });
     } catch (err: any) {
-      // Two distinct failure kinds, surfaced differently:
-      //  • Server responded (e.g. 400 bad header / no rows) → show its structural message.
-      //  • No response at all (timeout / network / crash) → technical failure; nothing was saved.
-      //    Re-uploading is safe because the import is idempotent (matches & updates, never duplicates).
-      const serverMsg = err?.response?.data?.message;
-      setImportResult({
-        created: 0, updated: 0, skipped: 0, errors: [],
-        message: serverMsg ?? 'Import could not be completed due to a technical issue. Nothing was saved — re-uploading the same file is safe and will not create duplicates. Please try again.',
-      });
+      const data = err?.response?.data;
+      if (data && (Array.isArray(data.errors) || typeof data.created === 'number')) {
+        // Server returned our structured result with a non-2xx status (e.g. 400 = every row was
+        // skipped). Show the real per-row reasons + "download rows to fix", not a generic message.
+        setImportResult(data);
+      } else {
+        // Either a structural rejection ({error, message} — bad header / no rows) or no response at
+        // all (timeout / network / crash). Show the server's message, else a safe-to-retry notice
+        // (re-uploading is idempotent — it matches & updates, never duplicates).
+        setImportResult({
+          created: 0, updated: 0, skipped: 0, errors: [],
+          message: data?.message ?? 'Import could not be completed due to a technical issue. Nothing was saved — re-uploading the same file is safe and will not create duplicates. Please try again.',
+        });
+      }
     } finally {
       setImporting(false);
       if (csvRef.current) csvRef.current.value = '';
