@@ -50,7 +50,9 @@ function Inner() {
     const fd = new FormData();
     fd.append('file', file);
     try {
-      const r = await api.post('/products/vendor/import-csv/', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      // Let axios set multipart/form-data WITH its boundary — hard-coding the header strips the
+      // boundary so the server can't parse the file (request.FILES ends up empty → "CSV file required").
+      const r = await api.post('/products/vendor/import-csv/', fd);
       setImportResult(r.data);
       qc.invalidateQueries({ queryKey: ['vendor-products'] });
     } catch (err: any) {
