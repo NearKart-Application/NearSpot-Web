@@ -88,7 +88,7 @@ function Inner() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: string) => api.delete(`/products/${id}/`),
+    mutationFn: (id: string) => api.delete(`/products/${id}/update/`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['vendor-products'] }),
   });
 

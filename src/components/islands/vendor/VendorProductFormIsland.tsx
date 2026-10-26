@@ -44,7 +44,7 @@ function ImageUploadSection({ productId }: { productId: string }) {
 
   const { data: images = [], refetch } = useQuery<ProductImage[]>({
     queryKey: ['product-images', productId],
-    queryFn: () => api.get(`/products/${productId}/`).then(r => r.data.images ?? []),
+    queryFn: () => api.get(`/products/${productId}/update/`).then(r => r.data.images ?? []),
   });
 
   const deleteMut = useMutation({
@@ -171,7 +171,7 @@ function Inner({ productId }: { productId?: string }) {
 
   const { data: existing, isError: existingError, error: existingErr, refetch: existingRefetch } = useQuery({
     queryKey: ['vendor-product-detail', productId],
-    queryFn: () => api.get(`/products/${productId}/`).then(r => r.data),
+    queryFn: () => api.get(`/products/${productId}/update/`).then(r => r.data),
     enabled: isEdit,
   });
 
