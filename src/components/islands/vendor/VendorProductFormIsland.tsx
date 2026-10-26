@@ -32,6 +32,12 @@ interface ProductFormData {
   colors: string;
   hsn_code: string;
   gst_rate: string;
+  // Jewellery attributes (shown only for jewellery-category products)
+  weight_grams: string;
+  price_per_gram: string;
+  purity: string;
+  making_charges: string;
+  hallmark_number: string;
 }
 
 interface ProductImage { id: string; image_url: string; is_primary: boolean; order: number; }
@@ -143,6 +149,7 @@ function Inner({ productId }: { productId?: string }) {
     base_price: '', sale_price: '', cost_price: '', mrp: '', stock: '', unit: 'piece', product_code: '', barcode: '',
     status: 'active', is_visible: true, colors: '',
     hsn_code: '', gst_rate: '',
+    weight_grams: '', price_per_gram: '', purity: '', making_charges: '', hallmark_number: '',
   });
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -194,6 +201,11 @@ function Inner({ productId }: { productId?: string }) {
       colors: (existing.colors ?? []).join(', '),
       hsn_code: existing.hsn_code ?? '',
       gst_rate: existing.gst_rate ? String(existing.gst_rate) : '',
+      weight_grams: String(existing.weight_grams ?? ''),
+      price_per_gram: String(existing.price_per_gram ?? ''),
+      purity: existing.purity ?? '',
+      making_charges: String(existing.making_charges ?? ''),
+      hallmark_number: existing.hallmark_number ?? '',
     });
   }, [existing?.id]);
 
@@ -217,7 +229,16 @@ function Inner({ productId }: { productId?: string }) {
         ...(form.hsn_code.trim() ? { hsn_code: form.hsn_code.trim() } : {}),
         ...(form.gst_rate ? { gst_rate: parseFloat(form.gst_rate) } : {}),
       };
-      if (isEdit) return api.put(`/products/${productId}/update/`, payload);
+      // Jewellery attributes go to the default variant. Sent (incl. blanks, so clearing works) only
+      // for jewellery-category products; the backend applies them to the first variant.
+      const jewellery = form.category === 'jewellery' ? {
+        weight_grams: form.weight_grams.trim(),
+        price_per_gram: form.price_per_gram.trim(),
+        purity: form.purity.trim(),
+        making_charges: form.making_charges.trim(),
+        hallmark_number: form.hallmark_number.trim(),
+      } : {};
+      if (isEdit) return api.put(`/products/${productId}/update/`, { ...payload, ...jewellery });
       // New product: attach a default stocked variant (mirrors the mobile create) so the product
       // actually has stock — otherwise the customer list's has_stock filter hides it.
       const skuBase = form.product_code.trim() ||
@@ -232,6 +253,13 @@ function Inner({ productId }: { productId?: string }) {
           unit: form.unit,
           ...(form.mrp ? { mrp: parseFloat(form.mrp) } : {}),
           ...(form.cost_price ? { cost_price: parseFloat(form.cost_price) } : {}),
+          ...(form.category === 'jewellery' ? {
+            ...(form.weight_grams ? { weight_grams: parseFloat(form.weight_grams) } : {}),
+            ...(form.price_per_gram ? { price_per_gram: parseFloat(form.price_per_gram) } : {}),
+            ...(form.purity.trim() ? { purity: form.purity.trim() } : {}),
+            ...(form.making_charges ? { making_charges: parseFloat(form.making_charges) } : {}),
+            ...(form.hallmark_number.trim() ? { hallmark_number: form.hallmark_number.trim() } : {}),
+          } : {}),
         }],
       });
     },
@@ -395,6 +423,40 @@ function Inner({ productId }: { productId?: string }) {
             </select>
           </div>
         </div>
+
+        {/* Jewellery details — only for jewellery-category products */}
+        {form.category === 'jewellery' && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4">
+            <p className="text-xs font-bold text-amber-700 uppercase tracking-wide mb-3">💍 Jewellery Details</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Purity</label>
+                <input value={form.purity} onChange={set('purity')} placeholder="e.g. 22K, 18K, 925"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Weight (grams)</label>
+                <input type="number" min="0" step="0.001" value={form.weight_grams} onChange={set('weight_grams')} placeholder="e.g. 12.5"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Price / gram ₹</label>
+                <input type="number" min="0" step="0.01" value={form.price_per_gram} onChange={set('price_per_gram')} placeholder="Metal rate per gram"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Making Charges ₹</label>
+                <input type="number" min="0" step="0.01" value={form.making_charges} onChange={set('making_charges')} placeholder="Labour / craftsmanship fee"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">HUID / Hallmark Number</label>
+                <input value={form.hallmark_number} onChange={set('hallmark_number')} placeholder="BIS Hallmark Unique ID (mandatory for gold)"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Status + Visible */}
         <div className="grid grid-cols-2 gap-4">
