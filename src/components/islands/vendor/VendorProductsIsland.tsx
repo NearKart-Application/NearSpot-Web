@@ -187,9 +187,9 @@ function Inner() {
           {importResult.message && <p className="font-bold">{importResult.message}</p>}
           {importResult.created > 0 && <p className="font-bold">{importResult.created} product{importResult.created !== 1 ? 's' : ''} imported as draft.</p>}
           {(importResult.updated ?? 0) > 0 && <p className="font-bold">{importResult.updated} existing product{importResult.updated !== 1 ? 's' : ''} updated (re-import — no duplicates).</p>}
-          {/* Per-row summary: how many of the file's rows were skipped and why. */}
-          {(importResult.skipped ?? 0) > 0 && (
-            <p className="mt-0.5">{importResult.skipped} of {importResult.processed} row{importResult.processed !== 1 ? 's' : ''} skipped — fix the rows below and re-upload (already-imported rows won't duplicate).</p>
+          {/* Per-row summary — only when there's no top-level message (which already says it). */}
+          {(importResult.skipped ?? 0) > 0 && !importResult.message && (
+            <p className="mt-0.5">{importResult.skipped} of {importResult.processed} row{importResult.processed !== 1 ? 's' : ''} need fixing — see below, then re-upload.</p>
           )}
           {importResult.errors.length > 0 && (
             <ul className="text-xs mt-1 space-y-0.5">
