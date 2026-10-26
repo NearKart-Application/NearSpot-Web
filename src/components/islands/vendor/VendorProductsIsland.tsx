@@ -30,7 +30,7 @@ function Inner() {
   const [statusFilter, setStatusFilter] = useState('all');
   const csvRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{ created: number; errors: { row: number; message: string }[] } | null>(null);
+  const [importResult, setImportResult] = useState<{ created: number; updated?: number; errors: { row: number; message: string }[] } | null>(null);
 
   // ── Bulk select state ───────────────────────────────────────────────────────
   const [selectMode, setSelectMode] = useState(false);
@@ -169,8 +169,9 @@ function Inner() {
         <input ref={csvRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleCsvImport} />
       </div>
       {importResult && (
-        <div className={`rounded-xl px-4 py-3 text-sm ${importResult.created > 0 ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+        <div className={`rounded-xl px-4 py-3 text-sm ${(importResult.created > 0 || (importResult.updated ?? 0) > 0) ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
           {importResult.created > 0 && <p className="font-bold">{importResult.created} product{importResult.created !== 1 ? 's' : ''} imported as draft.</p>}
+          {(importResult.updated ?? 0) > 0 && <p className="font-bold">{importResult.updated} existing product{importResult.updated !== 1 ? 's' : ''} updated (re-import — no duplicates).</p>}
           {importResult.errors.length > 0 && (
             <ul className="text-xs mt-1 space-y-0.5">
               {importResult.errors.slice(0, 5).map((e, i) => <li key={i}>Row {e.row}: {e.message}</li>)}
