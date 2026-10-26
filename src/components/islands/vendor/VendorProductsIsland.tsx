@@ -30,7 +30,7 @@ function Inner() {
   const [statusFilter, setStatusFilter] = useState('all');
   const csvRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{ created: number; updated?: number; skipped?: number; processed?: number; message?: string; errors: { row: number; message: string }[] } | null>(null);
+  const [importResult, setImportResult] = useState<{ created: number; updated?: number; skipped?: number; processed?: number; message?: string; errors: { row: number; message: string }[]; warnings?: { row: number; message: string }[]; failed_csv?: string } | null>(null);
 
   // ── Bulk select state ───────────────────────────────────────────────────────
   const [selectMode, setSelectMode] = useState(false);
@@ -191,6 +191,33 @@ function Inner() {
               {importResult.errors.slice(0, 5).map((e, i) => <li key={i}>Row {e.row}: {e.message}</li>)}
               {importResult.errors.length > 5 && <li>…and {importResult.errors.length - 5} more errors.</li>}
             </ul>
+          )}
+          {/* Image warnings: the product imported, but its image couldn't be used — fix & re-upload. */}
+          {(importResult.warnings?.length ?? 0) > 0 && (
+            <div className="mt-1 text-amber-700">
+              <p>{importResult.warnings!.length} product{importResult.warnings!.length !== 1 ? 's were' : ' was'} imported without an image:</p>
+              <ul className="text-xs mt-0.5 space-y-0.5">
+                {importResult.warnings!.slice(0, 5).map((w, i) => <li key={i}>Row {w.row}: {w.message}</li>)}
+                {importResult.warnings!.length > 5 && <li>…and {importResult.warnings!.length - 5} more.</li>}
+              </ul>
+            </div>
+          )}
+          {/* One-click download of only the rows needing attention (skipped + image issues) + reason. */}
+          {importResult.failed_csv && (
+            <button
+              type="button"
+              className="mt-2 inline-flex items-center gap-1 rounded-lg border border-current px-2.5 py-1 text-xs font-semibold hover:bg-white/50"
+              onClick={() => {
+                const blob = new Blob([importResult.failed_csv!], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = 'rows-to-fix.csv';
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              ⬇ Download rows to fix
+            </button>
           )}
         </div>
       )}
