@@ -153,6 +153,11 @@ function Inner() {
               ☑ Select
             </button>
           )}
+          <a href="/templates/product-import-template.csv" download
+            title="Download the CSV template with the exact columns"
+            className="px-3 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:border-navy hover:text-navy transition-colors">
+            ⬇ Template
+          </a>
           <button onClick={() => csvRef.current?.click()} disabled={importing}
             className="px-3 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:border-navy hover:text-navy transition-colors disabled:opacity-60">
             {importing ? '⏳ Importing…' : '📂 Import CSV'}
