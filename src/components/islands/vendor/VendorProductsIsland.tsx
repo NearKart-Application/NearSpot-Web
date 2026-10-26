@@ -30,7 +30,7 @@ function Inner() {
   const [statusFilter, setStatusFilter] = useState('all');
   const csvRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{ created: number; updated?: number; errors: { row: number; message: string }[] } | null>(null);
+  const [importResult, setImportResult] = useState<{ created: number; updated?: number; skipped?: number; processed?: number; message?: string; errors: { row: number; message: string }[] } | null>(null);
 
   // ── Bulk select state ───────────────────────────────────────────────────────
   const [selectMode, setSelectMode] = useState(false);
@@ -56,7 +56,15 @@ function Inner() {
       setImportResult(r.data);
       qc.invalidateQueries({ queryKey: ['vendor-products'] });
     } catch (err: any) {
-      setImportResult({ created: 0, errors: [{ row: 0, message: err?.response?.data?.message ?? 'Import failed.' }] });
+      // Two distinct failure kinds, surfaced differently:
+      //  • Server responded (e.g. 400 bad header / no rows) → show its structural message.
+      //  • No response at all (timeout / network / crash) → technical failure; nothing was saved.
+      //    Re-uploading is safe because the import is idempotent (matches & updates, never duplicates).
+      const serverMsg = err?.response?.data?.message;
+      setImportResult({
+        created: 0, updated: 0, skipped: 0, errors: [],
+        message: serverMsg ?? 'Import could not be completed due to a technical issue. Nothing was saved — re-uploading the same file is safe and will not create duplicates. Please try again.',
+      });
     } finally {
       setImporting(false);
       if (csvRef.current) csvRef.current.value = '';
@@ -170,8 +178,14 @@ function Inner() {
       </div>
       {importResult && (
         <div className={`rounded-xl px-4 py-3 text-sm ${(importResult.created > 0 || (importResult.updated ?? 0) > 0) ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+          {/* File-level failure (bad header / empty file / technical) — the whole upload was rejected. */}
+          {importResult.message && <p className="font-bold">{importResult.message}</p>}
           {importResult.created > 0 && <p className="font-bold">{importResult.created} product{importResult.created !== 1 ? 's' : ''} imported as draft.</p>}
           {(importResult.updated ?? 0) > 0 && <p className="font-bold">{importResult.updated} existing product{importResult.updated !== 1 ? 's' : ''} updated (re-import — no duplicates).</p>}
+          {/* Per-row summary: how many of the file's rows were skipped and why. */}
+          {(importResult.skipped ?? 0) > 0 && (
+            <p className="mt-0.5">{importResult.skipped} of {importResult.processed} row{importResult.processed !== 1 ? 's' : ''} skipped — fix the rows below and re-upload (already-imported rows won't duplicate).</p>
+          )}
           {importResult.errors.length > 0 && (
             <ul className="text-xs mt-1 space-y-0.5">
               {importResult.errors.slice(0, 5).map((e, i) => <li key={i}>Row {e.row}: {e.message}</li>)}
