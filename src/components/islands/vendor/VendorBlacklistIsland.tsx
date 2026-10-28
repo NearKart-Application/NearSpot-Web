@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import NoStoreBanner from './NoStoreBanner';
 
 interface BlockedCustomer {
-  id: string; customer_name: string; customer_phone: string;
+  id: string; customer_id: string; customer_name: string; customer_phone: string;
   reason?: string; created_at: string;
 }
 
@@ -100,7 +100,7 @@ function Inner() {
               Unblock {unblockTarget.customer_name || unblockTarget.customer_phone}? They will be able to interact with your store again.
             </p>
             <div className="flex gap-2">
-              <Button onClick={() => unblockMut.mutate(unblockTarget.id)} disabled={unblockMut.isPending}
+              <Button onClick={() => unblockMut.mutate(unblockTarget.customer_id)} disabled={unblockMut.isPending}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold">
                 {unblockMut.isPending ? 'Unblocking…' : 'Unblock'}
               </Button>
