@@ -320,8 +320,10 @@ function Inner({ initTab }: { initTab: Tab }) {
   }, [query]);
 
   const storeQ = useQuery({
-    queryKey: ['search-stores', coords, radius],
-    queryFn:  () => api.get('/stores/nearby/', { params: { lat: coords.lat, lng: coords.lng, radius } }).then(r => r.data),
+    queryKey: ['search-stores', coords, radius, query.trim()],
+    // When searching by name, send q so the backend name-matches within a generous 50km reach
+    // (a far vendor's card still shows). No query = nearby browse at the selected radius.
+    queryFn:  () => api.get('/stores/nearby/', { params: { lat: coords.lat, lng: coords.lng, radius, ...(query.trim() ? { q: query.trim() } : {}) } }).then(r => r.data),
     enabled:  tab === 'stores' || tab === 'services',
     staleTime: 60_000,
   });
@@ -378,8 +380,8 @@ function Inner({ initTab }: { initTab: Tab }) {
 
   const filterStores = useCallback((src: Store[], serviceOnly?: boolean) => {
     let s = serviceOnly != null ? src.filter(x => serviceOnly ? x.store_type === 'service' : x.store_type !== 'service') : src;
-    const q = query.trim().toLowerCase();
-    if (q) s = s.filter(x => x.name.toLowerCase().includes(q) || x.category?.toLowerCase().includes(q));
+    // Name matching is done server-side when searching (trigram, 50km reach); re-filtering by
+    // substring here would drop valid fuzzy matches, so only apply the non-name filters below.
     if (category) s = s.filter(x => x.category === category);
     if (isOpenOnly) s = s.filter(x => x.is_open);
     if (minRating > 0) s = s.filter(x => (x.rating ?? x.avg_rating ?? 0) >= minRating);
