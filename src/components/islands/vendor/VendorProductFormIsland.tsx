@@ -38,6 +38,13 @@ interface ProductFormData {
   purity: string;
   making_charges: string;
   hallmark_number: string;
+  // Home-decor attributes (shown only for decor/furniture products)
+  length_cm: string;
+  width_cm: string;
+  height_cm: string;
+  weight_kg: string;
+  is_assembly_required: boolean;
+  is_display_unit: boolean;
 }
 
 interface ProductImage { id: string; image_url: string; is_primary: boolean; order: number; }
@@ -150,6 +157,7 @@ function Inner({ productId }: { productId?: string }) {
     status: 'active', is_visible: true, colors: '',
     hsn_code: '', gst_rate: '',
     weight_grams: '', price_per_gram: '', purity: '', making_charges: '', hallmark_number: '',
+    length_cm: '', width_cm: '', height_cm: '', weight_kg: '', is_assembly_required: false, is_display_unit: false,
   });
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
@@ -206,6 +214,12 @@ function Inner({ productId }: { productId?: string }) {
       purity: existing.purity ?? '',
       making_charges: String(existing.making_charges ?? ''),
       hallmark_number: existing.hallmark_number ?? '',
+      length_cm: String(existing.length_cm ?? ''),
+      width_cm: String(existing.width_cm ?? ''),
+      height_cm: String(existing.height_cm ?? ''),
+      weight_kg: String(existing.weight_kg ?? ''),
+      is_assembly_required: existing.is_assembly_required ?? false,
+      is_display_unit: existing.is_display_unit ?? false,
     });
   }, [existing?.id]);
 
@@ -238,7 +252,16 @@ function Inner({ productId }: { productId?: string }) {
         making_charges: form.making_charges.trim(),
         hallmark_number: form.hallmark_number.trim(),
       } : {};
-      if (isEdit) return api.put(`/products/${productId}/update/`, { ...payload, ...jewellery });
+      // Home-decor attributes → default variant (decor/furniture only). Blanks clear dimensions.
+      const homeDecor = (form.category === 'decor' || form.category === 'furniture') ? {
+        length_cm: form.length_cm.trim(),
+        width_cm: form.width_cm.trim(),
+        height_cm: form.height_cm.trim(),
+        weight_kg: form.weight_kg.trim(),
+        is_assembly_required: form.is_assembly_required,
+        is_display_unit: form.is_display_unit,
+      } : {};
+      if (isEdit) return api.put(`/products/${productId}/update/`, { ...payload, ...jewellery, ...homeDecor });
       // New product: attach a default stocked variant (mirrors the mobile create) so the product
       // actually has stock — otherwise the customer list's has_stock filter hides it.
       const skuBase = form.product_code.trim() ||
@@ -259,6 +282,14 @@ function Inner({ productId }: { productId?: string }) {
             ...(form.purity.trim() ? { purity: form.purity.trim() } : {}),
             ...(form.making_charges ? { making_charges: parseFloat(form.making_charges) } : {}),
             ...(form.hallmark_number.trim() ? { hallmark_number: form.hallmark_number.trim() } : {}),
+          } : {}),
+          ...((form.category === 'decor' || form.category === 'furniture') ? {
+            ...(form.length_cm ? { length_cm: parseFloat(form.length_cm) } : {}),
+            ...(form.width_cm ? { width_cm: parseFloat(form.width_cm) } : {}),
+            ...(form.height_cm ? { height_cm: parseFloat(form.height_cm) } : {}),
+            ...(form.weight_kg ? { weight_kg: parseFloat(form.weight_kg) } : {}),
+            is_assembly_required: form.is_assembly_required,
+            is_display_unit: form.is_display_unit,
           } : {}),
         }],
       });
@@ -453,6 +484,55 @@ function Inner({ productId }: { productId?: string }) {
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">HUID / Hallmark Number</label>
                 <input value={form.hallmark_number} onChange={set('hallmark_number')} placeholder="BIS Hallmark Unique ID (mandatory for gold)"
                   className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Home decor details — only for decor / furniture products */}
+        {(form.category === 'decor' || form.category === 'furniture') && (
+          <div className="rounded-xl border border-sky-200 bg-sky-50/40 p-4">
+            <p className="text-xs font-bold text-sky-700 uppercase tracking-wide mb-3">🛋️ Home Decor Details</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Length (cm)</label>
+                <input type="number" min="0" step="0.01" value={form.length_cm} onChange={set('length_cm')} placeholder="e.g. 120"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Width (cm)</label>
+                <input type="number" min="0" step="0.01" value={form.width_cm} onChange={set('width_cm')} placeholder="e.g. 60"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Height (cm)</label>
+                <input type="number" min="0" step="0.01" value={form.height_cm} onChange={set('height_cm')} placeholder="e.g. 75"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Weight (kg)</label>
+                <input type="number" min="0" step="0.001" value={form.weight_kg} onChange={set('weight_kg')} placeholder="e.g. 8.5"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-navy/40" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Assembly Required</label>
+                <button type="button" onClick={() => setForm(f => ({ ...f, is_assembly_required: !f.is_assembly_required }))}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all w-full ${
+                    form.is_assembly_required ? 'bg-sky-100 border-sky-300 text-sky-700' : 'bg-gray-50 border-gray-200 text-gray-500'
+                  }`}>
+                  <span>{form.is_assembly_required ? '🔧' : '📦'}</span>
+                  {form.is_assembly_required ? 'Assembly required' : 'Ready to use'}
+                </button>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5 block">Display Unit</label>
+                <button type="button" onClick={() => setForm(f => ({ ...f, is_display_unit: !f.is_display_unit }))}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all w-full ${
+                    form.is_display_unit ? 'bg-sky-100 border-sky-300 text-sky-700' : 'bg-gray-50 border-gray-200 text-gray-500'
+                  }`}>
+                  <span>{form.is_display_unit ? '🏷️' : '—'}</span>
+                  {form.is_display_unit ? 'Display / showroom unit' : 'Not a display unit'}
+                </button>
               </div>
             </div>
           </div>
