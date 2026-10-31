@@ -145,23 +145,19 @@ function AboutModal({ onClose }: { onClose: () => void }) {
 
 // Language — English works today; Hindi/Telugu shown disabled ("coming soon")
 // until their translations are wired across the UI (gated by ENABLED_LANGS).
-function LanguageCard() {
-  const [current, setCurrent] = useState<Lang>('en');
-  useEffect(() => {
-    const m = document.cookie.match(/(?:^|;\s*)ns_lang=([^;]+)/);
-    const v = m?.[1]?.trim() as Lang | undefined;
-    if (v && SUPPORTED_LANGS.includes(v)) setCurrent(v);
-  }, []);
+function LanguageModal({ current, onClose }: { current: Lang; onClose: () => void }) {
   const choose = (lang: Lang) => {
     document.cookie = `ns_lang=${lang};path=/;max-age=31536000;SameSite=Lax`;
     location.reload();
   };
   return (
-    <div className="card overflow-hidden">
-      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3 bg-gray-50 border-b border-gray-100">Preferences</p>
-      <div className="px-5 py-4">
-        <p className="text-sm font-semibold text-navy mb-3">Language</p>
-        <div className="flex gap-2">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-5 w-full max-w-xs shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-bold text-navy">Language</h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">✕</button>
+        </div>
+        <div className="space-y-1">
           {SUPPORTED_LANGS.map((lang) => {
             const enabled = ENABLED_LANGS.includes(lang);
             return (
@@ -169,21 +165,22 @@ function LanguageCard() {
                 key={lang}
                 onClick={enabled ? () => choose(lang) : undefined}
                 disabled={!enabled}
-                title={enabled ? undefined : 'Coming soon'}
-                className={`flex-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-colors ${
                   !enabled
-                    ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                    ? 'text-gray-300 cursor-not-allowed'
                     : lang === current
-                      ? 'bg-navy text-white border-navy'
-                      : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                      ? 'bg-navy/5 text-navy font-semibold'
+                      : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                {LANG_LABELS[lang]}
+                <span>{LANG_LABELS[lang]}</span>
+                {!enabled
+                  ? <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 bg-gray-100 rounded px-1.5 py-0.5">Soon</span>
+                  : lang === current ? <span className="text-rose-600">✓</span> : null}
               </button>
             );
           })}
         </div>
-        <p className="text-[11px] text-gray-400 mt-2">More languages coming soon.</p>
       </div>
     </div>
   );
@@ -196,8 +193,16 @@ function Inner() {
   const [showAbout, setShowAbout] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
+  const [showLang, setShowLang] = useState(false);
+  const [lang, setLang] = useState<Lang>('en');
   const [websiteReqDone, setWebsiteReqDone] = useState(false);
   const [websiteReqErr, setWebsiteReqErr] = useState('');
+
+  useEffect(() => {
+    const m = document.cookie.match(/(?:^|;\s*)ns_lang=([^;]+)/);
+    const v = m?.[1]?.trim() as Lang | undefined;
+    if (v && SUPPORTED_LANGS.includes(v)) setLang(v);
+  }, []);
 
   const websiteReqMut = useMutation({
     mutationFn: () => api.post('/stores/mine/website-request/', {}),
@@ -268,6 +273,7 @@ function Inner() {
         <SettingsRow icon="🔔" title="Notification Preferences" subtitle="Choose what alerts you receive" href="/vendor/notifications" />
         <SettingsRow icon="🔒" title="Change Password" subtitle="Update your account password" onClick={() => setShowPw(true)} />
         <SettingsRow icon="🎁" title="Referral Program" subtitle="Earn 100 pts per vendor referred" onClick={() => setShowReferral(true)} />
+        <SettingsRow icon="🌐" title="Language" subtitle={`${LANG_LABELS[lang]} · more coming soon`} onClick={() => setShowLang(true)} />
 
         {/* Session History */}
         <div className="border-t border-gray-100">
@@ -322,9 +328,6 @@ function Inner() {
         </div>
       </div>
 
-      {/* Preferences — Language */}
-      <LanguageCard />
-
       {/* Store management */}
       <div className="card overflow-hidden">
         <p className="text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3 bg-gray-50 border-b border-gray-100">Store Management</p>
@@ -354,6 +357,7 @@ function Inner() {
       {showQr && storeId && <QrCodeModal storeId={storeId} storeName={storeName} onClose={() => setShowQr(false)} />}
       {showReferral && <ReferralModal onClose={() => setShowReferral(false)} />}
       {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
+      {showLang && <LanguageModal current={lang} onClose={() => setShowLang(false)} />}
 
 
       {/* Logout confirm */}
