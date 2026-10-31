@@ -6,6 +6,7 @@ import api from '../../lib/api';
 import { auth } from '../../lib/auth';
 import Img from '../ui/Img';
 import { Button } from '@/components/ui/button';
+import { SUPPORTED_LANGS, LANG_LABELS, type Lang } from '../../i18n/translations';
 
 const sectionVariants = { hidden: { opacity: 0, y: 18, scale: 0.98 }, show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.38, ease: 'easeOut' as const } } };
 const pageContainer = { hidden: {}, show: { transition: { staggerChildren: 0.09 } } };
@@ -50,6 +51,37 @@ function MenuItem({ iconKey, label, sub, href, danger }: {
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
       </svg>
     </a>
+  );
+}
+
+// Mobile-only language picker — desktop uses the navbar LanguageSwitcher,
+// which is hidden on mobile (md:block), so surface the option here too.
+function LanguageCard() {
+  const [current, setCurrent] = useState<Lang>('en');
+  useEffect(() => {
+    const m = document.cookie.match(/(?:^|;\s*)ns_lang=([^;]+)/);
+    const v = m?.[1]?.trim() as Lang | undefined;
+    if (v && SUPPORTED_LANGS.includes(v)) setCurrent(v);
+  }, []);
+  const choose = (lang: Lang) => {
+    document.cookie = `ns_lang=${lang};path=/;max-age=31536000;SameSite=Lax`;
+    location.reload();
+  };
+  return (
+    <motion.div variants={sectionVariants} className="md:hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-4 pt-3 pb-1">Language</p>
+      <div className="flex gap-2 px-4 pb-4 pt-1">
+        {SUPPORTED_LANGS.map((lang) => (
+          <button
+            key={lang}
+            onClick={() => choose(lang)}
+            className={`flex-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors ${lang === current ? 'bg-navy text-white border-navy' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+          >
+            {LANG_LABELS[lang]}
+          </button>
+        ))}
+      </div>
+    </motion.div>
   );
 }
 
@@ -275,6 +307,8 @@ function Inner() {
           </motion.div>
         </>
       )}
+
+      <LanguageCard />
 
       {/* Security — Active Sessions */}
       <motion.div variants={sectionVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
