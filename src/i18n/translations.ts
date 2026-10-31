@@ -3,6 +3,11 @@ export type Lang = 'en' | 'hi' | 'te';
 export const SUPPORTED_LANGS: Lang[] = ['en', 'hi', 'te'];
 export const DEFAULT_LANG: Lang = 'en';
 
+// Languages a user can actually select right now. Hindi/Telugu are listed in the
+// pickers but shown disabled ("coming soon") until their translations are wired
+// across the UI. Add a lang here to switch it on.
+export const ENABLED_LANGS: Lang[] = ['en'];
+
 export const LANG_LABELS: Record<Lang, string> = {
   en: 'English',
   hi: 'हिंदी',

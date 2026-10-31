@@ -6,7 +6,7 @@ import api from '../../lib/api';
 import { auth } from '../../lib/auth';
 import Img from '../ui/Img';
 import { Button } from '@/components/ui/button';
-import { SUPPORTED_LANGS, LANG_LABELS, type Lang } from '../../i18n/translations';
+import { SUPPORTED_LANGS, ENABLED_LANGS, LANG_LABELS, type Lang } from '../../i18n/translations';
 
 const sectionVariants = { hidden: { opacity: 0, y: 18, scale: 0.98 }, show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.38, ease: 'easeOut' as const } } };
 const pageContainer = { hidden: {}, show: { transition: { staggerChildren: 0.09 } } };
@@ -70,17 +70,29 @@ function LanguageCard() {
   return (
     <motion.div variants={sectionVariants} className="md:hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-4 pt-3 pb-1">Language</p>
-      <div className="flex gap-2 px-4 pb-4 pt-1">
-        {SUPPORTED_LANGS.map((lang) => (
-          <button
-            key={lang}
-            onClick={() => choose(lang)}
-            className={`flex-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors ${lang === current ? 'bg-navy text-white border-navy' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
-          >
-            {LANG_LABELS[lang]}
-          </button>
-        ))}
+      <div className="flex gap-2 px-4 pt-1">
+        {SUPPORTED_LANGS.map((lang) => {
+          const enabled = ENABLED_LANGS.includes(lang);
+          return (
+            <button
+              key={lang}
+              onClick={enabled ? () => choose(lang) : undefined}
+              disabled={!enabled}
+              title={enabled ? undefined : 'Coming soon'}
+              className={`flex-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                !enabled
+                  ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                  : lang === current
+                    ? 'bg-navy text-white border-navy'
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              {LANG_LABELS[lang]}
+            </button>
+          );
+        })}
       </div>
+      <p className="text-[11px] text-gray-400 px-4 pb-4 pt-2">More languages coming soon.</p>
     </motion.div>
   );
 }
