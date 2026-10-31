@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { QueryClientProvider, useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient } from '../../../lib/queryClient';
 import api from '../../../lib/api';
 import { auth } from '../../../lib/auth';
 import { VendorAuthGuard } from './VendorAuthGuard';
 import { Button } from '@/components/ui/button';
+import { SUPPORTED_LANGS, ENABLED_LANGS, LANG_LABELS, type Lang } from '../../../i18n/translations';
 
 interface Session {
   id: string; device_type: string; device_name: string;
@@ -142,6 +143,52 @@ function AboutModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// Language — English works today; Hindi/Telugu shown disabled ("coming soon")
+// until their translations are wired across the UI (gated by ENABLED_LANGS).
+function LanguageCard() {
+  const [current, setCurrent] = useState<Lang>('en');
+  useEffect(() => {
+    const m = document.cookie.match(/(?:^|;\s*)ns_lang=([^;]+)/);
+    const v = m?.[1]?.trim() as Lang | undefined;
+    if (v && SUPPORTED_LANGS.includes(v)) setCurrent(v);
+  }, []);
+  const choose = (lang: Lang) => {
+    document.cookie = `ns_lang=${lang};path=/;max-age=31536000;SameSite=Lax`;
+    location.reload();
+  };
+  return (
+    <div className="card overflow-hidden">
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide px-5 py-3 bg-gray-50 border-b border-gray-100">Preferences</p>
+      <div className="px-5 py-4">
+        <p className="text-sm font-semibold text-navy mb-3">Language</p>
+        <div className="flex gap-2">
+          {SUPPORTED_LANGS.map((lang) => {
+            const enabled = ENABLED_LANGS.includes(lang);
+            return (
+              <button
+                key={lang}
+                onClick={enabled ? () => choose(lang) : undefined}
+                disabled={!enabled}
+                title={enabled ? undefined : 'Coming soon'}
+                className={`flex-1 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                  !enabled
+                    ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                    : lang === current
+                      ? 'bg-navy text-white border-navy'
+                      : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                {LANG_LABELS[lang]}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-gray-400 mt-2">More languages coming soon.</p>
+      </div>
+    </div>
+  );
+}
+
 function Inner() {
   const [showPw, setShowPw] = useState(false);
   const [showQr, setShowQr] = useState(false);
@@ -274,6 +321,9 @@ function Inner() {
           </div>}
         </div>
       </div>
+
+      {/* Preferences — Language */}
+      <LanguageCard />
 
       {/* Store management */}
       <div className="card overflow-hidden">
