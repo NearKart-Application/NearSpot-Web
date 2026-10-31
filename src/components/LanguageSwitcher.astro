@@ -5,11 +5,14 @@ import { getLang, setLangCookieScript } from '../i18n/utils';
 const current = getLang(Astro.request);
 ---
 
-<div class="relative inline-block" x-data="{ open: false }">
+<div class="relative inline-block" data-lang-switcher>
   <button
-    @click="open = !open"
+    type="button"
+    data-lang-toggle
     class="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-navy transition-colors px-2 py-1 rounded-lg hover:bg-gray-100"
     aria-label="Change language"
+    aria-haspopup="true"
+    aria-expanded="false"
     title="Language"
   >
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -20,13 +23,12 @@ const current = getLang(Astro.request);
   </button>
 
   <div
-    x-show="open"
-    @click.outside="open = false"
-    class="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1"
-    x-transition
+    data-lang-menu
+    class="hidden absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1"
   >
     {SUPPORTED_LANGS.map(lang => (
       <button
+        type="button"
         onclick={`${setLangCookieScript(lang)} location.reload();`}
         class={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${lang === current ? 'font-semibold text-rose-600' : 'text-gray-700'}`}
       >
@@ -35,3 +37,26 @@ const current = getLang(Astro.request);
     ))}
   </div>
 </div>
+
+<script>
+  // Lightweight dropdown toggle (the project has no Alpine.js, so x-* directives
+  // would never run — use plain JS to open/close the language menu).
+  document.querySelectorAll('[data-lang-switcher]').forEach((root) => {
+    const btn = root.querySelector('[data-lang-toggle]');
+    const menu = root.querySelector('[data-lang-menu]');
+    if (!btn || !menu) return;
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const closed = menu.classList.toggle('hidden');
+      btn.setAttribute('aria-expanded', String(!closed));
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!root.contains(e.target)) {
+        menu.classList.add('hidden');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+    });
+  });
+</script>
