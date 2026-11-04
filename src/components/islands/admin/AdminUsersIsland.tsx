@@ -208,9 +208,21 @@ function Inner() {
   const qc = useQueryClient();
 
   const [search,          setSearch]          = useState('');
-  const [roleFilter,      setRoleFilter]      = useState('');
-  const [activeFilter,    setActiveFilter]    = useState<'' | 'true' | 'false'>('');
-  const [suspendedFilter, setSuspendedFilter] = useState<'' | 'true' | 'false'>('');
+  const [roleFilter,      setRoleFilter]      = useState(() => {
+    // Deep-link from the Reports Vendors/Customers cards: /admin/users?role=vendor
+    const v = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('role') : null;
+    return v === 'vendor' || v === 'customer' ? v : '';
+  });
+  const [activeFilter,    setActiveFilter]    = useState<'' | 'true' | 'false'>(() => {
+    // Deep-link from the Reports "Active Users" card: /admin/users?active=true
+    const v = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('active') : null;
+    return v === 'true' || v === 'false' ? v : '';
+  });
+  const [suspendedFilter, setSuspendedFilter] = useState<'' | 'true' | 'false'>(() => {
+    // Deep-link from the Reports "Suspended" card: /admin/users?suspended=true
+    const v = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('suspended') : null;
+    return v === 'true' || v === 'false' ? v : '';
+  });
   const [page,            setPage]            = useState(1);
   const [pageSize,        setPageSize]        = useState<20 | 50 | 100>(20);
   const [suspendTarget,   setSuspendTarget]   = useState<AdminUser | null>(null);
@@ -264,6 +276,30 @@ function Inner() {
   const users      = data?.results ?? [];
   const totalCount = data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  // Export the CURRENTLY-filtered list as CSV (reuses the list endpoint + filters).
+  const [exporting, setExporting] = useState(false);
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const res = await api.get('/admin-panel/users/', {
+        params: {
+          ...(dSearch         && { search:       dSearch }),
+          ...(roleFilter      && { role:         roleFilter }),
+          ...(activeFilter    && { is_active:    activeFilter }),
+          ...(suspendedFilter && { is_suspended: suspendedFilter }),
+          export: 'csv',
+        },
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'users.csv'; a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   if (error) {
     return (
@@ -351,6 +387,9 @@ function Inner() {
           <span className="text-sm text-gray-400 ml-auto whitespace-nowrap">
             {isLoading ? 'Loading…' : `${totalCount.toLocaleString()} users`}
           </span>
+          <button onClick={exportCsv} disabled={exporting} className="btn-outline btn-sm whitespace-nowrap">
+            {exporting ? 'Exporting…' : '⬇ Export CSV'}
+          </button>
         </div>
       </div>
 

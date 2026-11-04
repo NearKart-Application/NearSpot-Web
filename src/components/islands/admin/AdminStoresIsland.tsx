@@ -35,6 +35,15 @@ const TYPE_LABELS: Record<string, string> = {
   home:    '🏠 Home',
 };
 
+// Shop categories (mirrors backend StoreCategory choices) — [value, label]
+const CATEGORY_OPTIONS: [string, string][] = [
+  ['fashion', 'Fashion'], ['jewellery', 'Jewellery'], ['footwear', 'Footwear'],
+  ['decor', 'Home Decor'], ['furniture', 'Furniture'], ['gifts', 'Gifts'],
+  ['beauty', 'Beauty'], ['food', 'Food'], ['electronics', 'Electronics'],
+  ['grocery', 'Grocery'], ['pharmacy', 'Pharmacy'], ['books', 'Books & Stationery'],
+  ['sports', 'Sports & Fitness'], ['other', 'Other'],
+];
+
 const PAGE_SIZES = [20, 50, 100] as const;
 
 function useDebounce(value: string, delay: number) {
@@ -76,19 +85,37 @@ function Inner() {
   const isMaster = (_u?.ui_mode ?? _u?.role) === 'master_admin';
 
   const [search,        setSearch]        = useState('');
-  const [verifiedFilter, setVerifiedFilter] = useState<'' | 'true' | 'false'>('');
-  const [activeFilter,   setActiveFilter]   = useState<'' | 'true' | 'false'>('');
+  const [verifiedFilter, setVerifiedFilter] = useState<'' | 'true' | 'false'>(() => {
+    // Deep-link from the Reports "Unverified" card: /admin/stores?verified=false
+    const v = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('verified') : null;
+    return v === 'true' || v === 'false' ? v : '';
+  });
+  const [activeFilter,   setActiveFilter]   = useState<'' | 'true' | 'false'>(() => {
+    // Deep-link from the Reports "Blocked" card: /admin/stores?active=false
+    const v = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('active') : null;
+    return v === 'true' || v === 'false' ? v : '';
+  });
+  const [openFilter,     setOpenFilter]     = useState<'' | 'true' | 'false'>(() => {
+    // Deep-link from the Reports "Currently Open" card: /admin/stores?open=true
+    const v = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('open') : null;
+    return v === 'true' || v === 'false' ? v : '';
+  });
   const [typeFilter,     setTypeFilter]     = useState<'' | 'product' | 'service' | 'home'>('');
+  const [categoryFilter, setCategoryFilter] = useState(() => {
+    // Deep-link from the Reports "Stores by Category" rows: /admin/stores?category=grocery
+    const v = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('category') : null;
+    return v && CATEGORY_OPTIONS.some(c => c[0] === v) ? v : '';
+  });
   const [page,           setPage]           = useState(1);
   const [pageSize,       setPageSize]       = useState<20 | 50 | 100>(20);
   const [changingTypeId, setChangingTypeId] = useState<string | null>(null);
 
   const dSearch = useDebounce(search, 400);
 
-  useEffect(() => { setPage(1); }, [dSearch, verifiedFilter, activeFilter, typeFilter, pageSize]);
+  useEffect(() => { setPage(1); }, [dSearch, verifiedFilter, activeFilter, openFilter, typeFilter, categoryFilter, pageSize]);
 
   const { data, isLoading, error, refetch } = useQuery<{ count: number; results: AdminStore[] }>({
-    queryKey: ['admin-stores', dSearch, verifiedFilter, activeFilter, typeFilter, page, pageSize],
+    queryKey: ['admin-stores', dSearch, verifiedFilter, activeFilter, openFilter, typeFilter, categoryFilter, page, pageSize],
     queryFn: () =>
       api.get('/admin-panel/stores/', {
         params: {
@@ -97,7 +124,9 @@ function Inner() {
           ...(dSearch        && { search:      dSearch }),
           ...(verifiedFilter && { is_verified: verifiedFilter }),
           ...(activeFilter   && { is_active:   activeFilter }),
+          ...(openFilter     && { is_open:     openFilter }),
           ...(typeFilter     && { store_type:  typeFilter }),
+          ...(categoryFilter && { category:    categoryFilter }),
         },
       }).then((r) => r.data),
     staleTime: 2 * 60 * 1000,
@@ -113,6 +142,32 @@ function Inner() {
   const stores     = data?.results ?? [];
   const totalCount = data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  // Export the CURRENTLY-filtered list as CSV (reuses the list endpoint + filters).
+  const [exporting, setExporting] = useState(false);
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const res = await api.get('/admin-panel/stores/', {
+        params: {
+          ...(dSearch        && { search:      dSearch }),
+          ...(verifiedFilter && { is_verified: verifiedFilter }),
+          ...(activeFilter   && { is_active:   activeFilter }),
+          ...(openFilter     && { is_open:     openFilter }),
+          ...(typeFilter     && { store_type:  typeFilter }),
+          ...(categoryFilter && { category:    categoryFilter }),
+          export: 'csv',
+        },
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'stores.csv'; a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   if (error) {
     return (
@@ -184,9 +239,26 @@ function Inner() {
             ))}
           </div>
 
+          <div className="w-px h-4 bg-gray-200" />
+
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="input text-sm py-1.5 px-3 rounded-lg"
+            aria-label="Filter by shop category"
+          >
+            <option value="">All Categories</option>
+            {CATEGORY_OPTIONS.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+
           <span className="text-sm text-gray-400 ml-auto whitespace-nowrap">
             {isLoading ? 'Loading…' : `${totalCount.toLocaleString()} stores`}
           </span>
+          <button onClick={exportCsv} disabled={exporting} className="btn-outline btn-sm whitespace-nowrap">
+            {exporting ? 'Exporting…' : '⬇ Export CSV'}
+          </button>
         </div>
       </div>
 

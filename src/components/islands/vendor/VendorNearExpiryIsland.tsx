@@ -110,6 +110,7 @@ function Inner() {
                 {section.title} ({section.items.length})
               </h3>
               <div className="card overflow-hidden">
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="border-b border-gray-100">
                     <tr className="text-[11px] text-gray-400 uppercase tracking-wide">
@@ -153,6 +154,7 @@ function Inner() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
           ))}

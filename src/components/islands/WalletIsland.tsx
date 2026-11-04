@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { queryClient } from '../../lib/queryClient';
 import { CustomerAuthGuard } from './CustomerAuthGuard';
+import { IslandError } from './vendor/VendorAuthGuard';
 import api from '../../lib/api';
 
 const listContainer = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
@@ -71,6 +72,14 @@ function Inner() {
         <button onClick={() => window.dispatchEvent(new CustomEvent('ns:require-login'))} className="px-6 py-3 bg-navy text-white rounded-xl font-bold text-sm hover:bg-navy/90 transition-colors">
           Sign In
         </button>
+      </div>
+    );
+  }
+
+  if (loyaltyQ.isError) {
+    return (
+      <div className="py-16">
+        <IslandError error={loyaltyQ.error} refetch={loyaltyQ.refetch} />
       </div>
     );
   }

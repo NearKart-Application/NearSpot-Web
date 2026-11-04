@@ -183,6 +183,7 @@ function Inner() {
 
       {/* ── Table ── */}
       <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-opacity ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50/50">
@@ -274,6 +275,7 @@ function Inner() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* ── Pagination ── */}

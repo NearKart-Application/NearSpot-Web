@@ -192,7 +192,7 @@ function Inner() {
       )}
 
       {/* Current subscription */}
-      {!subLoading && sub && (
+      {!subLoading && sub?.plan && (
         <div className={`card p-6 ${sub.is_active ? 'border-navy/30 bg-navy/5' : 'border-red-200 bg-red-50'}`}>
           <div className="flex items-start justify-between">
             <div>

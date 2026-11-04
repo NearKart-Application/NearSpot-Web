@@ -19,7 +19,10 @@ export default defineConfig({
       'process.env.API_BASE': JSON.stringify(process.env.API_BASE ?? 'http://localhost:8000/api/v1'),
     },
     server: {
-      allowedHosts: process.env.EXTRA_HOST ? [process.env.EXTRA_HOST, 'localhost'] : true,
+      // '.ngrok-free.dev' allows the reserved ngrok domain (and any *.ngrok-free.dev) so the
+      // public URL keeps working across container recreates — no longer depends on EXTRA_HOST
+      // (which a plain `docker compose up` wipes). Dev-only; prod runs Node standalone.
+      allowedHosts: ['localhost', '.ngrok-free.dev', ...(process.env.EXTRA_HOST ? [process.env.EXTRA_HOST] : [])],
       proxy: {
         // DJANGO_HOST: localhost (native), host.docker.internal (standalone Docker), django (full Docker stack)
         // WS_HOST: same as DJANGO_HOST unless overridden (daphne is a separate service in full Docker stack)

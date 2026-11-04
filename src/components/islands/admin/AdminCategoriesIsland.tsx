@@ -116,6 +116,7 @@ function Inner() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-card border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100">
@@ -175,6 +176,7 @@ function Inner() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

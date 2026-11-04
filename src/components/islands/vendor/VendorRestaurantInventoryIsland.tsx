@@ -120,6 +120,7 @@ function IngredientsTab() {
       </div>
 
       {isError ? <IslandError error={error} refetch={refetch} /> : isLoading ? <p>Loading…</p> : (
+        <div style={{ overflowX: 'auto' }}>
         <table style={{width:'100%',borderCollapse:'collapse',fontSize:14}}>
           <thead><tr style={{background:'#f9fafb'}}>
             {['Name','Unit','Stock','Reorder','Cost/Unit','Status','Actions'].map(h=>(
@@ -143,6 +144,7 @@ function IngredientsTab() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       {showAdd  && <IngredientModal onClose={()=>setShowAdd(false)} />}
@@ -376,6 +378,7 @@ function WastageTab() {
         <button onClick={()=>setShowAdd(true)} style={btn('#0f172a','#fff')}>+ Record Wastage</button>
       </div>
       {isError ? <IslandError error={error} refetch={refetch} /> : isLoading ? <p>Loading…</p> : (
+        <div style={{ overflowX: 'auto' }}>
         <table style={{width:'100%',borderCollapse:'collapse',fontSize:14}}>
           <thead><tr style={{background:'#f9fafb'}}>
             {['Date','Ingredient','Qty','Reason','Notes'].map(h=>(
@@ -395,6 +398,7 @@ function WastageTab() {
             {wastage.length===0 && <tr><td colSpan={5} style={{padding:'16px 12px',color:'#9ca3af',textAlign:'center'}}>No wastage records for this date.</td></tr>}
           </tbody>
         </table>
+        </div>
       )}
       {showAdd && <WastageModal onClose={()=>setShowAdd(false)} />}
     </div>
@@ -485,6 +489,7 @@ function DailyStockTab() {
       )}
 
       {isError ? <IslandError error={error} refetch={refetch} /> : isLoading ? <p>Loading…</p> : (
+        <div style={{ overflowX: 'auto' }}>
         <table style={{width:'100%',borderCollapse:'collapse',fontSize:14}}>
           <thead><tr style={{background:'#f9fafb'}}>
             {['Ingredient','Opening','Received','Closing','Consumed','Actions'].map(h=>(
@@ -510,6 +515,7 @@ function DailyStockTab() {
             {dailyStocks.length===0 && <tr><td colSpan={6} style={{padding:'16px 12px',color:'#9ca3af',textAlign:'center'}}>No entries for this date. Set opening stock to begin.</td></tr>}
           </tbody>
         </table>
+        </div>
       )}
 
       {showOpeningModal && <OpeningStockModal onClose={()=>setShowOpeningModal(false)} date={dateFilter} />}

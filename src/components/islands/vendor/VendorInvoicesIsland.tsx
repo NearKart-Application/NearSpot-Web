@@ -718,6 +718,7 @@ function Inner() {
         </div>
       ) : (
         <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr className="text-left text-xs font-bold text-gray-500 uppercase tracking-wide">
@@ -760,6 +761,7 @@ function Inner() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

@@ -193,6 +193,7 @@ function StoreStockLog({ storeId, storeName, onBack }: { storeId: string; storeN
       ) : (
         <>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-[11px] text-gray-400 uppercase tracking-wide">
@@ -242,6 +243,7 @@ function StoreStockLog({ storeId, storeName, onBack }: { storeId: string; storeN
                 })}
               </tbody>
             </table>
+            </div>
           </div>
 
           {totalPages > 1 && (

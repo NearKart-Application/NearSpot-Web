@@ -161,6 +161,7 @@ function Inner() {
         </div>
       ) : (
         <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
@@ -191,6 +192,7 @@ function Inner() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

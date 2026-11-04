@@ -375,6 +375,7 @@ function Inner() {
               </div>
             </div>
             <div className="overflow-y-auto flex-1 min-h-0">
+              <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-gray-200 text-gray-500">
@@ -399,6 +400,7 @@ function Inner() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
             <p className="text-xs text-gray-400">Generated: {statement.generated_at} · {statement.store_name}</p>
             <button onClick={() => setStatement(null)} className="btn-outline w-full text-sm">Close</button>
