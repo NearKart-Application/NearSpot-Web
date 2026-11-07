@@ -24,6 +24,7 @@ import {
   User,
   BarChart2,
   CalendarCheck,
+  Flag,
 } from 'lucide-react';
 import { auth } from '../../../lib/auth';
 
@@ -55,6 +56,7 @@ const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
   user:         User,
   reports:      BarChart2,
   reservations: CalendarCheck,
+  flag:         Flag,
 };
 
 const NAV_ALL: NavItem[] = [
@@ -69,6 +71,7 @@ const NAV_ALL: NavItem[] = [
   { label: 'Coupons',           href: '/admin/coupons',             icon: 'ticket' },
   { label: 'Website Requests',  href: '/admin/website-requests',    icon: 'globe' },
   { label: 'Reservations',      href: '/admin/reservations',        icon: 'reservations' },
+  { label: 'Moderation',        href: '/admin/moderation',          icon: 'flag' },
   { label: 'Activity Log',      href: '/admin/activity-log',        icon: 'clipboard' },
   { label: 'Stock Change Log',  href: '/admin/stock-logs',          icon: 'history' },
   { label: 'Login Logs',        href: '/admin/login-logs',          icon: 'login' },
